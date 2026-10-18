@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+.DS_Store
+.venv/
+# raw downloads (UCI Online Retail II etc.). Derived, small tables under data/derived/ ARE committed.
+data/raw/
+apps/web/dist/
+coverage/
+playwright-report/
+test-results/

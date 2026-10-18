@@ -1,0 +1,17 @@
+{
+  "name": "right-on-time",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Right on Time: text-message delivery pacing demo for Classic Cup Coffee (UGA AI Society x PwC case competition).",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {},
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}
