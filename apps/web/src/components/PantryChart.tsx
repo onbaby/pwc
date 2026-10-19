@@ -20,7 +20,7 @@ export function PantryChart({ thread, showWindow, showNew }: { thread: Thread; s
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="mb-1 text-[0.95rem] font-semibold leading-snug">
-        {showWindow && thread.explanation ? thread.explanation.rangeTitle : `Coffee left in ${thread.name}'s pantry never reaches zero: ${piles.length ? `deliveries landed with ${pileText} still on the shelf` : "a stockpile builds up"}`}
+        {showWindow && thread.explanation ? thread.explanation.rangeTitle : piles.length ? `Coffee left in ${thread.name}'s pantry never reaches zero: deliveries landed with ${pileText} still on the shelf` : `Coffee left in ${thread.name}'s pantry: one delivery so far, so no history to learn from yet`}
       </div>
       <div className="text-[0.72rem] text-muted">
         Coffee left in {thread.name}'s pantry, in days (synthetic truth). Fixed schedule: every {Math.round((thread.oldArrival - thread.lastDelivery) / 7)} weeks.
