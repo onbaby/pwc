@@ -7,11 +7,20 @@
   "engines": {
     "node": ">=24"
   },
-  "scripts": {},
+  "scripts": {
+    "sim": "tsx packages/core/src/sim/cli.ts",
+    "backtest": "tsx packages/core/src/backtest/cli.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "pnpm --parallel --filter @rot/server --filter @rot/web dev",
+    "build:web": "pnpm --filter @rot/web build",
+    "demo": "pnpm build:web && tsx apps/server/src/main.ts"
+  },
   "devDependencies": {
     "@types/node": "^26.6.5",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.0.5"
-  }
+  },
+  "packageManager": "pnpm@12.4.2"
 }

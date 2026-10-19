@@ -106,6 +106,8 @@ export const ExplanationCardSchema = z.object({
   rangeTitle: z.string(),
 });
 
+export type ExplanationCard = z.infer<typeof ExplanationCardSchema>;
+
 export const PantryPointSchema = z.object({
   day: DaySchema,
   /** synthetic truth: days of coffee left under the schedule as it was before any change */
