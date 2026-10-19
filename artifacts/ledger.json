@@ -1,0 +1,140 @@
+[
+ {
+  "parameter": "Median days a delivery lasts, by source (in-cafe / website / social / gift / referral)",
+  "value": "64 / 66 / 78 / 74 / 60",
+  "range": "±20% (tornado)",
+  "source": "ASSUMPTION, set so Fixed ships about 7 deliveries per active subscriber-year; Exhibits give no consumption data"
+ },
+ {
+  "parameter": "Effect of signup answers on log days",
+  "value": "−0.25 per extra cup/day, −0.15 per extra household member (vs 2)",
+  "range": "n/a",
+  "source": "ASSUMPTION"
+ },
+ {
+  "parameter": "25% of signup answers are misreported",
+  "value": "25%",
+  "range": "n/a",
+  "source": "ASSUMPTION"
+ },
+ {
+  "parameter": "Between-person spread of days a delivery lasts (τ_pop)",
+  "value": "0.30",
+  "range": "0.2–0.45",
+  "source": "ASSUMPTION"
+ },
+ {
+  "parameter": "Delivery-to-delivery variation (σ_b)",
+  "value": "0.15",
+  "range": "0.1–0.3",
+  "source": "ASSUMPTION"
+ },
+ {
+  "parameter": "Cadence choice under Fixed",
+  "value": "nearest of 4/6/8/12 weeks in log distance to the true rate; error ε ~ N(−0.10, 0.15²); fixed for life",
+  "range": "mean −0.30 … +0.10 (tornado)",
+  "source": "ASSUMPTION; the range includes 0 and a positive value (people who under-order)"
+ },
+ {
+  "parameter": "Daily pace noise",
+  "value": "iid multiplicative, sd 0.02",
+  "range": "n/a",
+  "source": "ASSUMPTION; the engine assumes ν = 0.10 per √month, so the world is misspecified on purpose"
+ },
+ {
+  "parameter": "Life events (travel, guests)",
+  "value": "8% per month start; 14–35 days; pace × 0.4; no overlap",
+  "range": "0–15%",
+  "source": "ASSUMPTION; the engine has no such term (misspecification on purpose)"
+ },
+ {
+  "parameter": "Customer-initiated skip",
+  "value": "25% when ≥ 21 days of coffee on hand at delivery; the skipped delivery is not shipped or charged",
+  "range": "0–50%",
+  "source": "ASSUMPTION"
+ },
+ {
+  "parameter": "Reply probability (counted reply within 5 days)",
+  "value": "base 45%; × 0.8 if > 14 days left, × 1.2 if 3–14, × 1.5 if ≤ 3 (not state-independent)",
+  "range": "base 20 / 45 / 70% (grid)",
+  "source": "ASSUMPTION; first thing the pilot measures"
+ },
+ {
+  "parameter": "Reply content",
+  "value": "weeks left = round(true days left × exp(N(0, 0.35²)) / 7), clipped 0–12; 10% garbage (uniform 0–12)",
+  "range": "accuracy sd 0.25 / 0.35 / 0.50 (grid)",
+  "source": "ASSUMPTION; the engine assumes sd 0.35 and 10% garbage (same constants file)"
+ },
+ {
+  "parameter": "Sooner proposal accepted (needs explicit YES)",
+  "value": "60%",
+  "range": "30–90%",
+  "source": "ASSUMPTION"
+ },
+ {
+  "parameter": "Later proposal reverted (default-accepted moves)",
+  "value": "5%",
+  "range": "0–20%",
+  "source": "ASSUMPTION"
+ },
+ {
+  "parameter": "Share of cancellations caused by stockpiles, φ (in-cafe, website only by default)",
+  "value": "0.40 marker",
+  "range": "0–100 (the one slider)",
+  "source": "NOT identified by Exhibit C; to be measured in the pilot"
+ },
+ {
+  "parameter": "Extra churn hazard after a stock-out, λ",
+  "value": "0.5 (× (1+λ) for 30 days after 3 consecutive days with no coffee)",
+  "range": "0–1.5",
+  "source": "ASSUMPTION"
+ },
+ {
+  "parameter": "Roast-to-door",
+  "value": "5 days",
+  "range": "n/a",
+  "source": "ASSUMPTION, used only for the freshness metric"
+ },
+ {
+  "parameter": "Program cost",
+  "value": "$2 per active subscriber-year (texts + care time)",
+  "range": "$0.5–6",
+  "source": "PLACEHOLDER, unverified; first client question"
+ },
+ {
+  "parameter": "Deliveries per active subscriber-year under Fixed",
+  "value": "about 7",
+  "range": "5–9 (checked by a test)",
+  "source": "Exhibits give no figure: new-cohort sub-years ≈ 3,973; $1.3m / $35.47 AOV ≈ 36,650 orders (at most ≈ 9.2 per new-cohort sub-year; 5–6 if older cohorts contribute)"
+ },
+ {
+  "parameter": "Service level for Paced",
+  "value": "q = 0.10 (Balanced), grace 3 days; Cautious 0.05, Aggressive 0.20",
+  "range": "0.05 / 0.10 / 0.20 (grid)",
+  "source": "Design choice"
+ },
+ {
+  "parameter": "Confidence thresholds",
+  "value": "High: fresh reply and (q90+1)/(q10+1) ≤ 1.6; Medium ≤ 2.6; else Not yet sure",
+  "range": "parameters",
+  "source": "Design choice"
+ },
+ {
+  "parameter": "Default-accept guardrails not modelled in the simulator",
+  "value": "December freeze and 'replied in the last two cycles' are not modelled; every simulated subscriber is pay-as-you-go with ≥ 2 deliveries before any move",
+  "range": "n/a",
+  "source": "Simplification"
+ },
+ {
+  "parameter": "Expedite offer (LOW or 0-week reply)",
+  "value": "not credited in the simulator: late-delivery shares are conservative",
+  "range": "n/a",
+  "source": "Simplification"
+ },
+ {
+  "parameter": "Ceiling policy",
+  "value": "knows the exact pantry every cycle, always replies, accepts every proposal; same ±14-day and [21, 84]-day rules as Paced; target = run-out − 1.5 days (the latest weekly ship day that is not late)",
+  "range": "n/a",
+  "source": "Design choice (upper bound for this mechanism)"
+ }
+]

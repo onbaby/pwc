@@ -1,0 +1,28 @@
+{
+ "model": {
+  "sources": [
+   "in_cafe",
+   "website",
+   "social",
+   "gift",
+   "referral"
+  ],
+  "beta": [
+   4.038292,
+   4.05617,
+   4.121079,
+   4.083387,
+   3.994675,
+   -0.061143,
+   -0.041315,
+   0.868341
+  ],
+  "tau": 0.194067,
+  "sigmaB": 0.152375
+ },
+ "trainedOn": {
+  "subscribers": 4000,
+  "seed": 20261018,
+  "note": "Layer A fitted on a synthetic training split (subscriber indices never scored). Synthetic, not client data."
+ }
+}
