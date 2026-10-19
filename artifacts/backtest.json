@@ -2,6 +2,7 @@
  "protocol": {
   "path": "packages/core/src/backtest/PROTOCOL.md",
   "commit": "b675ef16b811c266318a152d7e0f707e344756fd",
+  "committedAt": "2026-10-18",
   "committedBeforeRun": true,
   "cutoffDay": 365
  },

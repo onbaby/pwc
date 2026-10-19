@@ -199,7 +199,7 @@ export const BacktestRowSchema = z.object({
 export type BacktestRow = z.infer<typeof BacktestRowSchema>;
 
 export const BacktestArtifactSchema = z.object({
-  protocol: z.object({ path: z.string(), commit: z.string(), committedBeforeRun: z.boolean(), cutoffDay: z.number().int() }),
+  protocol: z.object({ path: z.string(), commit: z.string(), committedAt: z.string().optional(), committedBeforeRun: z.boolean(), cutoffDay: z.number().int() }),
   dataset: z.object({ name: z.string(), citation: z.string(), license: z.string(), seriesSha256: z.string() }),
   splits: z.object({
     fitCustomers: z.number().int(),

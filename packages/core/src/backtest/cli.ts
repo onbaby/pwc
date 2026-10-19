@@ -26,13 +26,14 @@ if (!commit) {
   process.exit(1);
 }
 
+const committedAt = git("log", "-1", "--format=%cI", "--", protocolRel).slice(0, 10);
 const meta = JSON.parse(readFileSync(resolve(root, "data/derived/meta.json"), "utf8")) as { dataset: string; citation: string; license: string; series_csv_sha256: string };
 const series = loadSeries(resolve(root, "data/derived/series.csv"));
 console.log(`protocol commit ${commit.slice(0, 10)}; ${series.length} series`);
 
 const result = runBacktest({
   series,
-  protocol: { path: protocolRel, commit, committedBeforeRun: true, cutoffDay: CUTOFF_DAY },
+  protocol: { path: protocolRel, commit, committedAt, committedBeforeRun: true, cutoffDay: CUTOFF_DAY },
   dataset: { name: meta.dataset, citation: meta.citation, license: meta.license, seriesSha256: meta.series_csv_sha256 },
 });
 const parsed = BacktestArtifactSchema.parse(roundDeep(result));
