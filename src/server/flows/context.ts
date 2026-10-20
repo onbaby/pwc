@@ -6,7 +6,8 @@ export type ConsoleEvent =
   | { type: "projection"; customerId: string }
   | { type: "queue" }
   | { type: "offer"; offerId: number }
-  | { type: "clock"; now: number };
+  | { type: "clock"; now: number }
+  | { type: "toast"; message: string };
 
 export interface Channel {
   name: "photon" | "console" | "replay";

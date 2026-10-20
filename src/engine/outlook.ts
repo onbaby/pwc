@@ -19,8 +19,9 @@ export interface OutlookCustomer {
   tenureDays: number;
   /** chance this customer skips a delivery that would otherwise arrive (stockpiled customers skip more) */
   skipProb: number;
-  /** probability a pending staff-approval move shifts the date later by 7 days (0 when none) */
-  pendingLaterProb?: number;
+  /** a move waiting for staff approval: the date shifts by this many days with this probability */
+  pendingShiftDays?: number;
+  pendingProb?: number;
 }
 
 export interface OutlookWeek {
@@ -65,7 +66,7 @@ export function computeOutlook(customers: readonly OutlookCustomer[], today: Day
     const counts = new Array<number>(weeksAhead).fill(0);
     for (const c of customers) {
       let day = c.nextDelivery;
-      if (c.pendingLaterProb && r.next() < c.pendingLaterProb) day += 7;
+      if (c.pendingShiftDays && c.pendingProb && r.next() < c.pendingProb) day += c.pendingShiftDays;
       let alive = true;
       let last = today;
       while (alive && day <= wednesdays[weeksAhead - 1]!) {

@@ -182,7 +182,11 @@ export function advanceClock(ctx: AppCtx, targetMs: number): { sent: number } {
         // a queued text (reminder, an offer riding on one, a quiet-hours deferral)
         const res = sendText(ctx, { customerId: nextMsg.customer_id, body: nextMsg.body, kind: nextMsg.kind, reasonCode: nextMsg.reason_code ?? "REMINDER", snapshot: JSON.parse(nextMsg.snapshot) as WhySnapshot, offerId: nextMsg.offer_id, at: nextMsg.at, reuseMessageId: nextMsg.id });
         if ("blocked" in res) updateMessage(ctx, nextMsg.id, { status: "skipped", snapshot: { ...(JSON.parse(nextMsg.snapshot) as WhySnapshot), reasonChip: `Not sent: ${res.blocked}` } });
-        else if (nextMsg.offer_id) run(db, "UPDATE offer_assignments SET message_id = ? WHERE offer_id = ? AND customer_id = ?", nextMsg.id, nextMsg.offer_id, nextMsg.customer_id);
+        else if (nextMsg.offer_id) {
+          run(db, "UPDATE offer_assignments SET message_id = ? WHERE offer_id = ? AND customer_id = ?", nextMsg.id, nextMsg.offer_id, nextMsg.customer_id);
+          run(db, "UPDATE offers SET status = 'Running' WHERE id = ? AND status = 'Scheduled'", nextMsg.offer_id);
+          ctx.emit({ type: "offer", offerId: nextMsg.offer_id });
+        }
       }
       sent++;
     } else {

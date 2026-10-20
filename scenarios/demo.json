@@ -1,0 +1,10 @@
+{
+  "name": "Right on Time: the 7-minute demo",
+  "note": "Sandbox clock: Sun Oct 18, 2026, 9:00 am (America/New_York). One advance per press of Ctrl+Alt+Right. Every date and time here is data; no screen types a date.",
+  "clock": { "day": "2026-10-18", "time": "09:00" },
+  "events": [
+    { "id": "checkins", "label": "10:00 · the morning's check-ins go out", "type": "advance", "day": "2026-10-18", "time": "10:00" },
+    { "id": "maya-reply", "label": "10:02 · Maya replies “6”", "type": "inject", "customerId": "maya-thompson", "text": "6", "day": "2026-10-18", "time": "10:02" },
+    { "id": "priya-text", "label": "10:20 · Priya writes (free text)", "type": "inject", "customerId": "priya-shah", "text": "heading to Denver till Nov 2", "day": "2026-10-18", "time": "10:20" }
+  ]
+}

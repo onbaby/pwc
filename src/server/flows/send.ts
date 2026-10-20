@@ -95,10 +95,18 @@ export function sendText(ctx: AppCtx, t: OutText): SendResult {
 
 /** Hand the text to the channel; the status moves to delivered or failed when it answers. */
 export function dispatch(ctx: AppCtx, id: number, customerId: string, body: string): void {
+  // the database may have been closed (shutdown, tests) by the time the channel answers: never let that throw
+  const settle = (status: "delivered" | "failed"): void => {
+    try {
+      updateMessage(ctx, id, { status });
+    } catch {
+      /* closed */
+    }
+  };
   void ctx.channel
     .send(customerId, body)
-    .then((r) => updateMessage(ctx, id, { status: r.delivered ? "delivered" : "failed" }))
-    .catch(() => updateMessage(ctx, id, { status: "failed" }));
+    .then((r) => settle(r.delivered ? "delivered" : "failed"))
+    .catch(() => settle("failed"));
 }
 
 // ---- views of messages ------------------------------------------------------------------------------------------
