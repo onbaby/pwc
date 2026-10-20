@@ -431,6 +431,18 @@ Roles: **A** engine + outlook · **B** server, database, flows, offers, Photon �
 | Jargon on primary screens; "very likely" overstated the 80% band | "Why we sent this" in plain English with Technical details; band labelled "likely" (§3.2, §7.3) |
 | "Start from scratch" vs v3 already built | New project from scratch, with an optional copy of v3 modules shown in the estimate (header, §15) |
 
+**v4.1 → v4.2: back to the team's original idea** (the pitch: DTC is the channel to back; its growth is first-time subscribers who don't stay; freshness is why a subscription beats the grocery shelf and the cafe; time each bag so it is "not too early and not too late", delaying it for holidays or slow drinking; a smart QR code on the bag turns grocery buyers into subscribers):
+
+| Gap in v4.1 | Added in v4.2 | Where |
+|---|---|---|
+| Freshness, the reason the product exists, appeared nowhere on screen (only inside the simulator) | **Freshness at the cup**: how many days after roasting each bag is opened (5 days roast-to-door + median days on hand at arrival), banded by the case's 2–4 week window; "late" if the pantry empties first. Original vs moved vs proposed date on the profile; a Today tile; an order-history column. Read-only: explains a date, never changes the rule | `engine/freshness.ts`; projection gains `daysPerBag`, `deliveredCount` (engine 4.2.0) |
+| "Delay for holidays" was only a freeze on automatic moves | **Holiday travel windows** (Thanksgiving Mon–Sun, Dec 21 – Jan 2, computed per year). The check-in for a delivery landing in one adds "Away? Reply AWAY" (no extra text); AWAY holds it until the Wednesday after (a customer's own request, so the freeze doesn't block it); OLD undoes; a hold past 12 weeks goes to a person | `shared/holidays.ts`, `copy.ts`, `flows/inbound.ts` |
+| No path from grocery shelf to subscription | **Bag QR**: lot-coded QR on retail bags → a public page with the bag's roast date and age → sign-up with a rhythm suggestion from two answers, double opt-in for texts, attributed to lot and store. A console page with scans, sign-ups and shelf age at scan by store (a sell-through signal grocery never had). One page on the existing website: no app, no login | `server/qr.ts`, `pages/BagQr.tsx`, `pages/QrLanding.tsx`; tables `retail_accounts`, `retail_lots`, `qr_scans`, `qr_signups` |
+| "Why DTC" lived only on a slide | **Why DTC** card (Exhibit A: 5% share, 61% margin, +14% = 2× wholesale cafes, 3.5× company; Exhibit C: 6,622 of 8,670 new subscribers a year gone within 12 months) and an **opportunity calculator** (keep X% more + convert Y% of grocery buyers) computed from Exhibits A–C | `shared/opportunity.ts`, Impact |
+| — | **Fresher at the cup?** card: the simulator's average coffee age at the cup (fixed ≈ 60, paced ≈ 58, perfect ≈ 54 days). Honest: timing alone buys days on average; it fixes the bag that waits a month before opening; bag size is the other lever | Impact |
+
+Honest notes: QR scan and sign-up rates are labelled assumptions; the grocery half of the calculator turns on "bags per buyer per year" (no exhibit gives it; 12 by default ⇒ ≈ $276K/yr at 10% + 5%; the pitch's ≈ $140K needs ≈ 40). New attack rows: *"Isn't the QR page a portal?"* → one page on the existing site, no login, ends in the same subscription; *"Fresher how?"* → the profile's opened-at age, and the Impact card's honest average.
+
 ---
 
 ## Appendix A: Demo scenario (`scenarios/demo.json`)

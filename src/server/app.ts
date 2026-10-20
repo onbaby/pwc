@@ -4,7 +4,7 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { computeOutlook, type OutlookCustomer } from "../engine/outlook.ts";
 import type { Projection } from "../engine/project.ts";
-import { ENGINE, EXHIBITS, LEDGER, RULES, SOURCES, SOURCE_LABEL, WORLD, type Source } from "../shared/constants.ts";
+import { ENGINE, EXHIBITS, FRESHNESS, LEDGER, QR, RULES, SOURCES, SOURCE_LABEL, WORLD, type Source } from "../shared/constants.ts";
 import { dayFromISO, etInstant, etParts, fmtDay, fmtMonthDay, isoFromDay, MS_DAY, weekday, type Day } from "../shared/dates.ts";
 import type { CustomerRow } from "../shared/types.ts";
 import { COPY } from "./copy.ts";
@@ -17,6 +17,10 @@ import { toDTO } from "./flows/send.ts";
 import { approveOffer, createOffer, draftOf, listOffers, offerResults, parseAudience, pauseOffer, previewOffer, runSensorChecks, scheduleOffer, updateOffer } from "./offers/lifecycle.ts";
 import { OFFER_TYPES, type OfferDraft, type OfferRow } from "./offers/types.ts";
 import { buildProfile } from "./profile.ts";
+import { lotPublic, qrSignup, qrSummary, recordScan } from "./qr.ts";
+import { freshnessFromProjection, type FreshnessStatus } from "../engine/freshness.ts";
+import { upcomingHolidayWindows } from "../shared/holidays.ts";
+import { whyDtc } from "../shared/opportunity.ts";
 import { approvals, goingOutToday, listCustomers, needsPerson, runningOutSoon } from "./queries.ts";
 import type { Sandbox } from "./sandbox.ts";
 import type { Hub } from "./sse.ts";
@@ -109,11 +113,30 @@ function kpis(db: Db, today: Day, now: number, ctx: AppCtx) {
   const personPrev = get<{ n: number }>(db, "SELECT COUNT(*) AS n FROM messages WHERE status IN ('needs_person','resolved') AND at <= ? AND (resolved_at IS NULL OR resolved_at > ?)", prevNow, prevNow)?.n ?? 0;
   const o = outlook(db, ctx);
   return {
+    freshness: freshnessKpi(db, today),
     active: { value: active, prev: activePrev },
     deliveriesThisWeek: { value: delivThis, prev: delivPrev, sparkline: o.weeks.map((w) => w.deliveries.p50) },
     checkInsToday: { value: checkToday, prev: checkPrev },
     waitingForPerson: { value: person, prev: personPrev },
   };
+}
+
+/** How fresh the bags arriving in the next four weeks will be when opened (model median), from stored projections. */
+function freshnessKpi(db: Db, today: Day) {
+  const rows = all<{ scheduled_date: string; pjson: string }>(
+    db,
+    `SELECT MIN(d.scheduled_date) AS scheduled_date, p.json AS pjson FROM customers c JOIN deliveries d ON d.customer_id = c.id AND d.status = 'scheduled' JOIN projections p ON p.customer_id = c.id
+      WHERE c.status NOT IN ('CANCELLED') GROUP BY c.id HAVING MIN(d.scheduled_date) <= ?`,
+    isoFromDay(today + 28),
+  );
+  const counts: Record<FreshnessStatus, number> = { best: 0, peak: 0, past_peak: 0, late: 0 };
+  for (const r of rows) {
+    const p = JSON.parse(r.pjson) as Projection;
+    if (p.daysPerBag === undefined || p.deliveredCount === undefined) continue;
+    counts[freshnessFromProjection(p, dayFromISO(r.scheduled_date)).status]++;
+  }
+  const total = counts.best + counts.peak + counts.past_peak + counts.late;
+  return { total, counts, atPeakShare: total ? (counts.best + counts.peak) / total : 0, peakEndDays: FRESHNESS.peakEndDays };
 }
 
 // The outlook is a Monte Carlo over the whole base: cache it per (day, number of events/messages) until something changes.
@@ -339,7 +362,32 @@ export function createApp(s: ServerCtx): Hono {
       exhibits: { sources: EXHIBITS.sources, labels: SOURCE_LABEL, newSubsPerYear: EXHIBITS.dtc.newSubsPerYear },
       pilot: { status: "Not started", weeks: RULES.pilotWeeks, minReplyRate: RULES.pilotMinReplyRate, freezeFrom: dayFromISO(RULES.freezeFromISO), freezeTo: dayFromISO(RULES.freezeToISO), decemberIndex: EXHIBITS.monthlyIndex[11] },
       offerExperiments: offers,
+      whyDtc: whyDtc(),
+      opportunityDefaults: { retentionLift: 0.1, groceryConversion: 0.05, bagsPerBuyerPerYear: QR.bagsPerBuyerPerYear },
+      freshness: { bestByDays: FRESHNESS.bestByDays, peakEndDays: FRESHNESS.peakEndDays, roastToDoorDays: WORLD.roastToDoorDays },
     });
+  });
+
+  // ---- Bag QR: the console page, and the public page a grocery buyer opens from the bag ---------------------------
+  app.get("/api/qr", (c) => c.json(qrSummary(db)));
+  app.get("/api/qr/lots/:code", (c) => {
+    const l = lotPublic(db, c.req.param("code"));
+    return l ? c.json(l) : c.json({ error: "not found" }, 404);
+  });
+  app.post("/api/qr/scan", async (c) => {
+    const code = str((await body(c)).code, 40);
+    const r = code ? recordScan(ctx, code) : undefined;
+    return r ? c.json({ ok: true, ...r }) : c.json({ ok: false, error: "Unknown bag." }, 404);
+  });
+  app.post("/api/qr/signup", async (c) => {
+    const b = await body(c);
+    const scanId = num(b.scanId);
+    const code = str(b.code, 40);
+    const name = str(b.name, 120);
+    const phone = str(b.phone, 40);
+    if (scanId === undefined || !code || name === undefined || phone === undefined) return c.json({ ok: false, error: "Please fill in every field." }, 400);
+    const r = qrSignup(ctx, { scanId, code, name, phone, cups: num(b.cups) ?? 0, people: num(b.people) ?? 0, rhythmDays: num(b.rhythmDays) ?? 0, consentDelivery: b.consentDelivery === true, consentOffers: b.consentOffers === true });
+    return c.json(r, r.ok ? 200 : 400);
   });
 
   // ---- Settings (static, read-only) ----------------------------------------------------------------------------
@@ -353,6 +401,8 @@ export function createApp(s: ServerCtx): Hono {
       consentTexts: { delivery: COPY.consentDelivery(), offers: COPY.consentOffers() },
       standingHoldout: { share: RULES.globalHoldoutShare, months: RULES.globalHoldoutMonths, members: get<{ n: number }>(db, "SELECT COUNT(*) AS n FROM global_holdout")?.n ?? 0 },
       engineVersion: ENGINE.version,
+      holidays: upcomingHolidayWindows(todayOf(db)),
+      freshness: { bestByDays: FRESHNESS.bestByDays, peakEndDays: FRESHNESS.peakEndDays, roastToDoorDays: WORLD.roastToDoorDays },
       environment: "Sandbox · sample data",
     }),
   );

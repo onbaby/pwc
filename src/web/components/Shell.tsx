@@ -10,6 +10,7 @@ const NAV: Array<{ id: string; label: string }> = [
   { id: "customers", label: "Customers" },
   { id: "inbox", label: "Inbox" },
   { id: "offers", label: "Offers" },
+  { id: "qr", label: "Bag QR" },
   { id: "outlook", label: "Roast outlook" },
   { id: "impact", label: "Impact" },
 ];

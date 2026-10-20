@@ -13,8 +13,14 @@ export const COPY = {
     `${BRAND}: want occasional offers by automated text? At most one a month, added to a delivery text you'd get anyway. Consent isn't required to buy. Msg & data rates may apply. Reply YES to join. Reply NO OFFERS anytime to stop offers only, STOP to stop all texts, HELP for help.`,
   checkIn: (v: { name: string }) =>
     `Hi ${v.name}, ${BRAND} here. So your next delivery lands when you need it: about how many weeks of coffee do you have left? Reply a number (0 = out).`,
+  checkInHoliday: (v: { name: string; holiday: string }) =>
+    `Hi ${v.name}, ${BRAND} here. So your next delivery lands when you need it: about how many weeks of coffee do you have left? Reply a number (0 = out). Away for ${v.holiday}? Reply AWAY and it waits until you're back.`,
+  newSubscriberHoliday: (v: { name: string; holiday: string }) =>
+    `Hi ${v.name}, ${BRAND} here. How's your first coffee going? About how many weeks do you have left? We won't change your schedule until you tell us. Away for ${v.holiday}? Reply AWAY and it waits until you're back.`,
   laterMove: (v: { name: string; weeks: number; old: Day; new: Day }) =>
-    `${v.name}, you said about ${v.weeks} weeks left, so we've moved your delivery from ${fmtDay(v.old)} to ${fmtDay(v.new)}. Nothing to do. Want ${fmtDay(v.old)} instead? Reply OLD.`,
+    `${v.name}, you said about ${v.weeks} weeks left, so we've moved your delivery from ${fmtDay(v.old)} to ${fmtDay(v.new)}, so it's fresh when you open it. Nothing to do. Want ${fmtDay(v.old)} instead? Reply OLD.`,
+  away: (v: { holiday: string; old: Day; new: Day }) =>
+    `Got it: enjoy ${v.holiday}. We'll hold your ${fmtDay(v.old)} delivery and bring it ${fmtDay(v.new)}, freshly roasted, once you're back. Reply OLD to keep ${fmtDay(v.old)}.`,
   reminder: (v: { new: Day }) => `Your coffee arrives ${fmtDay(v.new)}. Running low? Reply SOONER.`,
   reminderRotation: (v: { new: Day }) =>
     `Your coffee arrives ${fmtDay(v.new)}. Want a different Athens roast each delivery, same price? Reply ROTATE. Running low? Reply SOONER. No more offers? Reply NO OFFERS.`,

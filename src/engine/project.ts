@@ -53,6 +53,10 @@ export interface Projection {
   runOut: RunOut;
   runOutDates: { lo: Day; mid: Day; hi: Day };
   medianOnHand: number;
+  /** days one bag lasts this customer: posterior median of exp(theta) */
+  daysPerBag: number;
+  /** completed deliveries as of asOfDay */
+  deliveredCount: number;
   confidence: Confidence;
   ratio: number;
   holdingOff: boolean;
@@ -74,6 +78,19 @@ export function eventsOf(ctx: CustomerContext): FilterEvent[] {
 }
 
 const round1 = (x: number) => Math.round(x * 10) / 10;
+
+/** Weighted median of exp(theta): the days one delivery lasts at the customer's usual pace. */
+function medianDaysPerBag(st: { theta: Float64Array; w: Float64Array }): number {
+  const order = Array.from(st.theta.keys()).sort((a, b) => st.theta[a]! - st.theta[b]!);
+  let total = 0;
+  for (let m = 0; m < st.w.length; m++) total += st.w[m]!;
+  let acc = 0;
+  for (const m of order) {
+    acc += st.w[m]!;
+    if (acc >= total / 2) return Math.exp(st.theta[m]!);
+  }
+  return Math.exp(st.theta[order[order.length - 1]!]!);
+}
 
 export interface ComputeOptions {
   /** also evaluate every possible reply 0..12 (a dozen extra filter runs; use for one customer, not the whole base) */
@@ -103,6 +120,7 @@ export function computeProjection(ctx: CustomerContext, env: EngineEnv, today: D
   const [q05, q10, q33, q50, q90, qService] = f.quantiles([0.05, 0.1, 0.33, 0.5, 0.9, qCaut]) as [number, number, number, number, number, number];
   const runOut: RunOut = { q05, q10, q33, q50, q90 };
   const confidence = confidenceOf(q10, q90, fresh);
+  const daysPerBag = medianDaysPerBag(f.state());
 
   const decideFor = (rOut: RunOut, conf: Confidence, qSvc: number, replyFresh: boolean): DecisionOut =>
     decide({
@@ -150,6 +168,8 @@ export function computeProjection(ctx: CustomerContext, env: EngineEnv, today: D
     runOut: { q05: round1(q05), q10: round1(q10), q33: round1(q33), q50: round1(q50), q90: round1(q90) },
     runOutDates: { lo: today + Math.round(q10), mid: today + Math.round(q50), hi: today + Math.round(q90) },
     medianOnHand: round1(q50),
+    daysPerBag: round1(daysPerBag),
+    deliveredCount: ctx.deliveredDays.filter((d) => d <= today).length,
     confidence,
     ratio: Math.round(ratioOf(q10, q90) * 100) / 100,
     holdingOff: decision.holdingOff,

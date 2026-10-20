@@ -1,6 +1,7 @@
 import type { Source } from "./constants.ts";
 import type { Confidence } from "../engine/decision.ts";
 import type { Projection } from "../engine/project.ts";
+import type { Freshness } from "../engine/freshness.ts";
 
 /** Types shared by the server and the web app (API payloads and database rows). Days are "days since 1970-01-01". */
 
@@ -74,6 +75,8 @@ export interface WhySnapshot {
   amount?: number;
   /** a sooner text the customer has answered YES to */
   confirmed?: boolean;
+  /** a check-in for a delivery landing in a holiday travel window also asked "Away? Reply AWAY" */
+  holiday?: string;
   /** which consent a consent text asks for */
   consentFor?: "delivery" | "offers";
 }
@@ -123,6 +126,8 @@ export interface DeliveryDTO {
   items: string;
   /** model's estimate of days on hand when it arrived (null if unknown) */
   daysOnHandAtArrival: number | null;
+  /** about how many days after roasting this bag was opened: roast-to-door + days on hand at arrival */
+  openedAtAge: number | null;
 }
 
 export interface CustomerProfile {
@@ -145,8 +150,14 @@ export interface CustomerProfile {
     signupAnswers: SignupAnswers;
     inPilot: boolean;
     heldUntil: number | null;
+    /** arrived through a grocery bag's QR code */
+    acquisition: { lot: string; roast: string; store: string; at: number; ageAtScan: number } | null;
+    /** the next delivery lands in a holiday travel window */
+    holiday: string | null;
   };
   projection: Projection | null;
+  /** how fresh the next bag is when opened: on its current date, on the original date (if moved) and on a pending proposal */
+  freshness: { next: Freshness | null; original: Freshness | null; proposed: Freshness | null };
   pantry: {
     title: string;
     deliveries: Array<{ day: number }>;

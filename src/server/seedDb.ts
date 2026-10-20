@@ -12,6 +12,7 @@ import { handleInbound, handleWeeks } from "./flows/inbound.ts";
 import { expireStaleApprovals, queueCycle } from "./flows/schedule.ts";
 import { insertMessage } from "./flows/send.ts";
 import { seedOffers } from "./offers/seedOffers.ts";
+import { seedQr } from "./qr.ts";
 import { audit, customerRow, GLOBAL_SEED, projectionOf, recomputeAll, SANDBOX_START, setNow } from "./store.ts";
 
 /**
@@ -99,6 +100,9 @@ export function seedDatabase(db: Db, data?: SeedData): SeedReport {
       if (hash32("global-holdout", r.id) % 100 < RULES.globalHoldoutShare * 100) run(db, "INSERT INTO global_holdout(customer_id, assigned_at, until_at) VALUES (?,?,?)", r.id, SANDBOX_START(), until);
     }
 
+    // the bag QR pilot: lots shipped to twelve grocery accounts, scans, and the website sign-ups that came through a bag
+    seedQr(db, TODAY, SANDBOX_START());
+
     recomputeAll(db, false);
 
     // queue everything the next delivery needs (check-ins 10 days before, reminders 3 days before)
@@ -167,7 +171,7 @@ export function seedDatabase(db: Db, data?: SeedData): SeedReport {
 /** A sorted checksum of every table's content, so two seeds can be compared (spec 14). */
 export function databaseChecksum(db: Db): string {
   const h = createHash("sha256");
-  for (const t of ["customers", "deliveries", "events", "messages", "projections", "offers", "offer_assignments", "global_holdout", "settings"]) {
+  for (const t of ["customers", "deliveries", "events", "messages", "projections", "offers", "offer_assignments", "global_holdout", "settings", "retail_accounts", "retail_lots", "qr_scans", "qr_signups"]) {
     h.update(t);
     const n = all(db, `PRAGMA table_info(${t})`).length;
     const order = Array.from({ length: n }, (_, i) => i + 1).join(", ");
