@@ -161,10 +161,10 @@ export function createApp(s: ServerCtx): Hono {
     c.header("Cache-Control", "no-cache");
     c.header("X-Accel-Buffering", "no");
     return streamSSE(c, async (stream) => {
-      await stream.writeSSE({ event: "snapshot", data: JSON.stringify({ now: nowMs(db), id: hub.lastId }) });
       let closed = false;
       const queue: Array<{ id: number } & Record<string, unknown>> = [];
       let wake: (() => void) | undefined;
+      // subscribe first, so nothing that happens right after the snapshot is missed
       const unsub = hub.subscribe((e) => {
         queue.push(e as never);
         wake?.();
@@ -174,6 +174,7 @@ export function createApp(s: ServerCtx): Hono {
         unsub();
         wake?.();
       });
+      await stream.writeSSE({ event: "snapshot", data: JSON.stringify({ now: nowMs(db), id: hub.lastId }) });
       while (!closed) {
         while (queue.length) {
           const e = queue.shift()!;
