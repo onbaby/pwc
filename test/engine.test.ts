@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { confidenceOf, decide, ratioOf, type DecisionInput } from "../src/engine/decision.ts";
 import { checkLines, pantryTitle, whySentSentence } from "../src/engine/explain.ts";
-import { replyLikelihood, runFilter, type FilterEvent } from "../src/engine/pantryFilter.ts";
+import { PantryTracker, replyLikelihood, runFilter, type FilterEvent } from "../src/engine/pantryFilter.ts";
 import { computeProjection, type CustomerContext, type EngineEnv } from "../src/engine/project.ts";
 import type { PriorModel } from "../src/engine/prior.ts";
 import { SOURCES } from "../src/shared/constants.ts";
@@ -100,8 +100,8 @@ describe("pantry filter", () => {
     for (let i = 0; i < 30; i++) ev.push({ type: "reply", day: today - 39 + i, weeks: i % 2 ? 12 : 0 }, { type: "skip", day: today - 39 + i });
     const f = runFilter({ prior: mayaPrior, seed: SEED, events: ev, asOf: today });
     for (const q of f.quantiles([0.05, 0.5, 0.95])) expect(Number.isFinite(q)).toBe(true);
-    expect(Array.from(f.w).every((x) => Number.isFinite(x) && x > 0)).toBe(true);
-    expect(Array.from(f.w).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 9);
+    expect(Array.from(f.state().w).every((x) => Number.isFinite(x) && x > 0)).toBe(true);
+    expect(Array.from(f.state().w).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 9);
   });
   it("one wrong '0' after a good reply does not drive the posterior to the edge", () => {
     const ev: FilterEvent[] = [
@@ -125,6 +125,26 @@ describe("pantry filter", () => {
         prev = p.runOut.q50;
       }
     }
+  });
+  it("the incremental tracker gives exactly the same answer as replaying the log", () => {
+    const ev: FilterEvent[] = [
+      { type: "delivery", day: today - 70 },
+      { type: "delivery", day: today - 42 },
+      { type: "reply", day: today - 32, weeks: 4 },
+      { type: "delivery", day: today - 14 },
+      { type: "skip", day: today - 3 },
+      { type: "reply", day: today, weeks: 3 },
+    ];
+    const a = runFilter({ prior: mayaPrior, seed: SEED, events: ev, asOf: today });
+    const tr = new PantryTracker(mayaPrior, SEED, today - 70);
+    for (const e of ev) {
+      tr.advance(e.type === "hold" ? e.from : e.day);
+      if (e.type === "delivery") tr.deliver();
+      else if (e.type === "reply") tr.reply(e.weeks);
+      else if (e.type === "skip") tr.skip();
+    }
+    tr.advance(today);
+    expect(tr.quantiles([0.05, 0.1, 0.5, 0.9])).toEqual(a.quantiles([0.05, 0.1, 0.5, 0.9]));
   });
   it("a staff hold pauses consumption", () => {
     const ev: FilterEvent[] = [{ type: "delivery", day: today - 5 }];

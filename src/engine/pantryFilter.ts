@@ -30,20 +30,6 @@ export interface FilterOptions {
   sigmaB?: number;
 }
 
-export interface FilterResult {
-  asOf: Day;
-  R: Float64Array;
-  theta: Float64Array;
-  /** normalised weights */
-  w: Float64Array;
-  ess: number;
-  resamples: number;
-  /** weighted quantile of days on hand (first hypothesis whose cumulative weight reaches q) */
-  quantile(q: number): number;
-  quantiles(qs: readonly number[]): number[];
-  meanR(): number;
-}
-
 /** P(reply = w | R): the reply is round(R e^z / 7) with z ~ N(0, sigma^2), mixed with a flat garbage term (spec 7.2). */
 export function replyLikelihood(w: number, R: number, sigmaObs: number = ENGINE.sigmaObs, garbage: number = ENGINE.garbage): number {
   const Rp = Math.max(R, ENGINE.rMinForLikelihood);
@@ -75,45 +61,71 @@ export interface RunInput {
   options?: FilterOptions;
 }
 
-/** Run the filter over an event log. The result is a pure function of the log (counter-based randomness). */
-export function runFilter(input: RunInput): FilterResult {
-  const M = input.options?.particles ?? ENGINE.particles;
-  const sigmaObs = input.options?.sigmaObs ?? ENGINE.sigmaObs;
-  const garbage = input.options?.garbage ?? ENGINE.garbage;
-  const nu = input.options?.nu ?? ENGINE.nu;
-  const sigmaB = input.options?.sigmaB ?? ENGINE.sigmaB;
-  const seed = input.seed;
+/**
+ * The incremental tracker behind runFilter. Events must be fed in chronological order (deliveries before skips before
+ * replies on the same day). The simulator uses it directly; runFilter replays a whole log through it, so both give
+ * identical numbers for the same log (tested).
+ */
+export class PantryTracker {
+  readonly M: number;
+  private readonly sigmaObs: number;
+  private readonly garbage: number;
+  private readonly nu: number;
+  private readonly sigmaB: number;
+  private readonly seed: number;
+  private theta: Float64Array;
+  private R: Float64Array;
+  private logw: Float64Array;
+  private w: Float64Array;
+  private t: Day;
+  private advanceCount = 0;
+  private evIndex = 0;
+  private holds: Array<{ from: Day; to: Day }> = [];
+  ess: number;
+  resamples = 0;
 
-  const ordered = orderEvents(input.events);
-  const holds = holdWindows(input.events);
-  const theta = new Float64Array(M);
-  let R = new Float64Array(M);
-  const logw = new Float64Array(M);
-  const w = new Float64Array(M).fill(1 / M);
-  for (let m = 0; m < M; m++) theta[m] = input.prior.mu + input.prior.tau * zN(seed, 1, m, 0);
+  constructor(prior: ThetaPrior, seed: number, startDay: Day, options: FilterOptions = {}) {
+    this.M = options.particles ?? ENGINE.particles;
+    this.sigmaObs = options.sigmaObs ?? ENGINE.sigmaObs;
+    this.garbage = options.garbage ?? ENGINE.garbage;
+    this.nu = options.nu ?? ENGINE.nu;
+    this.sigmaB = options.sigmaB ?? ENGINE.sigmaB;
+    this.seed = seed;
+    this.t = startDay;
+    this.theta = new Float64Array(this.M);
+    this.R = new Float64Array(this.M);
+    this.logw = new Float64Array(this.M);
+    this.w = new Float64Array(this.M).fill(1 / this.M);
+    this.ess = this.M;
+    for (let m = 0; m < this.M; m++) this.theta[m] = prior.mu + prior.tau * zN(seed, 1, m, 0);
+  }
 
-  let t: Day = ordered.length ? ordered[0]!.day : input.asOf;
-  let advanceCount = 0;
-  let resamples = 0;
-  let thetaArr = theta;
-  let ess = M;
+  get day(): Day {
+    return this.t;
+  }
 
-  const deplete = (len: number, held: boolean, counter: number): void => {
+  setHolds(holds: ReadonlyArray<{ from: Day; to: Day }>): void {
+    this.holds = holds.map((h) => ({ ...h }));
+  }
+
+  private deplete(len: number, held: boolean, counter: number): void {
     if (len <= 0) return;
-    const spread = nu * Math.sqrt(len / 30);
+    const spread = this.nu * Math.sqrt(len / 30);
+    const { M, R, seed } = this;
     for (let m = 0; m < M; m++) {
       const z = zN(seed, 3, counter, m);
       if (held) R[m] = R[m]! * Math.exp(ENGINE.holdNuMultiplier * spread * z);
       else R[m] = Math.max(R[m]! - len * Math.exp(spread * z), 0);
     }
-  };
+  }
 
-  const advance = (to: Day): void => {
-    if (to <= t) return;
+  /** Move to `to`, removing coffee at about one day per day (paused inside staff holds, with the range widened). */
+  advance(to: Day): void {
+    if (to <= this.t) return;
     const segs: Array<{ len: number; held: boolean }> = [];
-    let cur = t;
-    const wins = holds
-      .map((h) => ({ from: Math.max(h.from, t), to: Math.min(h.to, to) }))
+    let cur = this.t;
+    const wins = this.holds
+      .map((h) => ({ from: Math.max(h.from, this.t), to: Math.min(h.to, to) }))
       .filter((h) => h.to > h.from)
       .sort((a, b) => a.from - b.from);
     for (const h of wins) {
@@ -124,11 +136,34 @@ export function runFilter(input: RunInput): FilterResult {
       cur = h.to;
     }
     if (to > cur) segs.push({ len: to - cur, held: false });
-    for (const s of segs) deplete(s.len, s.held, advanceCount++);
-    t = to;
-  };
+    for (const s of segs) this.deplete(s.len, s.held, this.advanceCount++);
+    this.t = to;
+  }
 
-  const finishObservation = (): void => {
+  /** A delivery lands: it adds about exp(theta) days of coffee. */
+  deliver(): void {
+    const { M, R, theta, seed } = this;
+    for (let m = 0; m < M; m++) R[m] = R[m]! + Math.exp(theta[m]! + this.sigmaB * zN(seed, 2, this.evIndex, m));
+    this.evIndex++;
+  }
+
+  /** "About how many weeks of coffee do you have left?" (0-12). */
+  reply(weeks: number): void {
+    const wk = Math.max(0, Math.min(12, Math.round(weeks)));
+    for (let m = 0; m < this.M; m++) this.logw[m] = this.logw[m]! + Math.log(replyLikelihood(wk, this.R[m]!, this.sigmaObs, this.garbage));
+    this.evIndex++;
+    this.finishObservation();
+  }
+
+  /** The customer skipped a delivery while holding 21+ days of coffee (soft constraint R > 21). */
+  skip(): void {
+    for (let m = 0; m < this.M; m++) this.logw[m] = this.logw[m]! + Math.log(this.R[m]! > ENGINE.skipThresholdDays ? ENGINE.skipWeightHigh : ENGINE.skipWeightLow);
+    this.evIndex++;
+    this.finishObservation();
+  }
+
+  private finishObservation(): void {
+    const { M, logw, w, seed } = this;
     let max = -Infinity;
     for (let m = 0; m < M; m++) if (logw[m]! > max) max = logw[m]!;
     let sum = 0;
@@ -145,55 +180,37 @@ export function runFilter(input: RunInput): FilterResult {
       logw[m] = Math.log(wi);
       s2 += wi * wi;
     }
-    ess = 1 / s2;
-    if (ess < M * ENGINE.resampleFraction) {
-      // systematic resampling with jitter on theta and R
-      const cum = new Float64Array(M);
-      let acc = 0;
-      for (let m = 0; m < M; m++) {
-        acc += w[m]!;
-        cum[m] = acc;
-      }
-      const u0 = uN(seed, 4, resamples, 0);
-      const nt = new Float64Array(M);
-      const nr = new Float64Array(M);
-      let j = 0;
-      for (let m = 0; m < M; m++) {
-        const u = ((u0 + m) / M) * acc;
-        while (j < M - 1 && cum[j]! < u) j++;
-        nt[m] = thetaArr[j]! + ENGINE.thetaJitter * zN(seed, 5, resamples, m);
-        nr[m] = Math.max(R[j]! + ENGINE.rJitterDays * zN(seed, 6, resamples, m), 0);
-      }
-      thetaArr = nt;
-      R = nr;
-      w.fill(1 / M);
-      logw.fill(0);
-      resamples++;
-      ess = M;
+    this.ess = 1 / s2;
+    if (this.ess >= M * ENGINE.resampleFraction) return;
+    // systematic resampling with jitter on theta and R
+    const cum = new Float64Array(M);
+    let acc = 0;
+    for (let m = 0; m < M; m++) {
+      acc += w[m]!;
+      cum[m] = acc;
     }
-  };
-
-  let evIndex = 0;
-  for (const e of ordered) {
-    if (e.day > input.asOf) break;
-    advance(e.day);
-    if (e.type === "delivery") {
-      for (let m = 0; m < M; m++) R[m] = R[m]! + Math.exp(thetaArr[m]! + sigmaB * zN(seed, 2, evIndex, m));
-    } else if (e.type === "skip") {
-      for (let m = 0; m < M; m++) logw[m] = logw[m]! + Math.log(R[m]! > ENGINE.skipThresholdDays ? ENGINE.skipWeightHigh : ENGINE.skipWeightLow);
-      finishObservation();
-    } else {
-      const wk = Math.max(0, Math.min(12, Math.round(e.weeks)));
-      for (let m = 0; m < M; m++) logw[m] = logw[m]! + Math.log(replyLikelihood(wk, R[m]!, sigmaObs, garbage));
-      finishObservation();
+    const u0 = uN(seed, 4, this.resamples, 0);
+    const nt = new Float64Array(M);
+    const nr = new Float64Array(M);
+    let j = 0;
+    for (let m = 0; m < M; m++) {
+      const u = ((u0 + m) / M) * acc;
+      while (j < M - 1 && cum[j]! < u) j++;
+      nt[m] = this.theta[j]! + ENGINE.thetaJitter * zN(seed, 5, this.resamples, m);
+      nr[m] = Math.max(this.R[j]! + ENGINE.rJitterDays * zN(seed, 6, this.resamples, m), 0);
     }
-    evIndex++;
+    this.theta = nt;
+    this.R = nr;
+    w.fill(1 / M);
+    logw.fill(0);
+    this.resamples++;
+    this.ess = M;
   }
-  advance(input.asOf);
 
-  const sortedIdx = (): Uint32Array => Uint32Array.from({ length: M }, (_, i) => i).sort((a, b) => R[a]! - R[b]!);
-  const quantiles = (qs: readonly number[]): number[] => {
-    const order = sortedIdx();
+  /** Weighted quantiles of days on hand (the first hypothesis whose cumulative weight reaches q). */
+  quantiles(qs: readonly number[]): number[] {
+    const { M, R, w } = this;
+    const order = Uint32Array.from({ length: M }, (_, i) => i).sort((a, b) => R[a]! - R[b]!);
     const cw = new Float64Array(M);
     let acc = 0;
     for (let k = 0; k < M; k++) {
@@ -211,21 +228,55 @@ export function runFilter(input: RunInput): FilterResult {
       }
       return R[order[lo]!]!;
     });
-  };
+  }
+
+  quantile(q: number): number {
+    return this.quantiles([q])[0]!;
+  }
+
+  meanR(): number {
+    let s = 0;
+    for (let m = 0; m < this.M; m++) s += this.w[m]! * this.R[m]!;
+    return s;
+  }
+
+  /** Raw state for diagnostics and tests. */
+  state(): { R: Float64Array; theta: Float64Array; w: Float64Array } {
+    return { R: this.R, theta: this.theta, w: this.w };
+  }
+}
+
+export interface FilterResult {
+  asOf: Day;
+  ess: number;
+  resamples: number;
+  quantile(q: number): number;
+  quantiles(qs: readonly number[]): number[];
+  meanR(): number;
+  state(): { R: Float64Array; theta: Float64Array; w: Float64Array };
+}
+
+/** Run the filter over an event log. The result is a pure function of the log (counter-based randomness). */
+export function runFilter(input: RunInput): FilterResult {
+  const ordered = orderEvents(input.events);
+  const tracker = new PantryTracker(input.prior, input.seed, ordered.length ? ordered[0]!.day : input.asOf, input.options);
+  tracker.setHolds(holdWindows(input.events));
+  for (const e of ordered) {
+    if (e.day > input.asOf) break;
+    tracker.advance(e.day);
+    if (e.type === "delivery") tracker.deliver();
+    else if (e.type === "skip") tracker.skip();
+    else tracker.reply(e.weeks);
+  }
+  tracker.advance(input.asOf);
   return {
     asOf: input.asOf,
-    R,
-    theta: thetaArr,
-    w,
-    ess,
-    resamples,
-    quantile: (q) => quantiles([q])[0]!,
-    quantiles,
-    meanR: () => {
-      let s = 0;
-      for (let m = 0; m < M; m++) s += w[m]! * R[m]!;
-      return s;
-    },
+    ess: tracker.ess,
+    resamples: tracker.resamples,
+    quantile: (q) => tracker.quantile(q),
+    quantiles: (qs) => tracker.quantiles(qs),
+    meanR: () => tracker.meanR(),
+    state: () => tracker.state(),
   };
 }
 
