@@ -150,13 +150,48 @@ CREATE TABLE IF NOT EXISTS audit_log (
 );
 CREATE INDEX IF NOT EXISTS idx_audit_customer ON audit_log(customer_id, at);
 
+CREATE TABLE IF NOT EXISTS retail_accounts (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  city TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  bags_per_week INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS retail_lots (
+  code TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL,
+  roast TEXT NOT NULL,
+  roast_date TEXT NOT NULL,
+  shipped_date TEXT NOT NULL,
+  bags INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_lots_account ON retail_lots(account_id, shipped_date);
+
+CREATE TABLE IF NOT EXISTS qr_scans (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  lot_code TEXT NOT NULL,
+  at INTEGER NOT NULL,
+  customer_id TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_scans_lot ON qr_scans(lot_code, at);
+CREATE INDEX IF NOT EXISTS idx_scans_at ON qr_scans(at);
+
+CREATE TABLE IF NOT EXISTS qr_signups (
+  customer_id TEXT PRIMARY KEY,
+  scan_id INTEGER NOT NULL,
+  lot_code TEXT NOT NULL,
+  phone TEXT,
+  at INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
 `;
 
-const TABLES = ["customers", "deliveries", "events", "messages", "projections", "offers", "offer_assignments", "experiment_membership", "global_holdout", "notes", "audit_log", "settings"] as const;
+const TABLES = ["customers", "deliveries", "events", "messages", "projections", "offers", "offer_assignments", "experiment_membership", "global_holdout", "notes", "audit_log", "settings", "retail_accounts", "retail_lots", "qr_scans", "qr_signups"] as const;
 
 export function openDb(path: string): Db {
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });

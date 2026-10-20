@@ -1,6 +1,10 @@
 import { PantryTracker } from "../engine/pantryFilter.ts";
 import { priorFor } from "../engine/prior.ts";
 import { pantryTitle } from "../engine/explain.ts";
+import { freshnessFromProjection } from "../engine/freshness.ts";
+import { WORLD } from "../shared/constants.ts";
+import { holidayWindowFor } from "../shared/holidays.ts";
+import { acquisitionOf } from "./qr.ts";
 import { dayFromISO, etParts, type Day } from "../shared/dates.ts";
 import type { CustomerProfile, DeliveryDTO } from "../shared/types.ts";
 import { all, type Db } from "./db.ts";
@@ -55,7 +59,7 @@ export function buildProfile(db: Db, id: string): CustomerProfile | undefined {
       const before = estimate.filter((e) => e.day < arrival).pop();
       onHand = before ? before.days : null;
     }
-    return { id: d.id, scheduledDate: dayFromISO(d.scheduled_date), deliveredDate: arrival, status: d.status, size: d.size, price: d.price, items: d.items, daysOnHandAtArrival: onHand };
+    return { id: d.id, scheduledDate: dayFromISO(d.scheduled_date), deliveredDate: arrival, status: d.status, size: d.size, price: d.price, items: d.items, daysOnHandAtArrival: onHand, openedAtAge: onHand !== null ? Math.round(WORLD.roastToDoorDays + onHand) : null };
   });
 
   const activity = all<{ at: number; action: string; data: string }>(db, "SELECT at, action, data FROM audit_log WHERE customer_id = ? ORDER BY at DESC, id DESC LIMIT 25", id).map((a) => ({ at: a.at, text: activityText(a.action, a.data) }));
@@ -83,8 +87,15 @@ export function buildProfile(db: Db, id: string): CustomerProfile | undefined {
       signupAnswers: answersOf(c),
       inPilot: !!c.in_pilot,
       heldUntil: c.held_until ? dayFromISO(c.held_until) : null,
+      acquisition: acquisitionOf(db, id),
+      holiday: next ? (holidayWindowFor(next.day)?.name ?? null) : null,
     },
     projection: p,
+    freshness: {
+      next: next ? freshnessFromProjection(p, next.day) : null,
+      original: next && base !== null && base !== next.day ? freshnessFromProjection(p, base) : null,
+      proposed: proposed !== null && proposed !== next?.day ? freshnessFromProjection(p, proposed) : null,
+    },
     pantry: {
       title: hasReplies ? pantryTitle(mid, lo, hi) : "No replies yet: projection based on similar customers",
       deliveries: ctx.deliveredDays.map((day) => ({ day })),
@@ -124,6 +135,8 @@ function activityText(action: string, data: string): string {
     no_offers: "Customer replied NO OFFERS",
     offer_accepted: "Customer accepted an offer",
     sooner_yes: "Customer said YES to a sooner delivery",
+    away: "Customer is away for a holiday: delivery held",
+    qr_signup: "Subscribed from a grocery bag QR code",
   };
   void d;
   return map[action] ?? action.replaceAll("_", " ");

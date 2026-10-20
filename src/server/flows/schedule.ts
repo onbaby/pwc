@@ -1,5 +1,6 @@
 import { ENGINE } from "../../shared/constants.ts";
 import { dayFromISO, etInstant, etParts, isoFromDay, type Day } from "../../shared/dates.ts";
+import { holidayWindowFor } from "../../shared/holidays.ts";
 import { hash32 } from "../../shared/rng.ts";
 import type { CustomerRow, MessageRow, WhySnapshot } from "../../shared/types.ts";
 import { all, get, run, type Db } from "../db.ts";
@@ -93,9 +94,13 @@ export function sendQueuedCheckIn(ctx: AppCtx, row: MessageRow): void {
   const today = etParts(nowMs(db)).day;
   const completed = deliveredDays(db, c.id, today).length;
   const first = c.name.split(" ")[0]!;
-  const body = completed < 2 ? COPY.newSubscriber({ name: first }) : COPY.checkIn({ name: first });
+  const next = nextScheduled(db, c.id);
+  const holiday = next ? holidayWindowFor(next.day) : undefined;
+  const body = holiday
+    ? completed < 2 ? COPY.newSubscriberHoliday({ name: first, holiday: holiday.name }) : COPY.checkInHoliday({ name: first, holiday: holiday.name })
+    : completed < 2 ? COPY.newSubscriber({ name: first }) : COPY.checkIn({ name: first });
   const prior = JSON.parse(row.snapshot) as WhySnapshot;
-  let snap: WhySnapshot = { ...prior };
+  let snap: WhySnapshot = { ...prior, ...(holiday ? { holiday: holiday.name } : {}) };
   try {
     const p = projectionOf(db, c.id);
     const lo = Math.round(p.runOut.q10);
@@ -107,7 +112,9 @@ export function sendQueuedCheckIn(ctx: AppCtx, row: MessageRow): void {
       checks: [],
       technical: { runOutDays: p.runOut, ratio: p.ratio, engineVersion: p.engineVersion },
       reasonChip: completed < 2 ? "New subscriber check-in" : lo <= 21 ? `Check-in: likely runs out in ${lo}–${hi} days` : prior.reasonChip,
+      ...(holiday ? { holiday: holiday.name } : {}),
     };
+    if (holiday) snap.reasonChip = `${snap.reasonChip ?? "Check-in"} · asks if away for ${holiday.name}`;
     // High confidence last time: check in every other delivery
     if (p.confidence === "High" && c.checkin_cycles_skipped === 0 && completed >= 2) {
       run(db, "UPDATE customers SET checkin_cycles_skipped = 1 WHERE id = ?", c.id);

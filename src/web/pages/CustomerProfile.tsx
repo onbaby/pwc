@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { WEDNESDAY, dayFromISO, isoFromDay, weekday } from "../../shared/dates.ts";
-import { SOURCE_LABEL } from "../../shared/constants.ts";
+import { FRESHNESS, SOURCE_LABEL, WORLD } from "../../shared/constants.ts";
 import type { CustomerProfile as Profile } from "../../shared/types.ts";
 import { HOW_SURE_KEY } from "../../engine/explain.ts";
+import { FRESHNESS_LABEL, type Freshness } from "../../engine/freshness.ts";
 import { post, toast, useApi } from "../api.tsx";
 import { MessageThread } from "../components/MessageThread.tsx";
 import { PantryChart } from "../components/PantryChart.tsx";
@@ -79,6 +80,52 @@ function ActionModal({ id, kind, profile, onClose }: { id: string; kind: Exclude
   );
 }
 
+function FreshTile({ title, f, tone }: { title: string; f: Freshness; tone: "muted" | "main" }) {
+  const cls = f.status === "best" || f.status === "peak" ? "ok" : f.status === "late" ? "bad" : "warn";
+  return (
+    <div className={`rounded-lg border p-3 ${tone === "main" ? "border-espresso" : "border-line"}`}>
+      <div className="text-[13px] text-muted">{title}</div>
+      <div className="text-[16px] font-semibold">{fmtDay(f.arrival)}</div>
+      {f.status === "late" ? (
+        <div className="tnum mt-1 text-[14px]">Out of coffee about {f.daysWithout} days before it arrives</div>
+      ) : (
+        <div className="tnum mt-1 text-[14px]">
+          Opened about <b>{f.openedAtAge} days</b> after roasting; last cup at about {f.lastCupAge} days
+        </div>
+      )}
+      <span className={`chip ${cls} mt-2`}>{FRESHNESS_LABEL[f.status]}</span>
+    </div>
+  );
+}
+
+function FreshnessCard({ p }: { p: Profile }) {
+  const f = p.freshness;
+  if (!f.next) return null;
+  const before = f.original;
+  const after = f.proposed;
+  const first = p.customer.name.split(" ")[0]!;
+  const sentence = before
+    ? `Moving it means ${first}'s next bag is opened about ${before.openedAtAge - f.next.openedAtAge} days fresher.`
+    : after
+      ? `The proposed date would open it about ${f.next.openedAtAge - after.openedAtAge} days fresher.`
+      : f.next.status === "past_peak"
+        ? `On this date the bag waits behind about ${f.next.onHandAtArrival} days of coffee: a reply would let us move it.`
+        : `On this date the bag is opened inside the 2–4 week peak.`;
+  return (
+    <Card>
+      <h2 className="m-0 mb-1 text-[20px] font-semibold text-espresso">Freshness at the cup</h2>
+      <div className="mb-3 text-[13px] text-muted">Roasted to order, at the door {WORLD.roastToDoorDays} days later, opened when the coffee ahead of it runs out. Best within {FRESHNESS.bestByDays} days of roasting; past peak after {FRESHNESS.peakEndDays}.</div>
+      <div className={`grid gap-3 ${before || after ? "grid-cols-2" : "grid-cols-1"}`}>
+        {before && <FreshTile title="Original date" f={before} tone="muted" />}
+        <FreshTile title={before ? "Now" : "Next delivery"} f={f.next} tone="main" />
+        {after && <FreshTile title="Proposed" f={after} tone="muted" />}
+      </div>
+      <div className="mt-3 text-[14px]">{sentence}</div>
+      <div className="mt-1 text-[12px] text-muted">The model's median estimate; one bag lasts {first} about {p.projection ? Math.round(p.projection.daysPerBag) : "–"} days.</div>
+    </Card>
+  );
+}
+
 export function CustomerProfile({ id }: { id: string }) {
   const { data: p } = useApi<Profile & { error?: string }>(`/api/customers/${id}`);
   const [modal, setModal] = useState<ActionKind>(null);
@@ -102,6 +149,12 @@ export function CustomerProfile({ id }: { id: string }) {
               {c.state === "OPTED_OUT" && <span className="chip bad">Texts stopped</span>}
               {c.state === "CANCELLED" && <span className="chip bad">Cancelled</span>}
               {c.state === "HELD" && <span className="chip warn">Held until {c.heldUntil ? fmtMonthDay(c.heldUntil) : ""}</span>}
+              {c.acquisition && (
+                <span className="chip plum" title={`Scanned lot ${c.acquisition.lot} (${c.acquisition.roast}) at ${c.acquisition.store}; the bag was ${c.acquisition.ageAtScan} days from roasting`}>
+                  Via bag QR · {c.acquisition.store}
+                </span>
+              )}
+              {c.holiday && <span className="chip warn" title="The check-in asks if they're away; AWAY holds the delivery until they're back">Next delivery lands over {c.holiday}</span>}
             </div>
             <div className="mt-1 text-[14px] text-muted">
               Member since {fmtMonthDay(c.memberSince)} · {SOURCE_LABEL[c.source]} sign-up · {c.plan} · {c.city} · Next delivery <b className="text-ink">{c.nextDelivery ? fmtDay(c.nextDelivery) : "none scheduled"}</b>
@@ -132,6 +185,7 @@ export function CustomerProfile({ id }: { id: string }) {
             <div className="mb-2 text-[13px] text-muted">Days of coffee on hand · {p.pantry.empty ?? "labelled directly on the chart"}</div>
             <PantryChart pantry={p.pantry} />
           </Card>
+          <FreshnessCard p={p} />
           <Card>
             <h2 className="m-0 mb-3 text-[20px] font-semibold text-espresso">Messages</h2>
             <MessageThread messages={p.messages} />
@@ -150,6 +204,7 @@ export function CustomerProfile({ id }: { id: string }) {
                     <th>Price</th>
                     <th>Status</th>
                     <th title="The model's estimate of coffee left just before it arrived">Est. days on hand at arrival</th>
+                    <th title="Roast to door plus the coffee ahead of it: about how old the bag was when opened">Opened after roasting</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -163,6 +218,7 @@ export function CustomerProfile({ id }: { id: string }) {
                         <span className={`chip ${d.status === "delivered" ? "ok" : d.status === "scheduled" ? "" : "warn"}`}>{d.status[0]!.toUpperCase() + d.status.slice(1)}</span>
                       </td>
                       <td className="tnum">{d.daysOnHandAtArrival !== null ? `${nf(d.daysOnHandAtArrival)} days` : "–"}</td>
+                      <td className="tnum">{d.openedAtAge !== null ? <span className={d.openedAtAge > FRESHNESS.peakEndDays ? "text-orange-ink" : ""}>~{d.openedAtAge} days</span> : "–"}</td>
                     </tr>
                   ))}
                 </tbody>

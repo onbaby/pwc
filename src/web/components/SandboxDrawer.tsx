@@ -103,6 +103,13 @@ export function SandboxDrawer({ onClose }: { onClose: () => void }) {
           <div className="mt-1 text-[12px] text-muted">Replay: scripted replies. Console: type replies above. Live: real iMessage on a team phone (falls back to replay after 5 s).</div>
         </section>
         <section>
+          <div className="mb-1 text-[13px] font-semibold text-muted">Be a grocery shopper</div>
+          <button className="btn" disabled={busy} onClick={() => run(async () => { const r = await api<{ latestLots: Array<{ code: string }> }>("/api/qr"); const code = r.latestLots[0]?.code; if (code) window.open(`#/q/${code}`, "_blank"); })}>
+            Open the newest bag's QR page
+          </button>
+          <div className="mt-1 text-[12px] text-muted">Opens what a phone shows after scanning a bag in a store, in a new tab.</div>
+        </section>
+        <section>
           <div className="mb-1 text-[13px] font-semibold text-muted">Move the clock</div>
           <div className="flex gap-2">
             {[1, 24, 48].map((h) => (

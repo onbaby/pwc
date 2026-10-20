@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, XAxis, YAxis } from "recharts";
-import { EXHIBITS } from "../../shared/constants.ts";
+import { CHANNELS, EXHIBITS, GROCERY, QR, SOURCE_LABEL, type Source } from "../../shared/constants.ts";
+import { opportunity, type whyDtc } from "../../shared/opportunity.ts";
 import type { Day } from "../../shared/dates.ts";
 import type { ImpactArtifact } from "../../sim/impact.ts";
 import { useApi } from "../api.tsx";
@@ -29,9 +30,12 @@ interface ImpactDTO {
   impact: ImpactArtifact | null;
   backtest: Backtest | null;
   ledger: Array<{ parameter: string; value: string; range: string; source: string }>;
-  exhibits: { newSubsPerYear: number };
+  exhibits: { newSubsPerYear: number; sources: Record<Source, { newSubs: number; ret90: number; ret12: number; aov: number; reason: string }> };
   pilot: { status: string; weeks: number; minReplyRate: number; freezeFrom: Day; freezeTo: Day; decemberIndex: number };
   offerExperiments: Array<{ id: number; name: string; status: string; statusLine: string; sends: number }>;
+  whyDtc: ReturnType<typeof whyDtc>;
+  opportunityDefaults: { retentionLift: number; groceryConversion: number; bagsPerBuyerPerYear: number };
+  freshness: { bestByDays: number; peakEndDays: number; roastToDoorDays: number };
 }
 
 const CAFE_WEB_SIGNUPS = EXHIBITS.sources.in_cafe.newSubs + EXHIBITS.sources.website.newSubs;
@@ -234,16 +238,167 @@ function BacktestCard({ b }: { b: Backtest | null }) {
   );
 }
 
+function WhyDtcCard({ w, sources }: { w: ImpactDTO["whyDtc"]; sources: ImpactDTO["exhibits"]["sources"] }) {
+  return (
+    <Card>
+      <SectionTitle>Why direct to consumer?</SectionTitle>
+      <p className="m-0 mb-3 max-w-[900px] text-[16px] font-medium">
+        The smallest channel ({pct(w.dtc.share)} of revenue) has the best margin ({pct(w.dtc.grossMargin)}) and grows fastest: +{pct(w.dtc.growth)}, {nf(w.growthMultiple.vsWholesaleCafes, 1)}× wholesale to cafes and {nf(w.growthMultiple.vsCompany, 1)}× the company. Classic Cup sees every DTC transaction and controls the schedule completely.
+      </p>
+      <div className="grid grid-cols-12 gap-5">
+        <table className="col-span-7">
+          <thead>
+            <tr>
+              <th>Channel (Exhibit A, FY25)</th>
+              <th className="text-right">Revenue</th>
+              <th className="text-right">Share</th>
+              <th className="text-right">Gross margin</th>
+              <th className="text-right">Growth</th>
+            </tr>
+          </thead>
+          <tbody>
+            {w.channels.map((c) => (
+              <tr key={c.id} className={`row ${c.id === "dtc" ? "font-semibold text-espresso" : ""}`}>
+                <td>{c.label}</td>
+                <td className="tnum text-right">{usd(c.revenueUSD / 1e6, 1)}m</td>
+                <td className="tnum text-right">{pct(c.share)}</td>
+                <td className="tnum text-right">{pct(c.grossMargin)}</td>
+                <td className="tnum text-right">{c.growth > 0 ? "+" : c.growth < 0 ? "−" : ""}{pct(Math.abs(c.growth))}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="col-span-5">
+          <div className="rounded-lg bg-cream p-3 text-[14px]">
+            <div className="text-[13px] text-muted">The catch: growth is first-time subscribers who don't stay</div>
+            <div className="tnum mt-1 text-[20px] font-semibold text-espresso">{nf(w.lostWithinYear)} of {nf(w.newSubs)}</div>
+            <div className="text-muted">new subscribers a year are gone within twelve months ({pct(w.ret90)} kept at 90 days, {pct(w.ret12, 1)} at a year).</div>
+          </div>
+          <table className="mt-2">
+            <thead>
+              <tr>
+                <th>Sign-up source (Exhibit C)</th>
+                <th className="text-right">90 days</th>
+                <th>Top cancel reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(Object.keys(sources) as Source[]).map((k) => (
+                <tr key={k}>
+                  <td className="text-[13px]">{SOURCE_LABEL[k]} · {nf(sources[k].newSubs)}</td>
+                  <td className="tnum text-right text-[13px]">{pct(sources[k].ret90)}</td>
+                  <td className="text-[13px] text-muted">{sources[k].reason}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div className="mt-3 text-[13px] text-muted">The fix has two halves: keep the first-timers (deliveries timed to when they run out, so coffee isn't piling up or going stale) and bring in more of them from the grocery shelf (the bag QR code).</div>
+    </Card>
+  );
+}
+
+function OpportunityCard({ defaults }: { defaults: ImpactDTO["opportunityDefaults"] }) {
+  const [lift, setLift] = useState(defaults.retentionLift);
+  const [conv, setConv] = useState(defaults.groceryConversion);
+  const [bags, setBags] = useState(defaults.bagsPerBuyerPerYear);
+  const o = opportunity({ retentionLift: lift, groceryConversion: conv, bagsPerBuyerPerYear: bags });
+  const d = o.detail;
+  const slider = (label: string, value: string, input: React.ReactNode, note: string) => (
+    <label className="block text-[14px]">
+      <span className="mb-1 flex justify-between text-muted">
+        <span>{label}</span>
+        <b className="tnum text-ink">{value}</b>
+      </span>
+      {input}
+      <span className="text-[12px] text-muted">{note}</span>
+    </label>
+  );
+  return (
+    <Card>
+      <SectionTitle>What it could be worth</SectionTitle>
+      <p className="m-0 mb-3 max-w-[900px] text-[16px] font-medium">
+        Keep {pct(lift)} more subscribers and convert {pct(conv, 1)} of grocery buyers, and Classic Cup adds about {usd(o.totalGP)} in gross profit a year, with no new stores, no extra sales headcount and no price increase.
+      </p>
+      <div className="grid grid-cols-12 gap-5">
+        <div className="col-span-5 space-y-3">
+          {slider("Subscribers kept: more than today", pct(lift), <input type="range" min={0} max={0.3} step={0.01} value={lift} onChange={(e) => setLift(Number(e.target.value))} className="w-full accent-[#643A2B]" aria-label="Relative increase in subscribers kept" />, "What pacing and offers must deliver; the pilot measures it.")}
+          {slider("Grocery buyers who subscribe in a year", pct(conv, 1), <input type="range" min={0} max={0.1} step={0.005} value={conv} onChange={(e) => setConv(Number(e.target.value))} className="w-full accent-[#643A2B]" aria-label="Share of grocery buyers who subscribe" />, "What the bag QR funnel must deliver.")}
+          {slider("Grocery bags per buyer per year", nf(bags), <input type="range" min={6} max={48} step={1} value={bags} onChange={(e) => setBags(Number(e.target.value))} className="w-full accent-[#643A2B]" aria-label="Grocery bags per buyer per year" />, "Assumption: turns Exhibit B pounds into buyers. Fewer bags each means more buyers.")}
+        </div>
+        <div className="col-span-7 grid grid-cols-2 gap-3 text-[14px]">
+          <div className="rounded-lg bg-cream p-3">
+            <div className="text-[13px] text-muted">Keeping more subscribers</div>
+            <div className="tnum text-[20px] font-semibold text-espresso">{usd(o.retentionGP)}</div>
+            <div className="text-[13px] text-muted">{pct(lift)} of today's DTC gross profit ({usd(d.dtcGrossProfit)}: Exhibit A revenue × {pct(EXHIBITS.dtc.grossMargin)} margin).</div>
+          </div>
+          <div className="rounded-lg bg-cream p-3">
+            <div className="text-[13px] text-muted">Grocery buyers who subscribe</div>
+            <div className="tnum text-[20px] font-semibold text-espresso">{usd(o.groceryGP)}</div>
+            <div className="text-[13px] text-muted">
+              {nf(d.converts)} new subscribers × {usd(d.netPerConvert)} each in their first year.
+            </div>
+          </div>
+          <div className="col-span-2 rounded-lg border border-line p-3 text-[13px] text-muted">
+            <div>
+              Grocery volume (Exhibit B): {GROCERY.regionalChains.accounts} regional chains × {nf(GROCERY.regionalChains.lbsPerMonth)} lb + {GROCERY.independents.accounts} independents × {GROCERY.independents.lbsPerMonth} lb a month = {nf(d.groceryLbsPerYear)} lb a year ≈ {nf(d.groceryBags)} 12-oz bags ≈ {nf(d.buyers)} buyers at {nf(d.bagsPerBuyer)} bags each.
+            </div>
+            <div className="mt-1">
+              A new subscriber behaves like a website sign-up (Exhibit C): subscribed {pct(d.activeShare)} of the first year ≈ {nf(d.deliveries, 1)} deliveries × {usd(EXHIBITS.sources[QR.cohortLike].aov)} × {pct(EXHIBITS.dtc.grossMargin)} = {usd(d.dtcGPPerConvert)}, minus the {usd(d.lostGroceryGPPerConvert)} of grocery margin those bags would have earned ({usd(d.groceryRevenuePerBag, 2)} a bag × {pct(CHANNELS.find((c) => c.id === "grocery")!.grossMargin)}).
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="mt-3 text-[13px] text-muted">Arithmetic on the exhibits plus labelled assumptions (listed below); first-year value only. Not a forecast: the pacing pilot and the bag QR pilot each measure one of the two inputs.</div>
+    </Card>
+  );
+}
+
+function FreshnessSimCard({ d, f }: { d: ImpactArtifact; f: ImpactDTO["freshness"] }) {
+  const i = Math.max(0, d.meta.phiGrid.findIndex((p) => Math.abs(p - d.meta.defaultPhi) < 1e-9));
+  const fixed = d.fixed.freshnessDays[i];
+  const paced = d.paced.freshnessDays[i];
+  const ceil = d.ceiling.freshnessDays[i];
+  if (fixed === undefined || paced === undefined || ceil === undefined) return null;
+  return (
+    <Card>
+      <SectionTitle>Fresher at the cup?</SectionTitle>
+      <p className="m-0 mb-3 max-w-[900px] text-[16px] font-medium">
+        Average age of the coffee in the cup: {nf(fixed)} days on a fixed schedule, {nf(paced)} with pacing, {nf(ceil)} with perfect pantry knowledge. Timing alone buys a few days on average.
+      </p>
+      <div className="grid grid-cols-3 gap-3 text-[14px]">
+        {[
+          ["Fixed schedule", fixed],
+          ["Paced", paced],
+          ["Perfect knowledge", ceil],
+        ].map(([label, v]) => (
+          <div key={label as string} className="rounded-lg bg-cream p-3">
+            <div className="text-[13px] text-muted">{label}</div>
+            <div className="tnum text-[20px] font-semibold text-espresso">{nf(v as number)} days</div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 text-[13px] text-muted">
+        Why only a few days: a 12-oz bag that lasts a household two months keeps ageing after it is opened, whatever day it arrived. What timing does fix is the bag that waits a month behind a stockpile before it is even opened: each customer's profile shows that number against the {f.bestByDays}–{f.peakEndDays} day window. The other lever is bag size, which is why “smaller bag” is an offer. Projection from simulation · sample data; read at {Math.round(d.meta.defaultPhi * 100)} of every 100.
+      </div>
+    </Card>
+  );
+}
+
 export function ImpactPage() {
   const { data } = useApi<ImpactDTO>("/api/impact", ["offer", "queue"]);
   return (
     <div>
-      <PageTitle sub="Four questions for the client, with the assumptions in plain sight.">Impact</PageTitle>
+      <PageTitle sub="Why this channel, what it could be worth, and whether each part pays, with the assumptions in plain sight.">Impact</PageTitle>
       {!data ? (
         <Empty>Loading…</Empty>
       ) : (
         <div className="space-y-5">
+          <WhyDtcCard w={data.whyDtc} sources={data.exhibits.sources} />
+          <OpportunityCard defaults={data.opportunityDefaults} />
           {data.impact ? <PacingCard d={data.impact} cohort={CAFE_WEB_SIGNUPS} /> : <Card><SectionTitle>Is pacing paying for itself?</SectionTitle><Empty>The simulation has not been run. Run pnpm impact.</Empty></Card>}
+          {data.impact && <FreshnessSimCard d={data.impact} f={data.freshness} />}
           <PilotCard p={data.pilot} />
           <BacktestCard b={data.backtest} />
           <Card>

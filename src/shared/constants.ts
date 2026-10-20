@@ -35,7 +35,7 @@ export const WEEKS_PER_YEAR = 52;
 
 /** The engine: fixed constants (spec 7.2, 7.3). `version` changes when behaviour changes; projections recompute on a mismatch. */
 export const ENGINE = {
-  version: "4.1.0",
+  version: "4.2.0",
   particles: 500,
   sigmaObs: 0.35,
   garbage: 0.1,
@@ -137,6 +137,60 @@ export const WORLD = {
   poundsPerDeliveryTwoBag: 1.5,
 } as const;
 
+/** Exhibit A, channel economics FY25 (case numbers). */
+export const CHANNELS = [
+  { id: "cafes", label: "Company cafes (20)", revenueUSD: 14_200_000, share: 0.58, grossMargin: 0.68, growth: 0.03 },
+  { id: "grocery", label: "Wholesale: grocery", revenueUSD: 4_600_000, share: 0.19, grossMargin: 0.34, growth: 0.01 },
+  { id: "wholesale_cafes", label: "Wholesale: cafes and restaurants", revenueUSD: 2_900_000, share: 0.12, grossMargin: 0.41, growth: 0.07 },
+  { id: "office", label: "Wholesale: office and institutional", revenueUSD: 1_400_000, share: 0.06, grossMargin: 0.44, growth: -0.02 },
+  { id: "dtc", label: "Direct to consumer online", revenueUSD: 1_300_000, share: 0.05, grossMargin: 0.61, growth: 0.14 },
+] as const;
+export const COMPANY = { revenueUSD: 24_400_000, grossMargin: 0.57, growth: 0.04 } as const;
+
+/** Exhibit B, the grocery rows (case numbers). */
+export const GROCERY = {
+  regionalChains: { accounts: 6, lbsPerMonth: 3900, staleReturn: 0.068 },
+  independents: { accounts: 84, lbsPerMonth: 210, staleReturn: 0.094 },
+} as const;
+
+/**
+ * Freshness (case Key Terms: "most [coffee] is at its best within two to four weeks" of roasting). A subscription bag is
+ * roasted to order and reaches the door WORLD.roastToDoorDays later; it is opened when the coffee ahead of it runs out.
+ */
+export const FRESHNESS = {
+  bestByDays: 14,
+  peakEndDays: 28,
+} as const;
+
+/**
+ * Holiday weeks when many households travel, so a bag that lands then sits on the porch and loses its first weeks of
+ * freshness. A check-in for a delivery landing in one of these windows also asks "Away? Reply AWAY" (no extra text);
+ * AWAY holds the delivery until the Wednesday after the window. Windows are computed per year (holidays.ts).
+ */
+export const HOLIDAY_RULES = {
+  /** Thanksgiving: the Monday before to the Sunday after (4th Thursday of November) */
+  thanksgiving: { fromOffset: -3, toOffset: 3 },
+  /** winter holidays: Dec 21 to Jan 2 */
+  winter: { fromMonthDay: [12, 21] as const, toMonthDay: [1, 2] as const },
+} as const;
+
+/**
+ * The bag QR funnel (grocery buyers to subscribers) and the opportunity sizing on the Impact page. All ASSUMPTIONS except
+ * where Exhibits A-C are cited; each is in LEDGER.
+ */
+export const QR = {
+  /** share of QR bags that get scanned (sandbox sample data only) */
+  scanRate: 0.03,
+  /** share of scans that start a subscription (sandbox sample data only) */
+  signupRate: 0.09,
+  /** grocery bags a Classic Cup grocery buyer purchases in a year: turns Exhibit B pounds into buyers */
+  bagsPerBuyerPerYear: 12,
+  /** a QR sign-up behaves like a website sign-up (Exhibit C website retention and AOV) */
+  cohortLike: "website" as Source,
+  /** the pilot: QR labels on bags shipped to these many grocery accounts */
+  pilotAccounts: 12,
+} as const;
+
 export interface LedgerEntry {
   parameter: string;
   value: string;
@@ -160,4 +214,10 @@ export const LEDGER: LedgerEntry[] = [
   { parameter: "Pounds per delivery", value: "0.75 lb (one 12-oz bag)", range: "1.5 lb (two bags) shown as a sensitivity", source: "ASSUMPTION" },
   { parameter: "Monthly cancel rate of a saved customer (offers value)", value: "8% a month (≈ 7.9 expected months)", range: "n/a", source: "ASSUMPTION" },
   { parameter: "Simulated cancellation reasons", value: "stockpile-driven share φ for in-cafe and website only; 0 for the other sources by default", range: "n/a", source: "Exhibit C names different top reasons for the other sources" },
+  { parameter: "Freshness window", value: "best within 14 days of roasting, past peak after 28", range: "n/a", source: "Case Key Terms: “most is at its best within two to four weeks”" },
+  { parameter: "Roast to door (subscription)", value: "5 days", range: "3–7", source: "ASSUMPTION: roasted to order, shipped ground" },
+  { parameter: "Holiday travel windows", value: "Thanksgiving Mon–Sun; Dec 21 – Jan 2", range: "n/a", source: "ASSUMPTION; check-ins for deliveries landing then add “Away? Reply AWAY” (no extra text)" },
+  { parameter: "Bag QR: scans per bag, sign-ups per scan", value: "3% and 9% (sandbox sample data)", range: "1–6% and 4–15%", source: "ASSUMPTION; the QR pilot measures both" },
+  { parameter: "Grocery bags per Classic Cup grocery buyer per year", value: "12", range: "6–24", source: "ASSUMPTION; turns Exhibit B grocery pounds (≈ 492K lb/yr ≈ 657K 12-oz bags) into buyers" },
+  { parameter: "A QR sign-up's first year", value: "like a website sign-up: Exhibit C retention (54% at 90 days, 22% at 12 months) and $41 AOV", range: "n/a", source: "ASSUMPTION; QR sign-ups land on the website sign-up page" },
 ];

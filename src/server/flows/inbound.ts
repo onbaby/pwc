@@ -1,4 +1,5 @@
 import { ENGINE } from "../../shared/constants.ts";
+import { holidayWindowFor } from "../../shared/holidays.ts";
 import { dayFromISO, etParts, isoFromDay, latestWednesdayOnOrBefore, nextWednesdayOnOrAfter, type Day } from "../../shared/dates.ts";
 import type { CustomerRow, MessageRow, WhySnapshot } from "../../shared/types.ts";
 import { all, get, run } from "../db.ts";
@@ -16,10 +17,10 @@ export type Parsed =
   | { kind: "plenty" }
   | { kind: "other"; mentionsCancel: boolean };
 
-export type Keyword = "YES" | "OK" | "OLD" | "SOONER" | "SKIP" | "PAUSE" | "SWAP" | "ROTATE" | "SMALLER" | "NO OFFERS" | "STOP" | "START" | "HELP" | "CANCEL" | "BACK" | "WHY" | "HUMAN";
+export type Keyword = "YES" | "OK" | "OLD" | "SOONER" | "SKIP" | "PAUSE" | "SWAP" | "ROTATE" | "SMALLER" | "NO OFFERS" | "STOP" | "START" | "HELP" | "CANCEL" | "BACK" | "WHY" | "HUMAN" | "AWAY";
 
 const WORDS: Record<string, number> = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12 };
-const KEYWORDS: Keyword[] = ["YES", "OK", "OLD", "SOONER", "SKIP", "PAUSE", "SWAP", "ROTATE", "SMALLER", "NO OFFERS", "STOP", "START", "HELP", "CANCEL", "BACK", "WHY", "HUMAN"];
+const KEYWORDS: Keyword[] = ["YES", "OK", "OLD", "SOONER", "SKIP", "PAUSE", "SWAP", "ROTATE", "SMALLER", "NO OFFERS", "STOP", "START", "HELP", "CANCEL", "BACK", "WHY", "HUMAN", "AWAY"];
 
 export function parseInbound(text: string): Parsed {
   const raw = text.trim();
@@ -77,6 +78,9 @@ export function handleInbound(ctx: AppCtx, customerId: string, text: string, _op
   if (c.status === "OPT_IN_PENDING") {
     if (parsed.kind === "keyword" && parsed.word === "YES") {
       run(db, "UPDATE customers SET status = 'ACTIVE', consent_delivery = 1, consent_delivery_at = ? WHERE id = ?", isoFromDay(todayOf(db)), customerId);
+      // a new sign-up (bag QR) has its first delivery waiting: queue its reminder now that texts are allowed
+      const next = nextScheduled(db, customerId);
+      if (next) queueReminder(ctx, customerId, next.day);
       ctx.emit({ type: "projection", customerId });
     } else if (parsed.kind === "keyword" && parsed.word === "STOP") stop(ctx, c);
     return { messageId: inId };
@@ -234,6 +238,20 @@ function handleKeyword(ctx: AppCtx, c: CustomerRow, word: Keyword, inId: number)
       moveDelivery(ctx, c.id, to, "customer");
       run(db, "UPDATE customers SET status = 'PAUSED', held_until = ? WHERE id = ?", isoFromDay(to), c.id);
       return reply(ctx, c.id, COPY.paused({ old: next.day, new: to }), "RESPONSE");
+    }
+    case "AWAY": {
+      // holiday travel: hold the delivery until the Wednesday after the window, so it isn't sitting on the porch
+      const next = nextScheduled(db, c.id);
+      const window = next ? holidayWindowFor(next.day) : undefined;
+      if (!next || !window) return needsPerson(ctx, inId, c.id, "Says they're away: pick a date");
+      const to = nextWednesdayOnOrAfter(window.to + 1);
+      const last = all<{ d: string }>(db, "SELECT delivered_date AS d FROM deliveries WHERE customer_id = ? AND status = 'delivered' ORDER BY delivered_date DESC LIMIT 1", c.id)[0];
+      if (last && to - dayFromISO(last.d) > ENGINE.gapMaxDays) return needsPerson(ctx, inId, c.id, `Away for ${window.name}: the hold would leave more than 12 weeks between deliveries`);
+      addEvent(db, c.id, "hold", { from: Math.max(today, window.from), to: window.to });
+      moveDelivery(ctx, c.id, to, "customer");
+      run(db, "UPDATE customers SET status = 'HELD', held_until = ? WHERE id = ?", isoFromDay(window.to), c.id);
+      audit(db, "customer", "away", c.id, { holiday: window.name, from: next.day, to });
+      return reply(ctx, c.id, COPY.away({ holiday: window.name, old: next.day, new: to }), "RESPONSE", "confirmation", { reasonChip: `Away for ${window.name}`, from: next.day, to, holiday: window.name });
     }
     case "YES":
       return handleYes(ctx, c, inId);

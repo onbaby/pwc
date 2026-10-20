@@ -3,7 +3,7 @@ import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import type { CustomerListItem } from "../../shared/types.ts";
 import { post, useApi } from "../api.tsx";
 import { Card, Delta, Empty, HowSure, Status, Tabs } from "../components/ui.tsx";
-import { fmtDay, fmtMonthDay, fmtTime, nf, range, relativeTime } from "../format.ts";
+import { fmtDay, fmtMonthDay, fmtTime, nf, pct, range, relativeTime } from "../format.ts";
 import { href } from "../router.ts";
 
 interface TodayDTO {
@@ -14,6 +14,7 @@ interface TodayDTO {
     deliveriesThisWeek: { value: number; prev: number; sparkline: number[] };
     checkInsToday: { value: number; prev: number };
     waitingForPerson: { value: number; prev: number };
+    freshness: { total: number; counts: { best: number; peak: number; past_peak: number; late: number }; atPeakShare: number; peakEndDays: number };
   };
   runningOutSoon: { items: CustomerListItem[]; total: number };
   goingOut: { items: Array<{ messageId: number; customerId: string; name: string; at: number; kind: string; reasonChip: string; body: string }>; total: number };
@@ -44,7 +45,7 @@ export function Today() {
   const spark = kpis.deliveriesThisWeek.sparkline.map((v, i) => ({ i, v }));
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-5 gap-4">
         <Kpi label="Active subscribers" value={kpis.active.value} now={kpis.active.value} prev={kpis.active.prev} href={href("/customers")} />
         <Kpi label="Deliveries this week" value={kpis.deliveriesThisWeek.value} now={kpis.deliveriesThisWeek.value} prev={kpis.deliveriesThisWeek.prev} href={href("/outlook")}>
           <div className="h-[44px] w-[96px]" title="Next 6 weeks (roast outlook)">
@@ -57,6 +58,17 @@ export function Today() {
         </Kpi>
         <Kpi label="Check-ins going out today" value={kpis.checkInsToday.value} now={kpis.checkInsToday.value} prev={kpis.checkInsToday.prev} href={href("/today")} />
         <Kpi label="Waiting for a person" value={kpis.waitingForPerson.value} now={kpis.waitingForPerson.value} prev={kpis.waitingForPerson.prev} good="down" href={href("/inbox")} />
+        <a
+          href={href("/customers")}
+          className="card block h-[96px] overflow-hidden px-4 py-2.5 text-ink no-underline hover:border-espresso"
+          title={`Of ${nf(kpis.freshness.total)} bags arriving in the next 4 weeks: ${nf(kpis.freshness.counts.best + kpis.freshness.counts.peak)} opened within ${kpis.freshness.peakEndDays} days of roasting, ${nf(kpis.freshness.counts.past_peak)} past peak, ${nf(kpis.freshness.counts.late)} arriving after the customer runs out (model median)`}
+        >
+          <div className="text-[13px] font-medium text-muted">Next bags opened at peak</div>
+          <div className="tnum text-[36px] font-semibold leading-[1.05] text-espresso">{pct(kpis.freshness.atPeakShare)}</div>
+          <div className="truncate text-[13px] text-muted">
+            {nf(kpis.freshness.counts.past_peak)} past peak · {nf(kpis.freshness.counts.late)} late
+          </div>
+        </a>
       </div>
 
       <div className="grid grid-cols-12 gap-4">

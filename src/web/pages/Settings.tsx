@@ -11,6 +11,8 @@ interface SettingsDTO {
   consentTexts: { delivery: string; offers: string };
   standingHoldout: { share: number; months: number; members: number };
   engineVersion: string;
+  holidays: Array<{ name: string; from: number; to: number }>;
+  freshness: { bestByDays: number; peakEndDays: number; roastToDoorDays: number };
   environment: string;
 }
 
@@ -40,6 +42,24 @@ export function Settings() {
               <dd className="m-0">{fmtDay(s.freeze.from)} to {fmtDay(s.freeze.to)}: no automatic moves</dd>
               <dt className="text-muted">Cautiousness</dt>
               <dd className="m-0">{s.cautiousness}</dd>
+            </dl>
+          </Card>
+          <Card>
+            <SectionTitle>Freshness and holidays</SectionTitle>
+            <dl className="m-0 grid grid-cols-[200px_1fr] gap-y-2 text-[14px]">
+              <dt className="text-muted">Freshness window</dt>
+              <dd className="m-0">At its best within {s.freshness.bestByDays} days of roasting; past peak after {s.freshness.peakEndDays}. Subscription bags are roasted to order and reach the door {s.freshness.roastToDoorDays} days later.</dd>
+              <dt className="text-muted">Holiday travel weeks</dt>
+              <dd className="m-0">
+                A check-in for a delivery landing in one of these also asks “Away? Reply AWAY” (no extra text). AWAY holds it until the Wednesday after.
+                <ul className="mb-0 mt-1 list-none p-0">
+                  {s.holidays.map((h) => (
+                    <li key={`${h.name}-${h.from}`} className="tnum">
+                      {h.name === "the holidays" ? "Winter holidays" : h.name}: {fmtDay(h.from)} to {fmtDay(h.to)}
+                    </li>
+                  ))}
+                </ul>
+              </dd>
             </dl>
           </Card>
           <Card>

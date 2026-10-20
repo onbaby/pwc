@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Shell } from "./components/Shell.tsx";
+import { BagQrPage } from "./pages/BagQr.tsx";
+import { QrLanding } from "./pages/QrLanding.tsx";
 import { CustomerProfile } from "./pages/CustomerProfile.tsx";
 import { Customers } from "./pages/Customers.tsx";
 import { ImpactPage } from "./pages/Impact.tsx";
@@ -18,6 +20,8 @@ export function App() {
   const q = route.query.get("tab");
   const tab: InboxTab = q === "approvals" || q === "all" ? q : "needs";
   const [, setTab] = useState<InboxTab>(tab);
+  // the public page a grocery buyer opens from a bag's QR code: customer-facing, so no console shell
+  if (section === "q" && id) return <QrLanding key={id} code={id} />;
   let page;
   switch (section) {
     case "customers":
@@ -28,6 +32,9 @@ export function App() {
       break;
     case "offers":
       page = id ? <OfferPage key={id} id={id} /> : <OffersList />;
+      break;
+    case "qr":
+      page = <BagQrPage />;
       break;
     case "outlook":
       page = <OutlookPage />;
