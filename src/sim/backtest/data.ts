@@ -10,7 +10,7 @@ export interface Series {
 }
 
 export function parseGapsCsv(text: string): Series[] {
-  const lines = text.split("\n").filter((l) => l.length > 0);
+  const lines = text.split(/\r?\n/).filter((l) => l.length > 0);
   if (lines[0] !== "customer,product,firstDay,gaps") throw new Error("unexpected gaps csv header");
   return lines.slice(1).map((line) => {
     const [customer, product, first, gapText] = line.split(",");

@@ -1,0 +1,316 @@
+{
+ "protocol": {
+  "path": "src/sim/backtest/PROTOCOL.md",
+  "commit": "2c4092b8e8fcdf4c9f56dc44a8c720f27a3a1b4b",
+  "committedAt": "2026-10-20",
+  "committedBeforeRun": true,
+  "cutoffDay": 365
+ },
+ "dataset": {
+  "name": "Online Retail II",
+  "citation": "Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D",
+  "license": "CC BY 4.0",
+  "gapsSha256": "9bec0acd61e2b2c75a2ca2b7e1c5e0b88a6309af97799691cbe930e7b25a993c",
+  "counts": {
+   "rows": 1067371,
+   "after_customer_id_filter": 824364,
+   "after_cancellation_filter": 805620,
+   "after_quantity_filter": 805620,
+   "after_product_code_filter": 802693,
+   "customer_product_purchase_days": 759550,
+   "last_day_index": 738,
+   "same_session_days_dropped": 10855,
+   "series_cut_at_180_days": 45473,
+   "series_total": 480978,
+   "series_written_ge3_days": 36480
+  }
+ },
+ "splits": {
+  "fitCustomers": 1051,
+  "calibrationCustomers": 406,
+  "testCustomers": 1458,
+  "fitSeries": 15951,
+  "calibrationSeries": 5797,
+  "testSeries": 20158,
+  "fitGaps": 46173,
+  "calibrationPredictions": 14161,
+  "testPredictions": 51056,
+  "censoredTestPredictions": 24426
+ },
+ "model": {
+  "mu": 3.68303,
+  "sigmaW": 0.67424,
+  "tau": 0.39119,
+  "rho": 0.29016,
+  "p1Days": 7,
+  "p99Days": 170.28,
+  "conformalScale": {
+   "1": 1.38537,
+   "2": 1.39977,
+   "3": 1.41227,
+   "4": 1.4684,
+   "5+": 1.34716
+  },
+  "bcMultipliers": {
+   "q10": 0.29915,
+   "q50": 1,
+   "q90": 3.5
+  }
+ },
+ "rows": [
+  {
+   "k": "1",
+   "n": 13667,
+   "customers": 1334,
+   "pinballMean": {
+    "model": 9.91902,
+    "bc": 14.08951
+   },
+   "pinballByQ": [
+    {
+     "q": 0.1,
+     "model": 4.67445,
+     "bc": 5.09444
+    },
+    {
+     "q": 0.5,
+     "model": 16.01671,
+     "bc": 19.14762
+    },
+    {
+     "q": 0.9,
+     "model": 9.06591,
+     "bc": 18.02647
+    }
+   ],
+   "mae": {
+    "model": 32.03342,
+    "bc": 38.29524,
+    "b0": 38.29524,
+    "b2": 35.05041
+   },
+   "coverage80": {
+    "model": 0.77464,
+    "bc": 0.79586
+   },
+   "medianWidthDays": {
+    "model": 100.01879,
+    "bc": 144.03846
+   },
+   "diff": {
+    "mean": -4.17048,
+    "lo": -4.68719,
+    "hi": -3.52727
+   }
+  },
+  {
+   "k": "2",
+   "n": 7939,
+   "customers": 931,
+   "pinballMean": {
+    "model": 9.59173,
+    "bc": 13.5617
+   },
+   "pinballByQ": [
+    {
+     "q": 0.1,
+     "model": 4.50717,
+     "bc": 4.95951
+    },
+    {
+     "q": 0.5,
+     "model": 15.36829,
+     "bc": 18.06953
+    },
+    {
+     "q": 0.9,
+     "model": 8.89974,
+     "bc": 17.65605
+    }
+   ],
+   "mae": {
+    "model": 30.73659,
+    "bc": 36.13906,
+    "b0": 36.13906,
+    "b2": 35.16916
+   },
+   "coverage80": {
+    "model": 0.77378,
+    "bc": 0.81093
+   },
+   "medianWidthDays": {
+    "model": 96.5099,
+    "bc": 137.63675
+   },
+   "diff": {
+    "mean": -3.96996,
+    "lo": -4.61125,
+    "hi": -3.16774
+   }
+  },
+  {
+   "k": "3",
+   "n": 5700,
+   "customers": 759,
+   "pinballMean": {
+    "model": 9.41751,
+    "bc": 13.9529
+   },
+   "pinballByQ": [
+    {
+     "q": 0.1,
+     "model": 4.48638,
+     "bc": 5.03965
+    },
+    {
+     "q": 0.5,
+     "model": 15.10826,
+     "bc": 18.45833
+    },
+    {
+     "q": 0.9,
+     "model": 8.6579,
+     "bc": 18.36072
+    }
+   ],
+   "mae": {
+    "model": 30.21652,
+    "bc": 36.91667,
+    "b0": 36.91667,
+    "b2": 35.44921
+   },
+   "coverage80": {
+    "model": 0.79877,
+    "bc": 0.81632
+   },
+   "medianWidthDays": {
+    "model": 97.1454,
+    "bc": 147.23932
+   },
+   "diff": {
+    "mean": -4.53539,
+    "lo": -5.32022,
+    "hi": -3.52493
+   }
+  },
+  {
+   "k": "4",
+   "n": 4379,
+   "customers": 636,
+   "pinballMean": {
+    "model": 9.31316,
+    "bc": 13.96879
+   },
+   "pinballByQ": [
+    {
+     "q": 0.1,
+     "model": 4.47209,
+     "bc": 5.04344
+    },
+    {
+     "q": 0.5,
+     "model": 14.85321,
+     "bc": 18.88422
+    },
+    {
+     "q": 0.9,
+     "model": 8.61416,
+     "bc": 17.97872
+    }
+   ],
+   "mae": {
+    "model": 29.70642,
+    "bc": 37.76844,
+    "b0": 37.76844,
+    "b2": 34.98082
+   },
+   "coverage80": {
+    "model": 0.83489,
+    "bc": 0.81046
+   },
+   "medianWidthDays": {
+    "model": 103.93701,
+    "bc": 144.03846
+   },
+   "diff": {
+    "mean": -4.65564,
+    "lo": -5.52231,
+    "hi": -3.7523
+   }
+  },
+  {
+   "k": "5+",
+   "n": 19371,
+   "customers": 557,
+   "pinballMean": {
+    "model": 7.64704,
+    "bc": 11.40177
+   },
+   "pinballByQ": [
+    {
+     "q": 0.1,
+     "model": 3.54944,
+     "bc": 4.1191
+    },
+    {
+     "q": 0.5,
+     "model": 11.88411,
+     "bc": 15.61125
+    },
+    {
+     "q": 0.9,
+     "model": 7.50755,
+     "bc": 14.47498
+    }
+   ],
+   "mae": {
+    "model": 23.76822,
+    "bc": 31.2225,
+    "b0": 31.2225,
+    "b2": 28.43325
+   },
+   "coverage80": {
+    "model": 0.79067,
+    "bc": 0.81147
+   },
+   "medianWidthDays": {
+    "model": 74.70791,
+    "bc": 112.02991
+   },
+   "diff": {
+    "mean": -3.75474,
+    "lo": -4.21621,
+    "hi": -3.3256
+   }
+  }
+ ],
+ "pooledCoverage80": 0.78845,
+ "success": {
+  "beatsAtK1": true,
+  "beatsAtK2": true,
+  "coverageWithinBand": [
+   {
+    "k": "1",
+    "coverage": 0.77464,
+    "ok": true
+   },
+   {
+    "k": "2",
+    "coverage": 0.77378,
+    "ok": true
+   },
+   {
+    "k": "3",
+    "coverage": 0.79877,
+    "ok": true
+   },
+   {
+    "k": "4",
+    "coverage": 0.83489,
+    "ok": true
+   }
+  ],
+  "passed": true,
+  "line": "On real data the method beat a calibrated last-gap baseline at the first two reorders, and its 80% ranges held within 5 points at each of the first four. The pilot still has to test replies and consumption."
+ }
+}
