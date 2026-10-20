@@ -40,12 +40,12 @@ const ORANGE = "#F16A21";
 const PLUM = "#7F2754";
 const TICK = { fontSize: 12, fill: "#6B5A50" };
 
-const at = (phi: number | null): string => (phi === null ? "never, at any setting from 0 to 100" : `${Math.round(phi * 100)} of every 100`);
+const at = (phi: number): string => `${Math.round(phi * 100)} of every 100`;
 
 /** One generated sentence from the data (spec 10): the claim always matches the lines on the chart. */
 export function headline(d: ImpactArtifact): string {
-  const pacing = d.paced.breakEvenPhi === null ? "Pacing alone does not break even: " + at(null) : `Pacing alone breaks even at ${at(d.paced.breakEvenPhi)}`;
-  const perfect = d.ceiling.breakEvenPhi === null ? "perfect knowledge does not either" : `perfect knowledge breaks even at ${at(d.ceiling.breakEvenPhi)}`;
+  const pacing = d.paced.breakEvenPhi === null ? "Pacing alone never breaks even, at any setting from 0 to 100 of every 100" : `Pacing alone breaks even at ${at(d.paced.breakEvenPhi)}`;
+  const perfect = d.ceiling.breakEvenPhi === null ? "perfect knowledge never does either" : `perfect knowledge breaks even at ${at(d.ceiling.breakEvenPhi)}`;
   const base = d.better[0]?.gainAtDefaultPP ?? 0;
   const lever = (match: (l: string) => boolean): number => Math.max(0, ...d.better.slice(1).filter((b) => match(b.label)).map((b) => b.gainAtDefaultPP - base));
   const reply = lever((l) => l.startsWith("Reply rate"));
@@ -71,11 +71,11 @@ function PacingCard({ d, cohort }: { d: ImpactArtifact; cohort: number }) {
           <ComposedChart data={rows} margin={{ top: 14, right: 150, bottom: 22, left: 0 }}>
             <CartesianGrid stroke="#E9DFD6" vertical={false} />
             <XAxis dataKey="phi" type="number" domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tick={TICK} axisLine={{ stroke: "#E9DFD6" }} tickLine={false} label={{ value: "Of every 100 cancellations, how many are caused by too much coffee", position: "insideBottom", offset: -14, fontSize: 12, fill: "#6B5A50" }} />
-            <YAxis domain={[0, top]} tickCount={5} tick={TICK} axisLine={false} tickLine={false} width={40} tickFormatter={(v: number) => `${v} pts`} />
+            <YAxis domain={[0, top]} ticks={Array.from({ length: 5 }, (_, k) => (top * k) / 4)} tick={TICK} axisLine={false} tickLine={false} width={52} tickFormatter={(v: number) => `${Math.round(v * 10) / 10} pts`} />
             <ReferenceLine x={cur.phi} stroke="#6B5A50" strokeDasharray="2 3" />
-            <Line dataKey="required" stroke={ESPRESSO} strokeWidth={2.5} strokeDasharray="8 5" dot={false} isAnimationActive={false} label={endLabel("Needed (pacing)", ESPRESSO, rows.length - 1)} />
+            <Line dataKey="required" stroke={ESPRESSO} strokeWidth={2.5} strokeDasharray="8 5" dot={false} isAnimationActive={false} label={endLabel("Needed (pacing)", ESPRESSO, rows.length - 1, -7)} />
             <Line dataKey="requiredCeil" stroke={ESPRESSO} strokeOpacity={0.45} strokeWidth={1.5} strokeDasharray="3 4" dot={false} isAnimationActive={false} label={endLabel("Needed (perfect)", "#6B5A50", rows.length - 1)} />
-            <Line dataKey="paced" stroke={ORANGE} strokeWidth={3} dot={false} isAnimationActive={false} label={endLabel("Paced", "#B34A12", rows.length - 1)} />
+            <Line dataKey="paced" stroke={ORANGE} strokeWidth={3} dot={false} isAnimationActive={false} label={endLabel("Paced", "#B34A12", rows.length - 1, 8)} />
             <Line dataKey="ceiling" stroke={PLUM} strokeWidth={3} strokeDasharray="1 5" strokeLinecap="round" dot={false} isAnimationActive={false} label={endLabel("Perfect knowledge", PLUM, rows.length - 1)} />
           </ComposedChart>
         </ResponsiveContainer>
@@ -148,10 +148,10 @@ function PacingCard({ d, cohort }: { d: ImpactArtifact; cohort: number }) {
   );
 }
 
-function endLabel(text: string, fill: string, lastIndex: number) {
+function endLabel(text: string, fill: string, lastIndex: number, dy = 0) {
   return (p: { x?: number | string; y?: number | string; index?: number }) =>
     p.index === lastIndex && p.x !== undefined && p.y !== undefined ? (
-      <text x={Number(p.x) + 8} y={Number(p.y) + 4} fontSize={12} fontWeight={600} fill={fill}>
+      <text x={Number(p.x) + 8} y={Number(p.y) + 4 + dy} fontSize={12} fontWeight={600} fill={fill}>
         {text}
       </text>
     ) : (

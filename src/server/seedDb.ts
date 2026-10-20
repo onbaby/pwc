@@ -1,18 +1,18 @@
 import { ENGINE, RULES } from "../shared/constants.ts";
 import { dayFromISO, etInstant, etParts, isoFromDay, MS_DAY, type Day } from "../shared/dates.ts";
-import { hash32 } from "../shared/rng.ts";
+import { hash32, Stream } from "../shared/rng.ts";
 import { generateSeed, TODAY, type SeedData } from "../sim/seed.ts";
 import { trainPrior } from "../sim/prior.ts";
 import { createHash } from "node:crypto";
-import { resetTables, run, setSetting, tx, all, type Db } from "./db.ts";
+import { all, get, resetTables, run, setSetting, tx, type Db } from "./db.ts";
 import { COPY } from "./copy.ts";
 import { staffAction } from "./flows/actions.ts";
 import { noopChannel, type AppCtx } from "./flows/context.ts";
 import { handleInbound, handleWeeks } from "./flows/inbound.ts";
-import { queueCycle } from "./flows/schedule.ts";
+import { expireStaleApprovals, queueCycle } from "./flows/schedule.ts";
 import { insertMessage } from "./flows/send.ts";
 import { seedOffers } from "./offers/seedOffers.ts";
-import { audit, customerRow, GLOBAL_SEED, recomputeAll, SANDBOX_START, setNow } from "./store.ts";
+import { audit, customerRow, GLOBAL_SEED, projectionOf, recomputeAll, SANDBOX_START, setNow } from "./store.ts";
 
 /**
  * Seed or reset the sandbox in one transaction (spec 12.5). Deterministic: the same seed gives the same database.
@@ -112,13 +112,20 @@ export function seedDatabase(db: Db, data?: SeedData): SeedReport {
       const sentDay = dayFromISO(r.scheduled_date) - ENGINE.checkInDaysBefore;
       const at = etInstant(sentDay, 9, 0) + (hash32(r.id, "ci") % 150) * 60_000;
       const c = customerRow(db, r.id)!;
-      insertMessage(ctx, { customerId: r.id, at, direction: "out", body: COPY.checkIn({ name: c.name.split(" ")[0]! }), kind: "checkin", reasonCode: "CHECKIN_DUE", status: "delivered", snapshot: { reasonChip: `Check-in: delivery in ${ENGINE.checkInDaysBefore} days` } });
+      const delivered = get<{ n: number }>(db, "SELECT COUNT(*) AS n FROM deliveries WHERE customer_id = ? AND status = 'delivered'", r.id)?.n ?? 0;
+      const first = c.name.split(" ")[0]!;
+      insertMessage(ctx, { customerId: r.id, at, direction: "out", body: delivered < 2 ? COPY.newSubscriber({ name: first }) : COPY.checkIn({ name: first }), kind: "checkin", reasonCode: "CHECKIN_DUE", status: "delivered", snapshot: { reasonChip: `Check-in: delivery in ${ENGINE.checkInDaysBefore} days` } });
       run(db, "UPDATE customers SET status = 'AWAITING_CHECKIN' WHERE id = ?", r.id);
-      if (hash32(r.id, "ci-reply") % 100 < 45) {
+      // a customer with nothing delivered yet has no pantry to describe: no reply
+      if (delivered >= 1 && hash32(r.id, "ci-reply") % 100 < 45) {
         const rd = sentDay + (hash32(r.id, "ci-delay") % 4);
         const replyAt = etInstant(rd, 10, 0) + (hash32(r.id, "ci-min") % 400) * 60_000;
-        // the customer's own reading of their pantry: drawn around the model's median so replies are plausible
-        const weeks = Math.max(0, Math.min(12, Math.round((hash32(r.id, "ci-weeks") % 1000) / 1000 * 8 + 1)));
+        // the customer's own reading of their pantry: the model's median days on hand that day, times the reply error
+        // (sigma 0.35), with 10% garbage, so the replies are plausible against what the engine believes
+        const proj = projectionOf(db, r.id);
+        const noise = new Stream("ci-weeks", r.id);
+        const daysLeft = Math.max(0, proj.medianOnHand + (TODAY - rd)) * Math.exp(ENGINE.sigmaObs * noise.normal());
+        const weeks = noise.next() < ENGINE.garbage ? noise.int(0, 12) : Math.max(0, Math.min(12, Math.round(daysLeft / 7)));
         setNow(db, replyAt);
         insertMessage(ctx, { customerId: r.id, at: replyAt, direction: "in", body: String(weeks), kind: "reply", reasonCode: "WEEKS_LEFT", status: "received" });
         handleWeeks(ctx, customerRow(db, r.id)!, weeks);
@@ -143,7 +150,10 @@ export function seedDatabase(db: Db, data?: SeedData): SeedReport {
     });
 
     setNow(db, SANDBOX_START());
+    // proposals made last week for dates that have now passed are no longer actionable
+    expireStaleApprovals(ctx);
     seedOffers(ctx);
+    recomputeAll(db);
     audit(db, "sandbox", "seed", null, { customers: seed.customers.length });
   });
 

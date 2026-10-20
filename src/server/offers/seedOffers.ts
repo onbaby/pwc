@@ -24,14 +24,17 @@ export function seedOffers(ctx: AppCtx): void {
       WHERE m.kind = 'reminder' AND m.direction = 'out' AND m.status = 'delivered' AND m.at >= ? AND m.at < ?
         AND c.consent_offers = 1 AND c.status != 'CANCELLED'
         AND NOT EXISTS (SELECT 1 FROM global_holdout g WHERE g.customer_id = c.id)
-        AND json_extract(p.json, '$.runOut.q50') < 14
       ORDER BY m.at, m.id`,
     start,
     nowMs(db),
   );
   const upd = db.prepare("UPDATE messages SET body = ?, offer_id = ?, snapshot = ? WHERE id = ?");
   const ins = db.prepare("INSERT INTO offer_assignments(offer_id, customer_id, family, arm, message_id, assigned_at) VALUES (?,?,?,?,?,?)");
+  // one offer per customer in the window (the 30-day cap); today's stockpile state cannot be rewound, so past sends are not filtered by it
+  const seen = new Set<string>();
   for (const r of rows) {
+    if (seen.has(r.customer_id)) continue;
+    seen.add(r.customer_id);
     const arrival = etParts(r.at).day + 3;
     upd.run(COPY.reminderSwap({ new: arrival }), id, JSON.stringify({ reasonChip: "Reminder + offer: Seasonal swap: October roast", offerType: "Seasonal swap: October roast" }), r.id);
     ins.run(id, r.customer_id, "seasonal_swap", "treatment", r.id, start);

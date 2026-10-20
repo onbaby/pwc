@@ -180,7 +180,7 @@ export function CustomerProfile({ id }: { id: string }) {
                   <div>
                     <div className="text-[13px] font-semibold text-muted">Starting point</div>
                     <div>{pr.explanation.startingPoint}</div>
-                    <span className="chip mt-1" title="Layer A is fit on synthetic data in the sandbox">{pr.explanation.startingPointTag}</span>
+                    <span className="chip mt-1 !whitespace-normal !rounded-lg text-left" title="Layer A is fit on synthetic data in the sandbox">{pr.explanation.startingPointTag}</span>
                   </div>
                   <div>
                     <div className="text-[13px] font-semibold text-muted">{first}'s evidence</div>

@@ -90,18 +90,19 @@ export function evaluate(db: Db, draft: { type: OfferType; audience: Audience; h
     `SELECT c.*, p.json AS projection_json,
         (SELECT json_extract(e.data, '$.weeks') FROM events e WHERE e.customer_id = c.id AND e.type = 'reply' ORDER BY e.at DESC LIMIT 1) AS last_reply_weeks,
         (SELECT COUNT(*) FROM (SELECT status FROM deliveries d WHERE d.customer_id = c.id AND d.status IN ('delivered','skipped') ORDER BY d.scheduled_date DESC LIMIT 4) WHERE status = 'skipped') AS skips_recent,
-        (SELECT MIN(m.at) FROM messages m WHERE m.customer_id = c.id AND m.kind = 'reminder' AND m.status = 'queued' AND m.at >= ?) AS ride_at,
+        rd.ride_at AS ride_at,
         (SELECT COUNT(*) FROM messages m WHERE m.customer_id = c.id AND m.direction = 'out' AND m.offer_id IS NOT NULL AND m.status IN ('sent','delivered') AND m.at > ?) AS recent_offer,
         (SELECT COUNT(*) FROM experiment_membership x WHERE x.customer_id = c.id AND x.outcome_closes_at > ? AND x.family != ? AND (? IS NULL OR x.offer_id != ?)) AS other_experiment,
         (SELECT COUNT(*) FROM global_holdout g WHERE g.customer_id = c.id AND g.until_at > ?) AS global_holdout
        FROM customers c LEFT JOIN projections p ON p.customer_id = c.id
+       LEFT JOIN (SELECT customer_id, MIN(at) AS ride_at FROM messages WHERE status = 'queued' AND kind = 'reminder' AND at >= ? GROUP BY customer_id) rd ON rd.customer_id = c.id
       WHERE c.status != 'CANCELLED' OR c.status IS NULL`,
-    now,
     now - RULES.offerCapDays * MS_DAY,
     now,
     family,
     opts.offerId ?? null,
     opts.offerId ?? null,
+    now,
     now,
   );
   const excluded = Object.fromEntries(EXCLUSION_REASONS.map((r) => [r, 0])) as Record<ExclusionReason, number>;

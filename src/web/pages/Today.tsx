@@ -99,7 +99,7 @@ export function Today() {
                           {c.runOut ? (
                             <>
                               <div className="tnum font-medium">around {fmtMonthDay(c.runOut.mid)}</div>
-                              <div className="tnum text-[13px] text-muted">{range(c.runOut.lo, c.runOut.hi)}</div>
+                              {c.runOut.lo !== c.runOut.hi && <div className="tnum text-[13px] text-muted">{range(c.runOut.lo, c.runOut.hi)}</div>}
                             </>
                           ) : (
                             "–"

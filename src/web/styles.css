@@ -148,6 +148,10 @@ th {
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
 }
+th.text-right,
+td.text-right {
+  text-align: right;
+}
 td {
   padding: 8px 12px;
   border-bottom: 1px solid var(--line);

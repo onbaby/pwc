@@ -24,16 +24,16 @@ export function PantryChart({ pantry }: { pantry: CustomerProfile["pantry"] }) {
     if (prev && next && next.day !== prev.day) return prev.days + ((next.days - prev.days) * (d - prev.day)) / (next.day - prev.day);
     return (prev ?? next)?.days ?? 0;
   };
-  const rows: Array<{ day: number; est: number | null; band: number; link: number | null }> = [];
+  const ymax = Math.max(10, Math.ceil(Math.max(...estimate.map((e) => e.days), ...replies.map((r) => r.weeks * 7)) / 10) * 10);
+  const rows: Array<{ day: number; est: number | null; band: [number, number] | null; link: number | null }> = [];
   for (let d = first; d <= last; d++) {
     rows.push({
       day: d,
       est: d <= today ? Math.round(at(d) * 10) / 10 : null,
-      band: runOut && d >= runOut.lo && d <= runOut.hi ? 1 : 0,
+      band: runOut && d >= runOut.lo && d <= runOut.hi ? [0, ymax] : null,
       link: scheduled !== null && proposed !== null && d >= Math.min(scheduled, proposed) && d <= Math.max(scheduled, proposed) ? 0 : null,
     });
   }
-  const ymax = Math.max(10, Math.ceil(Math.max(...estimate.map((e) => e.days), ...replies.map((r) => r.weeks * 7)) / 10) * 10);
   const ticks: number[] = [];
   const stepDays = last - first > 150 ? 28 : 14;
   for (let d = first; d <= last; d += stepDays) ticks.push(d);
@@ -46,20 +46,21 @@ export function PantryChart({ pantry }: { pantry: CustomerProfile["pantry"] }) {
         <ComposedChart data={rows} margin={{ top: 22, right: 28, bottom: 6, left: 0 }}>
           <CartesianGrid stroke="#E9DFD6" vertical={false} />
           <XAxis dataKey="day" type="number" domain={[first, last]} ticks={ticks} tickFormatter={(d: number) => fmtMonthDay(d)} tick={{ fontSize: 12, fill: "#6B5A50" }} axisLine={{ stroke: "#E9DFD6" }} tickLine={false} />
-          <YAxis yAxisId="y" domain={[0, ymax]} tickCount={5} tick={{ fontSize: 12, fill: "#6B5A50" }} axisLine={false} tickLine={false} width={34} />
-          <YAxis yAxisId="b" hide domain={[0, 1]} />
-          <Area yAxisId="b" dataKey="band" type="stepAfter" stroke="none" fill={ORANGE} fillOpacity={0.2} isAnimationActive={false} />
+          <YAxis yAxisId="y" domain={[0, ymax]} ticks={Array.from({ length: 5 }, (_, i) => (ymax * i) / 4)} tickFormatter={(v: number) => String(Math.round(v))} tick={{ fontSize: 12, fill: "#6B5A50" }} axisLine={false} tickLine={false} width={34} />
+          <Area yAxisId="y" dataKey="band" type="stepAfter" connectNulls={false} stroke="none" fill={ORANGE} fillOpacity={0.2} isAnimationActive={false} />
           <Area yAxisId="y" dataKey="est" type="monotone" stroke="rgba(100,58,43,0.6)" strokeWidth={2.5} fill="rgba(100,58,43,0.06)" connectNulls={false} dot={false} isAnimationActive={false} />
           <Line yAxisId="y" dataKey="link" stroke={ORANGE} strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls={false} isAnimationActive={false} />
           <Scatter yAxisId="y" data={deliveryDots} dataKey="y" fill={ESPRESSO} isAnimationActive={false} shape={(p: { cx?: number; cy?: number }) => <circle cx={p.cx} cy={p.cy} r={5} fill={ESPRESSO} stroke="#fff" strokeWidth={1.5} />} />
-          <Scatter yAxisId="y" data={replyDots} dataKey="y" fill={ESPRESSO} isAnimationActive={false} shape={(p: { cx?: number; cy?: number }) => <circle cx={p.cx} cy={p.cy} r={5} fill="#fff" stroke={ESPRESSO} strokeWidth={2} />}>
+          {replyDots.length > 0 && (
+            <Scatter yAxisId="y" data={replyDots} dataKey="y" fill={ESPRESSO} isAnimationActive={false} shape={(p: { cx?: number; cy?: number }) => <circle cx={p.cx} cy={p.cy} r={5} fill="#fff" stroke={ESPRESSO} strokeWidth={2} />}>
             <LabelList dataKey="label" position="top" style={{ fontSize: 12, fill: "#643A2B", fontWeight: 600 }} />
           </Scatter>
+          )}
           <ReferenceLine yAxisId="y" x={today} stroke="#6B5A50" strokeDasharray="3 3" label={{ value: "today", position: "insideTopRight", fontSize: 12, fill: "#6B5A50" }} />
           {runOut && <ReferenceLine yAxisId="y" x={runOut.mid} stroke="transparent" label={{ value: "Likely runs out", position: "top", fontSize: 12, fill: "#B34A12", fontWeight: 600 }} />}
-          <ReferenceDot yAxisId="y" x={lastEst.day} y={lastEst.days} r={0} label={{ value: "Estimated coffee on hand", position: "top", fontSize: 12, fill: "#643A2B" }} />
-          {scheduled !== null && <ReferenceDot yAxisId="y" x={scheduled} y={0} r={7} fill="#fff" stroke={ESPRESSO} strokeWidth={2} label={{ value: proposed !== null ? `was ${fmtMonthDay(scheduled)}` : `scheduled ${fmtMonthDay(scheduled)}`, position: "top", fontSize: 12, fill: "#643A2B" }} />}
-          {proposed !== null && <ReferenceDot yAxisId="y" x={proposed} y={0} r={7} fill={ORANGE} stroke="#fff" strokeWidth={1.5} label={{ value: `now ${fmtMonthDay(proposed)}`, position: "top", fontSize: 12, fill: "#B34A12", fontWeight: 600 }} />}
+          <ReferenceDot yAxisId="y" x={lastEst.day} y={lastEst.days} r={0} label={{ value: "Estimated coffee on hand", position: "right", fontSize: 12, fill: "#643A2B" }} />
+          {scheduled !== null && <ReferenceDot yAxisId="y" x={scheduled} y={0} r={7} fill="#fff" stroke={ESPRESSO} strokeWidth={2} label={{ value: proposed !== null ? `was ${fmtMonthDay(scheduled)}` : `scheduled ${fmtMonthDay(scheduled)}`, position: proposed !== null ? "left" : "top", fontSize: 12, fill: "#643A2B" }} />}
+          {proposed !== null && <ReferenceDot yAxisId="y" x={proposed} y={0} r={7} fill={ORANGE} stroke="#fff" strokeWidth={1.5} label={{ value: `now ${fmtMonthDay(proposed)}`, position: "right", fontSize: 12, fill: "#B34A12", fontWeight: 600 }} />}
         </ComposedChart>
       </ResponsiveContainer>
     </div>

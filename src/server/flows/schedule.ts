@@ -160,6 +160,24 @@ export function priceFor(c: Pick<CustomerRow, "source">): number {
  * Advance the sandbox clock, running everything that comes due in time order: deliveries landing (6 am local on their
  * day) and queued texts. Never uses timers.
  */
+/**
+ * A proposal or sooner offer waiting for staff is moot once its delivery date (or the date it proposes) has passed: it is
+ * cancelled with a reason so the Approvals queue only holds things somebody can still act on.
+ */
+export function expireStaleApprovals(ctx: AppCtx): number {
+  const db = ctx.db;
+  const today = etParts(nowMs(db)).day;
+  let n = 0;
+  for (const m of all<MessageRow>(db, "SELECT * FROM messages WHERE status = 'pending_approval' AND kind IN ('proposal','sooner')")) {
+    const snap = JSON.parse(m.snapshot) as WhySnapshot;
+    if ((snap.to !== undefined && snap.to <= today) || (snap.from !== undefined && snap.from <= today)) {
+      updateMessage(ctx, m.id, { status: "cancelled", snapshot: { ...snap, reasonChip: "Expired: the date has passed" } });
+      n++;
+    }
+  }
+  return n;
+}
+
 export function advanceClock(ctx: AppCtx, targetMs: number): { sent: number } {
   const db = ctx.db;
   let sent = 0;
@@ -196,6 +214,7 @@ export function advanceClock(ctx: AppCtx, targetMs: number): { sent: number } {
     }
   }
   if (targetMs > nowMs(db)) setNow(db, targetMs);
+  expireStaleApprovals(ctx);
   ctx.emit({ type: "clock", now: nowMs(db) });
   ctx.emit({ type: "queue" });
   audit(db, "sandbox", "advance", null, { to: nowMs(db), sent });
