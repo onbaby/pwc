@@ -1,0 +1,20 @@
+{
+  "dataset": "Online Retail II",
+  "citation": "Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D",
+  "license": "CC BY 4.0",
+  "note": "Derived table: customer ids replaced by an opaque index; firstDay = days since 2009-12-01; gaps in days; series with at least 3 kept purchase days; series cut at the first gap longer than 180 days.",
+  "counts": {
+    "rows": 1067371,
+    "after_customer_id_filter": 824364,
+    "after_cancellation_filter": 805620,
+    "after_quantity_filter": 805620,
+    "after_product_code_filter": 802693,
+    "customer_product_purchase_days": 759550,
+    "last_day_index": 738,
+    "same_session_days_dropped": 10855,
+    "series_cut_at_180_days": 45473,
+    "series_total": 480978,
+    "series_written_ge3_days": 36480
+  },
+  "gapsCsvSha256": "9bec0acd61e2b2c75a2ca2b7e1c5e0b88a6309af97799691cbe930e7b25a993c"
+}
