@@ -1,28 +1,42 @@
 {
   "name": "right-on-time",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "Right on Time: text-message delivery pacing demo for Classic Cup Coffee (UGA AI Society x PwC case competition).",
+  "description": "Right on Time: the subscription team's console for Classic Cup Coffee (UGA AI Society x PwC case competition).",
   "type": "module",
   "engines": {
-    "node": ">=24"
+    "node": ">=24.15 <25"
   },
+  "packageManager": "pnpm@12.4.2",
   "scripts": {
-    "sim": "tsx packages/core/src/sim/cli.ts",
-    "backtest": "tsx packages/core/src/backtest/cli.ts",
+    "dev": "node scripts/dev.mjs",
+    "build": "vite build",
+    "demo": "vite build && tsx src/server/index.ts",
+    "seed": "tsx src/sim/seedCli.ts",
+    "impact": "tsx src/sim/impactCli.ts",
+    "backtest": "tsx src/sim/backtest/cli.ts",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "dev": "pnpm --parallel --filter @rot/server --filter @rot/web dev",
-    "build:web": "pnpm --filter @rot/web build",
-    "demo": "pnpm build:web && tsx apps/server/src/main.ts",
-    "smoke": "tsx scripts/smoke.ts"
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "2.1.5",
+    "hono": "4.13.13",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-is": "19.3.1",
+    "recharts": "3.10.1",
+    "spectrum-ts": "12.11.0"
   },
   "devDependencies": {
-    "@types/node": "^26.6.5",
-    "playwright-core": "^1.64.1",
-    "tsx": "^4.23.15",
-    "typescript": "^7.0.2",
-    "vitest": "^5.0.5"
-  },
-  "packageManager": "pnpm@12.4.2"
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "tailwindcss": "4.3.3",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.5"
+  }
 }

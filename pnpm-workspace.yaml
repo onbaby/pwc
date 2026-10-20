@@ -1,6 +1,4 @@
-packages:
-  - "packages/*"
-  - "apps/*"
+# Single package. This file only records which dependency install scripts are allowed.
 allowBuilds:
   esbuild: true
   protobufjs: false
