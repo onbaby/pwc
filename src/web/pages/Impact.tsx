@@ -146,7 +146,7 @@ function PacingCard({ d, cohort }: { d: ImpactArtifact; cohort: number }) {
         </tbody>
       </table>
       <div className="mt-3 text-[13px] text-muted">
-        Projection from simulation · sample data. {d.meta.note} The “needs” bar is model-free: how much 12-month retention the change must add to cover its program cost and the deliveries it removes. Table rows are read at the setting of {Math.round(d.meta.defaultPhi * 100)} of every 100.
+        {d.meta.note} The “needs” bar is model-free: how much 12-month retention the change must add to cover its program cost and the deliveries it removes. Table rows are read at the setting of {Math.round(d.meta.defaultPhi * 100)} of every 100.
       </div>
     </Card>
   );
