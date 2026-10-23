@@ -128,8 +128,24 @@ function plan(seed: number, targetActive: number): Planned[] {
   return out;
 }
 
-function pickName(s: Stream): string {
-  return `${s.pick(FIRST)} ${s.pick(LAST)}`;
+/** A name no other customer has (two "Abigail Edwards" in one list read as a bug), and never a demo persona's name. */
+function pickName(s: Stream, used: Set<string>): string {
+  for (let tries = 0; tries < 80; tries++) {
+    const n = `${s.pick(FIRST)} ${s.pick(LAST)}`;
+    if (!used.has(n)) {
+      used.add(n);
+      return n;
+    }
+  }
+  // the common-name lists are nearly exhausted: add a middle initial
+  for (;;) {
+    const [f, l] = [s.pick(FIRST), s.pick(LAST)];
+    const n = `${f} ${String.fromCharCode(65 + s.int(0, 25))}. ${l}`;
+    if (!used.has(n)) {
+      used.add(n);
+      return n;
+    }
+  }
 }
 
 function replyWeeks(c: SimCustomer, R: number, k: number): number {
@@ -218,6 +234,7 @@ export function generateSeed(opts: SeedOptions): SeedData {
   const planned = plan(seed, opts.targetActive ?? 3_990);
   const customers: SeedCustomer[] = [];
   const names = new Stream("names", seed);
+  const usedNames = new Set<string>(["Maya Thompson", "Dev Patel", "Priya Shah"]);
   const cityWeights = CITIES.map((c) => c[1]);
   planned.sort((a, b) => a.signupDay - b.signupDay || SOURCES.indexOf(a.source) - SOURCES.indexOf(b.source));
   planned.forEach((p, i) => {
@@ -227,7 +244,7 @@ export function generateSeed(opts: SeedOptions): SeedData {
     const consentDelivery = r.next() < 0.96;
     const consentOffers = consentDelivery && r.next() < 0.62;
     const signupMs = etInstant(p.signupDay, 11, 0);
-    const name = pickName(names);
+    const name = pickName(names, usedNames);
     const h = history(c, p, consentDelivery, signupMs, r, name.split(" ")[0]!);
     const planType: PlanType = p.source === "gift" && r.next() < 0.55 ? "gift" : r.next() < 0.07 ? "prepaid" : "payg";
     const giftEnds = planType === "gift" ? TODAY + (r.next() < 0.22 ? r.int(5, 28) : r.int(35, 300)) : null;

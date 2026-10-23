@@ -108,7 +108,7 @@ export function runningOutSoon(db: Db, today: Day, days = 14, limit = 40): { ite
   const now = nowMs(db);
   const where = `WHERE c.status NOT IN ('CANCELLED','OPTED_OUT') AND json_extract(p.json, '$.runOutDates.lo') <= ?`;
   const total = get<{ n: number }>(db, `SELECT COUNT(*) AS n FROM customers c JOIN projections p ON p.customer_id = c.id ${where}`, today + days)?.n ?? 0;
-  const rows = all<ListRow>(db, `${LIST_SQL} ${where} ORDER BY json_extract(p.json, '$.runOutDates.lo'), c.name LIMIT ?`, today + days, limit);
+  const rows = all<ListRow>(db, `${LIST_SQL} ${where} ORDER BY CASE WHEN json_extract(p.json, '$.confidence') IN ('High','Medium') THEN 0 ELSE 1 END, json_extract(p.json, '$.runOutDates.lo'), c.name LIMIT ?`, today + days, limit);
   return { items: rows.map((r) => toListItem(r, now)), total };
 }
 

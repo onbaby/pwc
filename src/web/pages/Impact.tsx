@@ -299,7 +299,7 @@ function WhyDtcCard({ w, sources }: { w: ImpactDTO["whyDtc"]; sources: ImpactDTO
   );
 }
 
-function OpportunityCard({ defaults }: { defaults: ImpactDTO["opportunityDefaults"] }) {
+function OpportunityCard({ defaults, pacingNeverPays }: { defaults: ImpactDTO["opportunityDefaults"]; pacingNeverPays: boolean }) {
   const [lift, setLift] = useState(defaults.retentionLift);
   const [conv, setConv] = useState(defaults.groceryConversion);
   const [bags, setBags] = useState(defaults.bagsPerBuyerPerYear);
@@ -319,11 +319,11 @@ function OpportunityCard({ defaults }: { defaults: ImpactDTO["opportunityDefault
     <Card>
       <SectionTitle>What it could be worth</SectionTitle>
       <p className="m-0 mb-3 max-w-[900px] text-[16px] font-medium">
-        Keep {pct(lift)} more subscribers and convert {pct(conv, 1)} of grocery buyers, and Classic Cup adds about {usd(o.totalGP)} in gross profit a year, with no new stores, no extra sales headcount and no price increase.
+        The size of the prize: if Classic Cup keeps {pct(lift)} more subscribers and {pct(conv, 1)} of grocery buyers subscribe, that is about {usd(o.totalGP)} in gross profit a year, with no new stores, no extra sales headcount and no price increase. It is what the program has to deliver, not what we claim it will.
       </p>
       <div className="grid grid-cols-12 gap-5">
         <div className="col-span-5 space-y-3">
-          {slider("Subscribers kept: more than today", pct(lift), <input type="range" min={0} max={0.3} step={0.01} value={lift} onChange={(e) => setLift(Number(e.target.value))} className="w-full accent-[#643A2B]" aria-label="Relative increase in subscribers kept" />, "What pacing and offers must deliver; the pilot measures it.")}
+          {slider("Subscribers kept: more than today", pct(lift), <input type="range" min={0} max={0.3} step={0.01} value={lift} onChange={(e) => setLift(Number(e.target.value))} className="w-full accent-[#643A2B]" aria-label="Relative increase in subscribers kept" />, pacingNeverPays ? "Our simulation says timing deliveries alone does not reach this (next cards), so it has to come from timing plus offers, and the pilot measures it." : "What pacing and offers must deliver; the pilot measures it.")}
           {slider("Grocery buyers who subscribe in a year", pct(conv, 1), <input type="range" min={0} max={0.1} step={0.005} value={conv} onChange={(e) => setConv(Number(e.target.value))} className="w-full accent-[#643A2B]" aria-label="Share of grocery buyers who subscribe" />, "What the bag QR funnel must deliver.")}
           {slider("Grocery bags per buyer per year", nf(bags), <input type="range" min={6} max={48} step={1} value={bags} onChange={(e) => setBags(Number(e.target.value))} className="w-full accent-[#643A2B]" aria-label="Grocery bags per buyer per year" />, "Assumption: turns Exhibit B pounds into buyers. Fewer bags each means more buyers.")}
         </div>
@@ -350,7 +350,7 @@ function OpportunityCard({ defaults }: { defaults: ImpactDTO["opportunityDefault
           </div>
         </div>
       </div>
-      <div className="mt-3 text-[13px] text-muted">Arithmetic on the exhibits plus labelled assumptions (listed below); first-year value only. Not a forecast: the pacing pilot and the bag QR pilot each measure one of the two inputs.</div>
+      <div className="mt-3 text-[13px] text-muted">Arithmetic on the exhibits plus labelled assumptions (listed below); first-year value only. It treats each extra subscriber kept as worth the average subscriber. Not a forecast: the pacing pilot and the bag QR pilot each measure one of the two inputs.</div>
     </Card>
   );
 }
@@ -395,13 +395,20 @@ export function ImpactPage() {
         <Empty>Loading…</Empty>
       ) : (
         <div className="space-y-5">
-          <WhyDtcCard w={data.whyDtc} sources={data.exhibits.sources} />
-          <OpportunityCard defaults={data.opportunityDefaults} />
-          {data.impact ? <PacingCard d={data.impact} cohort={CAFE_WEB_SIGNUPS} /> : <Card><SectionTitle>Is pacing paying for itself?</SectionTitle><Empty>The simulation has not been run. Run pnpm impact.</Empty></Card>}
-          {data.impact && <FreshnessSimCard d={data.impact} f={data.freshness} />}
-          <PilotCard p={data.pilot} />
-          <BacktestCard b={data.backtest} />
-          <Card>
+          <nav aria-label="Sections on this page" className="flex flex-wrap gap-2 text-[13px]">
+            {[["why", "Why DTC"], ["worth", "What it could be worth"], ["pacing", "Does pacing pay?"], ["fresh", "Freshness"], ["pilot", "Pilot plan"], ["check", "Real-data check"], ["offers", "Offer experiments"]].map(([id, label]) => (
+              <button key={id} className="chip" onClick={() => document.getElementById(`impact-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+                {label}
+              </button>
+            ))}
+          </nav>
+          <section id="impact-why"><WhyDtcCard w={data.whyDtc} sources={data.exhibits.sources} /></section>
+          <section id="impact-worth"><OpportunityCard defaults={data.opportunityDefaults} pacingNeverPays={data.impact?.paced.breakEvenPhi === null} /></section>
+          <section id="impact-pacing">{data.impact ? <PacingCard d={data.impact} cohort={CAFE_WEB_SIGNUPS} /> : <Card><SectionTitle>Is pacing paying for itself?</SectionTitle><Empty>The simulation has not been run. Run pnpm impact.</Empty></Card>}</section>
+          <section id="impact-fresh">{data.impact && <FreshnessSimCard d={data.impact} f={data.freshness} />}</section>
+          <section id="impact-pilot"><PilotCard p={data.pilot} /></section>
+          <section id="impact-check"><BacktestCard b={data.backtest} /></section>
+          <section id="impact-offers"><Card>
             <SectionTitle>Offer experiments</SectionTitle>
             {data.offerExperiments.length === 0 ? (
               <Empty>No offers are running. Schedule one from Offers.</Empty>
@@ -416,7 +423,7 @@ export function ImpactPage() {
               </ul>
             )}
             <div className="mt-2 text-[13px] text-muted">Cancellation effects are read only at the pre-set sample size. Until then each offer shows acceptance, opt-outs and next check-in replies.</div>
-          </Card>
+          </Card></section>
           <details className="card p-4">
             <summary className="cursor-pointer text-[16px] font-semibold text-espresso">Every assumption behind the simulation ({data.ledger.length})</summary>
             <table className="mt-3">

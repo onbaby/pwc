@@ -63,9 +63,9 @@ export function Today() {
           className="card block h-[96px] overflow-hidden px-4 py-2.5 text-ink no-underline hover:border-espresso"
           title={`Of ${nf(kpis.freshness.total)} bags arriving in the next 4 weeks: ${nf(kpis.freshness.counts.best + kpis.freshness.counts.peak)} opened within ${kpis.freshness.peakEndDays} days of roasting, ${nf(kpis.freshness.counts.past_peak)} past peak, ${nf(kpis.freshness.counts.late)} arriving after the customer runs out (model median)`}
         >
-          <div className="text-[13px] font-medium text-muted">Next bags opened at peak</div>
+          <div className="text-[13px] font-medium text-muted">Bags opened at peak</div>
           <div className="tnum text-[36px] font-semibold leading-[1.05] text-espresso">{pct(kpis.freshness.atPeakShare)}</div>
-          <div className="truncate text-[13px] text-muted">
+          <div className="truncate text-[12px] text-muted" title="Of the next four weeks of deliveries">
             {nf(kpis.freshness.counts.past_peak)} past peak · {nf(kpis.freshness.counts.late)} late
           </div>
         </a>

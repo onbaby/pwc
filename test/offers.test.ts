@@ -153,7 +153,7 @@ describe("offers: scheduling never adds a text and results hide benefit until N"
     const id = all<{ id: number }>(t.db, "SELECT id FROM offers WHERE name = 'Athens roast rotation'")[0]!.id;
     const r = offerResults(t.db, id);
     expect(r.readReady).toBe(false);
-    expect(r.statusLine).toMatch(/^Collecting data · [\d,]+ of 1,0\d\d per group · first read (est\. \w{3} 20\d\d|is more than 3 years away at this audience size)$/);
+    expect(r.statusLine).toMatch(/^Collecting data · [\d,]+ of 1,0\d\d per group · first read (est\. \w{3} 20\d\d|is more than 2 years away at this audience size)$/);
     expect(r.accepted).toBe(0);
     expect(r.sandboxNote).toContain("never simulated");
   });

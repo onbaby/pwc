@@ -218,8 +218,8 @@ export function estimateFirstRead(eligible: number, audience: Audience, holdoutM
   const monthsToN = perGroupNow >= needed ? 1 : 1 + (needed - perGroupNow) / monthlyIn;
   const totalMonths = monthsToN + RULES.experimentOutcomeDays / 30;
   const readDay = today + Math.round(totalMonths * 30);
-  const far = totalMonths > 36;
-  const estimate = far ? "more than 3 years away at this audience size" : fmtMonthYear(readDay);
+  const far = totalMonths > 24;
+  const estimate = far ? "more than 2 years away at this audience size" : fmtMonthYear(readDay);
   return {
     perGroupNeeded: needed,
     perGroupNow,
