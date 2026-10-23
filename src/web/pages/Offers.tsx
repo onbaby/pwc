@@ -76,7 +76,7 @@ export function OffersList() {
   const { data } = useApi<{ offers: OfferDTO[]; types: Types }>("/api/offers", ["offer", "queue"]);
   return (
     <div>
-      <PageTitle sub="Targeted by cancel reason, consent-gated, never an extra text, measured against a holdout." right={<a className="btn primary no-underline" href={href("/offers/new")}>New offer</a>}>
+      <PageTitle sub="Small offers for customers likely to cancel. Only for people who said yes to offers, added to a text they were getting anyway, and compared against a group that gets nothing." right={<a className="btn primary no-underline" href={href("/offers/new")}>New offer</a>}>
         Offers
       </PageTitle>
       <Card pad={false}>
@@ -99,9 +99,9 @@ export function OffersList() {
             </thead>
             <tbody>
               {data.offers.map((o) => (
-                <tr key={o.id} className="row">
+                <tr key={o.id} className="row cursor-pointer" onClick={(e) => !(e.target as HTMLElement).closest("a,button") && go(`/offers/${o.id}`)}>
                   <td>
-                    <a className="font-medium text-orange-ink" href={href(`/offers/${o.id}`)}>
+                    <a className="font-medium text-link" href={href(`/offers/${o.id}`)}>
                       {o.name}
                     </a>
                   </td>
@@ -128,8 +128,8 @@ const PRESET = { name: "Athens roast rotation", type: "rotation" as OfferType, a
 function Section({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
     <Card>
-      <h2 className="m-0 mb-3 flex items-center gap-3 text-[20px] font-semibold text-espresso">
-        <span className="grid h-7 w-7 place-items-center rounded-full bg-espresso text-[14px] text-white">{n}</span>
+      <h2 className="m-0 mb-3 flex items-center gap-3 text-[20px] font-medium tracking-tight text-strong">
+        <span className="grid h-7 w-7 place-items-center rounded-full bg-strong text-[14px] text-white">{n}</span>
         {title}
       </h2>
       {children}
@@ -203,16 +203,16 @@ export function OfferPage({ id }: { id: string }) {
       {o && o.status !== "Draft" && R && (
         <Card className="mb-5">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="m-0 text-[20px] font-semibold text-espresso">Results</h2>
+            <h2 className="m-0 text-[20px] font-medium tracking-tight text-strong">Results</h2>
             <span className={`chip ${statusChip(o.status)}`}>{o.status}</span>
           </div>
           {o.pausedReason && <div className="mb-3 rounded-lg bg-danger-tint p-3 text-[14px] text-danger">Paused: {o.pausedReason}</div>}
           <div className="mb-3 text-[16px] font-medium">{R.statusLine}</div>
           <div className="grid grid-cols-4 gap-4 text-[14px]">
-            <div><div className="text-muted">Texts sent with the offer</div><div className="tnum text-[28px] font-semibold text-espresso">{nf(R.sends)}</div></div>
-            <div><div className="text-muted">Accepted</div><div className="tnum text-[28px] font-semibold text-espresso">{nf(R.accepted)}</div><div className="text-[13px] text-muted">{R.acceptRate === null ? "no sends yet" : `${(R.acceptRate * 100).toFixed(1)}% of sends`}</div></div>
-            <div><div className="text-muted">STOP or NO OFFERS within 7 days</div><div className="tnum text-[28px] font-semibold text-espresso">{nf(R.optOuts7d)}</div><div className="text-[13px] text-muted">{R.optOutShare === null ? "–" : `${(R.optOutShare * 100).toFixed(1)}% of sends (pauses above 2%)`}</div></div>
-            <div><div className="text-muted">Next check-in reply rate</div><div className="tnum text-[28px] font-semibold text-espresso">{R.nextCheckIn.treatment.rate === null ? "–" : `${(R.nextCheckIn.treatment.rate * 100).toFixed(0)}%`}</div><div className="text-[13px] text-muted">{R.nextCheckIn.holdout.rate === null ? "holdout: not read yet" : `holdout ${(R.nextCheckIn.holdout.rate * 100).toFixed(0)}%`}</div></div>
+            <div><div className="text-muted">Texts sent with the offer</div><div className="tnum text-[28px] font-medium tracking-tight text-strong">{nf(R.sends)}</div></div>
+            <div><div className="text-muted">Accepted</div><div className="tnum text-[28px] font-medium tracking-tight text-strong">{nf(R.accepted)}</div><div className="text-[13px] text-muted">{R.acceptRate === null ? "no sends yet" : `${(R.acceptRate * 100).toFixed(1)}% of sends`}</div></div>
+            <div><div className="text-muted">STOP or NO OFFERS within 7 days</div><div className="tnum text-[28px] font-medium tracking-tight text-strong">{nf(R.optOuts7d)}</div><div className="text-[13px] text-muted">{R.optOutShare === null ? "–" : `${(R.optOutShare * 100).toFixed(1)}% of sends (pauses above 2%)`}</div></div>
+            <div><div className="text-muted">Next check-in reply rate</div><div className="tnum text-[28px] font-medium tracking-tight text-strong">{R.nextCheckIn.treatment.rate === null ? "–" : `${(R.nextCheckIn.treatment.rate * 100).toFixed(0)}%`}</div><div className="text-[13px] text-muted">{R.nextCheckIn.holdout.rate === null ? "holdout: not read yet" : `holdout ${(R.nextCheckIn.holdout.rate * 100).toFixed(0)}%`}</div></div>
           </div>
           <div className="mt-3 text-[13px] text-muted">Cancellation effects are read only at the pre-set sample size ({nf(R.perGroupNeeded)} per group for a 3-point drop from about 8% a month) and pooled against the standing holdout. {R.sandboxNote}</div>
           <div className="mt-3 flex gap-2">
@@ -228,7 +228,7 @@ export function OfferPage({ id }: { id: string }) {
             <div className="grid grid-cols-2 gap-2">
               {types.data &&
                 (Object.entries(types.data.types) as Array<[OfferType, Types[string]]>).map(([k, v]) => (
-                  <label key={k} className={`cursor-pointer rounded-lg border p-3 text-[14px] ${d.type === k ? "border-espresso bg-[#f6efe9]" : "border-line"} ${locked ? "opacity-60" : ""}`}>
+                  <label key={k} className={`cursor-pointer rounded-lg border p-3 text-[14px] ${d.type === k ? "border-strong bg-accent-tint" : "border-line"} ${locked ? "opacity-60" : ""}`}>
                     <input type="radio" name="otype" className="mr-2" checked={d.type === k} disabled={locked} onChange={() => setType(k)} />
                     <b>{v.label}</b>
                     <div className="mt-0.5 text-[13px] text-muted">{v.reason}</div>
@@ -317,7 +317,7 @@ export function OfferPage({ id }: { id: string }) {
         <aside className="col-span-5">
           <div className="sticky top-2 space-y-4">
             <Card>
-              <h2 className="m-0 mb-3 text-[20px] font-semibold text-espresso">Live preview</h2>
+              <h2 className="m-0 mb-3 text-[20px] font-medium tracking-tight text-strong">Live preview</h2>
               {!preview ? (
                 <div className="text-[14px] text-muted">Working it out…</div>
               ) : (
@@ -326,7 +326,7 @@ export function OfferPage({ id }: { id: string }) {
                     <div key={e} className="rounded-lg bg-danger-tint p-2 text-danger">{e}</div>
                   ))}
                   <div>
-                    <span className="tnum text-[36px] font-semibold leading-none text-espresso">{nf(preview.eligible)}</span> <span className="text-muted">eligible of {nf(preview.matching)} who match</span>
+                    <span className="tnum text-[36px] font-semibold leading-none text-strong">{nf(preview.eligible)}</span> <span className="text-muted">eligible of {nf(preview.matching)} who match</span>
                     {d.holdoutMode === "experiment" && <div className="text-[13px] text-muted">{nf(preview.treatment)} get the offer · {nf(preview.holdout)} held out</div>}
                   </div>
                   <div>

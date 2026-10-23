@@ -4,7 +4,7 @@ import type { CustomerListItem } from "../../shared/types.ts";
 import { useApi } from "../api.tsx";
 import { Card, Empty, HowSure, PageTitle, Status } from "../components/ui.tsx";
 import { fmtDay, fmtMonthDay, nf } from "../format.ts";
-import { href } from "../router.ts";
+import { go, href } from "../router.ts";
 
 interface ListDTO {
   items: CustomerListItem[];
@@ -31,7 +31,7 @@ export function Customers() {
   };
   return (
     <div>
-      <PageTitle sub={data ? `${nf(data.total)} customers` : undefined}>Customers</PageTitle>
+      <PageTitle sub={data ? `${nf(data.total)} customers · select a row to open their profile` : undefined}>Customers</PageTitle>
       <Card pad={false}>
         <div className="flex flex-wrap items-center gap-3 border-b border-line p-3">
           <input aria-label="Search" placeholder="Search name, city or ID" value={q} onChange={(e) => (setQ(e.target.value), setPage(1))} className="w-[280px]" />
@@ -81,9 +81,9 @@ export function Customers() {
             </thead>
             <tbody>
               {data.items.map((c) => (
-                <tr key={c.id} className="row">
+                <tr key={c.id} className="row cursor-pointer" onClick={(e) => !(e.target as HTMLElement).closest("a,button") && go(`/customers/${c.id}`)}>
                   <td>
-                    <a className="font-medium text-orange-ink" href={href(`/customers/${c.id}`)}>
+                    <a className="font-medium text-link" href={href(`/customers/${c.id}`)}>
                       {c.name}
                     </a>
                     <div className="text-[13px] text-muted">

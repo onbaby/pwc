@@ -115,7 +115,7 @@ function kpis(db: Db, today: Day, now: number, ctx: AppCtx) {
   return {
     freshness: freshnessKpi(db, today),
     active: { value: active, prev: activePrev },
-    deliveriesThisWeek: { value: delivThis, prev: delivPrev, sparkline: o.weeks.map((w) => w.deliveries.p50) },
+    deliveriesThisWeek: { value: delivThis, prev: delivPrev, sparkline: o.weeks.map((w) => w.deliveries.p50), weeks: o.weeks.map((w) => w.wednesday) },
     checkInsToday: { value: checkToday, prev: checkPrev },
     waitingForPerson: { value: person, prev: personPrev },
   };
@@ -273,6 +273,11 @@ export function createApp(s: ServerCtx): Hono {
   });
 
   // ---- Inbox -----------------------------------------------------------------------------------------------------
+  // the sidebar badge and inbox tabs: totals only
+  app.get("/api/inbox/counts", (c) => {
+    const pendingOffers = get<{ n: number }>(db, "SELECT COUNT(*) AS n FROM offers WHERE status = 'Pending approval'")?.n ?? 0;
+    return c.json({ needs: needsPerson(db).total, approvals: approvals(db).total + pendingOffers });
+  });
   app.get("/api/inbox", (c) => {
     const tab = c.req.query("tab") ?? "needs";
     if (tab === "needs") return c.json(needsPerson(db));

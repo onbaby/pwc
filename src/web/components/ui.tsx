@@ -2,14 +2,18 @@ import type { ReactNode } from "react";
 import type { Confidence } from "../../engine/decision.ts";
 import type { StatusChip } from "../../shared/types.ts";
 
-export function Card({ children, className = "", pad = true }: { children: ReactNode; className?: string; pad?: boolean }) {
-  return <div className={`card ${pad ? "p-4" : ""} ${className}`}>{children}</div>;
+export function Card({ children, className = "", pad = true, id }: { children: ReactNode; className?: string; pad?: boolean; id?: string }) {
+  return (
+    <div id={id} className={`card ${pad ? "p-4" : ""} ${className}`}>
+      {children}
+    </div>
+  );
 }
 
 export function SectionTitle({ children, right }: { children: ReactNode; right?: ReactNode }) {
   return (
     <div className="mb-3 flex items-center justify-between gap-3">
-      <h2 className="m-0 text-[20px] font-semibold leading-tight text-espresso">{children}</h2>
+      <h2 className="m-0 text-[20px] font-medium leading-tight tracking-tight text-strong">{children}</h2>
       {right}
     </div>
   );
@@ -17,10 +21,10 @@ export function SectionTitle({ children, right }: { children: ReactNode; right?:
 
 export function PageTitle({ children, sub, right }: { children: ReactNode; sub?: ReactNode; right?: ReactNode }) {
   return (
-    <div className="mb-5 flex items-end justify-between gap-4">
+    <div className="mb-6 flex items-end justify-between gap-4">
       <div>
-        <h1 className="m-0 text-[28px] font-semibold leading-tight text-espresso">{children}</h1>
-        {sub && <div className="mt-1 text-[14px] text-muted">{sub}</div>}
+        <h1 className="m-0 text-[40px] font-normal leading-[1.1] tracking-tight text-strong">{children}</h1>
+        {sub && <div className="mt-2 text-[15px] text-muted">{sub}</div>}
       </div>
       {right}
     </div>
@@ -44,15 +48,14 @@ export function Status({ value }: { value: StatusChip }) {
 
 export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: Array<{ id: T; label: ReactNode }>; value: T; onChange: (v: T) => void }) {
   return (
-    <div role="tablist" className="flex gap-1 border-b border-line">
+    <div role="tablist" className="flex gap-1.5 py-2">
       {tabs.map((t) => (
         <button
           key={t.id}
           role="tab"
           aria-selected={value === t.id}
           onClick={() => onChange(t.id)}
-          className={`-mb-px border-0 border-b-2 bg-transparent px-4 py-2.5 text-[15px] ${value === t.id ? "border-espresso font-semibold text-espresso" : "border-transparent text-muted hover:text-espresso"}`}
-          style={{ borderBottomStyle: "solid" }}
+          className={`rounded-xl border px-4 py-2 text-[14px] ${value === t.id ? "border-accent-tint bg-accent-tint font-medium text-accent-ink" : "border-line bg-surface text-muted hover:bg-[var(--hover)] hover:text-strong"}`}
         >
           {t.label}
         </button>
@@ -75,10 +78,10 @@ export function Delta({ now, prev, good = "up" }: { now: number; prev: number; g
 
 export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4" onClick={onClose} role="dialog" aria-modal="true" aria-label={title}>
-      <div className="card w-full max-w-md p-5 shadow-lg" onClick={(e) => e.stopPropagation()}>
+    <div className="anim-backdrop fixed inset-0 z-50 grid place-items-center bg-black/30 p-4" onClick={onClose} role="dialog" aria-modal="true" aria-label={title}>
+      <div className="card anim-modal w-full max-w-md p-5 shadow-lg" onClick={(e) => e.stopPropagation()}>
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="m-0 text-[20px] font-semibold text-espresso">{title}</h3>
+          <h3 className="m-0 text-[20px] font-medium tracking-tight text-strong">{title}</h3>
           <button className="btn" onClick={onClose} aria-label="Close">
             ✕
           </button>

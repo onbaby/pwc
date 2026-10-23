@@ -44,10 +44,10 @@ export function SandboxDrawer({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <aside className="fixed right-0 top-0 z-50 flex h-full w-[360px] flex-col border-l border-line bg-surface shadow-xl" aria-label="Sandbox controls">
+    <aside className="anim-drawer fixed right-0 top-0 z-50 flex h-full w-[360px] flex-col border-l border-line bg-surface shadow-xl" aria-label="Sandbox controls">
       <div className="flex items-center justify-between border-b border-line px-4 py-3">
         <div>
-          <div className="text-[16px] font-semibold text-espresso">Sandbox controls</div>
+          <div className="text-[16px] font-medium tracking-tight text-strong">Sandbox controls</div>
           <div className="text-[13px] text-muted">Sample data only · Ctrl+Alt+D to hide</div>
         </div>
         <button className="btn" onClick={onClose} aria-label="Close sandbox controls">

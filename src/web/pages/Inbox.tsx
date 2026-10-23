@@ -1,7 +1,10 @@
+import { NavArrowDown } from "iconoir-react";
 import { useState } from "react";
 import { dayFromISO } from "../../shared/dates.ts";
 import type { MessageDTO } from "../../shared/types.ts";
-import { post, toast, useApi } from "../api.tsx";
+import type { TraceCode } from "../../engine/decision.ts";
+import { checkSentence } from "../../engine/explain.ts";
+import { post, toast, useApi, useLive } from "../api.tsx";
 import { Card, Empty, PageTitle, Tabs } from "../components/ui.tsx";
 import { fmtDateTime, nf, relativeTime } from "../format.ts";
 import { go, href } from "../router.ts";
@@ -28,16 +31,23 @@ const act = async (customerId: string, payload: Record<string, unknown>, ok: str
   toast(r.ok ? ok : (r.error ?? "That didn't work"), { tone: r.ok ? "info" : "error" });
 };
 
+const HELP: Record<Tab, string> = {
+  needs: "Customers wrote something the texts can't handle on their own. Reply, or take an action, then mark it resolved.",
+  approvals: "Changes the system wants to make that need a yes from you first. Approve to send, or hold to keep things as they are.",
+  all: "Every text sent and received, newest first.",
+};
+
 function NeedsRow({ n, now }: { n: Needs["items"][number]; now: number }) {
   const [reply, setReply] = useState("");
   const [holdUntil, setHoldUntil] = useState("");
   const [open, setOpen] = useState<"reply" | "hold" | null>(null);
+  const [more, setMore] = useState(false);
   return (
     <li className="border-b border-line px-4 py-3">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <a className="text-[15px] font-semibold text-orange-ink" href={href(`/customers/${n.customerId}`)}>
+            <a className="text-[15px] font-semibold text-link" href={href(`/customers/${n.customerId}`)}>
               {n.name}
             </a>
             <span className="chip plum">{n.reason}</span>
@@ -45,12 +55,29 @@ function NeedsRow({ n, now }: { n: Needs["items"][number]; now: number }) {
           </div>
           <div className="mt-1 text-[15px]">“{n.text}”</div>
         </div>
-        <div className="flex shrink-0 flex-wrap justify-end gap-2">
-          <button className="btn" onClick={() => setOpen(open === "reply" ? null : "reply")}>Reply</button>
-          <button className="btn" onClick={() => setOpen(open === "hold" ? null : "hold")}>Hold until…</button>
-          <button className="btn" onClick={() => act(n.customerId, { action: "pause", days: 28 }, "Paused for four weeks")}>Pause</button>
-          <a className="btn no-underline" href={href(`/customers/${n.customerId}`)}>Move…</a>
-          <button className="btn" onClick={() => act(n.customerId, { action: "resolve", messageId: n.messageId }, "Marked resolved")}>Resolve</button>
+        <div className="flex shrink-0 items-start gap-2">
+          <button className="btn primary" onClick={() => setOpen(open === "reply" ? null : "reply")}>Reply</button>
+          <button className="btn" onClick={() => act(n.customerId, { action: "resolve", messageId: n.messageId }, "Marked resolved")} title="Nothing more to do: take it off the list">
+            Resolve
+          </button>
+          <div className="relative" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setMore(false)}>
+            <button className="btn" aria-haspopup="menu" aria-expanded={more} onClick={() => setMore(!more)}>
+              More <NavArrowDown width={14} height={14} aria-hidden />
+            </button>
+            {more && (
+              <div role="menu" className="card absolute right-0 top-10 z-30 w-56 p-1 shadow-lg">
+                <button role="menuitem" className="block w-full rounded-lg border-0 bg-transparent px-3 py-2 text-left text-[14px] hover:bg-[var(--hover)]" onClick={() => (setOpen("hold"), setMore(false))}>
+                  Hold delivery until…
+                </button>
+                <button role="menuitem" className="block w-full rounded-lg border-0 bg-transparent px-3 py-2 text-left text-[14px] hover:bg-[var(--hover)]" onClick={() => (act(n.customerId, { action: "pause", days: 28 }, "Paused for four weeks"), setMore(false))}>
+                  Pause for 4 weeks
+                </button>
+                <a role="menuitem" className="block rounded-lg px-3 py-2 text-[14px] text-ink no-underline hover:bg-[var(--hover)]" href={href(`/customers/${n.customerId}`)}>
+                  Move delivery (opens profile)
+                </a>
+              </div>
+            )}
+          </div>
         </div>
       </div>
       {open === "reply" && (
@@ -80,22 +107,24 @@ export function Inbox({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   const needs = useApi<Needs>(tab === "needs" ? "/api/inbox?tab=needs" : null);
   const approvals = useApi<Approvals>(tab === "approvals" ? "/api/inbox?tab=approvals" : null);
   const all = useApi<AllMsgs>(tab === "all" ? `/api/inbox?tab=all&page=${page}${q.trim() ? `&q=${encodeURIComponent(q.trim())}` : ""}` : null);
-  const today = useApi<{ now: number; needsPerson: { total: number }; approvals: { total: number } }>("/api/today");
-  const now = today.data?.now ?? Date.now();
+  const counts = useApi<{ needs: number; approvals: number }>("/api/inbox/counts", ["message", "queue", "offer"]).data;
+  const { now: liveNow } = useLive();
+  const now = liveNow ?? Date.now();
   return (
     <div>
-      <PageTitle sub="Each queue has exactly one home here; Today shows the top items.">Inbox</PageTitle>
+      <PageTitle sub="Everything waiting on a person, in one place.">Inbox</PageTitle>
       <Card pad={false}>
         <div className="px-4 pt-2">
           <Tabs
             value={tab}
             onChange={(t) => (setTab(t), go(`/inbox?tab=${t}`))}
             tabs={[
-              { id: "needs", label: `Needs a person${today.data ? ` (${today.data.needsPerson.total})` : ""}` },
-              { id: "approvals", label: `Approvals${today.data ? ` (${today.data.approvals.total})` : ""}` },
+              { id: "needs", label: `Needs a person${counts ? ` (${counts.needs})` : ""}` },
+              { id: "approvals", label: `Approvals${counts ? ` (${counts.approvals})` : ""}` },
               { id: "all", label: "All messages" },
             ]}
           />
+          <p className="mb-2 mt-0 text-[13px] text-muted">{HELP[tab]}</p>
         </div>
 
         {tab === "needs" &&
@@ -139,18 +168,23 @@ export function Inbox({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
                 <li key={m.id} className="flex items-start justify-between gap-4 border-b border-line px-4 py-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <a className="text-[15px] font-semibold text-orange-ink" href={href(`/customers/${m.customerId}`)}>
+                      <a className="text-[15px] font-semibold text-link" href={href(`/customers/${m.customerId}`)}>
                         {m.customerName}
                       </a>
                       <span className="chip plum">{m.reasonChip ?? "Waiting for approval"}</span>
                     </div>
                     <div className="mt-1 text-[15px]">“{m.body}”</div>
-                    {m.whySentence && <div className="mt-1 text-[13px] text-muted">{m.whySentence}</div>}
-                    {m.why?.blockedBy && m.why.blockedBy.length > 0 && <div className="mt-0.5 text-[13px] text-muted">Held because: {m.why.blockedBy.join(", ").replaceAll("_", " ").toLowerCase()}.</div>}
+                    {m.why?.blockedBy && m.why.blockedBy.length > 0 && <div className="mt-1 text-[13px] text-muted">Needs your OK because: {m.why.blockedBy.map((code) => checkSentence(code as TraceCode, false)).join("; ")}.</div>}
+                    {m.whySentence && (
+                      <details className="mt-1 text-[13px] text-muted">
+                        <summary className="cursor-pointer select-none text-link">Why this move</summary>
+                        <div className="mt-1">{m.whySentence}</div>
+                      </details>
+                    )}
                   </div>
                   <div className="flex shrink-0 gap-2">
-                    <button className="btn" onClick={() => post(`/api/messages/${m.id}/hold`)}>Hold</button>
-                    <button className="btn primary" onClick={async () => { const r = await post<{ ok: boolean; error?: string }>(`/api/messages/${m.id}/approve`); if (!r.ok) toast(r.error ?? "Could not approve", { tone: "error" }); }}>Approve</button>
+                    <button className="btn" title="Don't send: keep the current delivery" onClick={async () => { const r = await post<{ ok: boolean; error?: string }>(`/api/messages/${m.id}/hold`); toast(r.ok ? "Held: nothing was sent" : (r.error ?? "Could not hold"), { tone: r.ok ? "info" : "error" }); }}>Hold</button>
+                    <button className="btn primary" onClick={async () => { const r = await post<{ ok: boolean; error?: string }>(`/api/messages/${m.id}/approve`); toast(r.ok ? "Approved" : (r.error ?? "Could not approve"), { tone: r.ok ? "info" : "error" }); }}>Approve</button>
                   </div>
                 </li>
               ))}
@@ -182,7 +216,7 @@ export function Inbox({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
                     <tr key={m.id} className="row">
                       <td className="tnum whitespace-nowrap text-[13px]">{fmtDateTime(m.at)}</td>
                       <td>
-                        <a className="font-medium text-orange-ink" href={href(`/customers/${m.customerId}`)}>
+                        <a className="font-medium text-link" href={href(`/customers/${m.customerId}`)}>
                           {m.customerName}
                         </a>
                       </td>

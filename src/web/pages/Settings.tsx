@@ -22,7 +22,7 @@ export function Settings() {
   const { data: s } = useApi<SettingsDTO>("/api/settings", []);
   return (
     <div>
-      <PageTitle sub="Read-only in the prototype.">Settings</PageTitle>
+      <PageTitle sub="How texts and deliveries behave. View only in this prototype.">Settings</PageTitle>
       {!s ? (
         <Empty>Loading…</Empty>
       ) : (

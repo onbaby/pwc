@@ -1,17 +1,18 @@
+import { ChatLines, DeliveryTruck, Group, Leaf, SendDiagonal, StatsUpSquare } from "iconoir-react";
 import { useState } from "react";
-import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import type { CustomerListItem } from "../../shared/types.ts";
 import { post, useApi } from "../api.tsx";
-import { Card, Delta, Empty, HowSure, Status, Tabs } from "../components/ui.tsx";
+import { ACCENT, BarTrend, DeltaBadge, Eyebrow, HalfGauge, INK, Meter, StatTile, TRACK } from "../components/analytics.tsx";
+import { Card, Empty, HowSure, Status, Tabs } from "../components/ui.tsx";
 import { fmtDay, fmtMonthDay, fmtTime, nf, pct, range, relativeTime } from "../format.ts";
-import { href } from "../router.ts";
+import { go, href } from "../router.ts";
 
 interface TodayDTO {
   now: number;
   today: number;
   kpis: {
     active: { value: number; prev: number };
-    deliveriesThisWeek: { value: number; prev: number; sparkline: number[] };
+    deliveriesThisWeek: { value: number; prev: number; sparkline: number[]; weeks: number[] };
     checkInsToday: { value: number; prev: number };
     waitingForPerson: { value: number; prev: number };
     freshness: { total: number; counts: { best: number; peak: number; past_peak: number; late: number }; atPeakShare: number; peakEndDays: number };
@@ -22,53 +23,58 @@ interface TodayDTO {
   approvals: { items: Array<{ id: number; customerId: string; customerName: string; kind: string; body: string; reasonChip: string | null; whySentence: string | null }>; total: number };
 }
 
-function Kpi({ label, value, now, prev, good = "up", href: to, children }: { label: string; value: number; now: number; prev: number; good?: "up" | "down"; href: string; children?: React.ReactNode }) {
-  return (
-    <a href={to} className="card block h-[96px] overflow-hidden px-4 py-2.5 text-ink no-underline hover:border-espresso" aria-label={`${label}: ${nf(value)}`}>
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <div className="text-[13px] font-medium text-muted">{label}</div>
-          <div className="tnum text-[36px] font-semibold leading-[1.05] text-espresso">{nf(value)}</div>
-        </div>
-        {children}
-      </div>
-      <Delta now={now} prev={prev} good={good} />
-    </a>
-  );
-}
-
 export function Today() {
   const { data } = useApi<TodayDTO>("/api/today");
   const [tab, setTab] = useState<"soon" | "out">("soon");
   if (!data) return <div className="text-muted">Loading…</div>;
   const { kpis } = data;
-  const spark = kpis.deliveriesThisWeek.sparkline.map((v, i) => ({ i, v }));
+  const fresh = kpis.freshness;
+  const active = Math.max(1, kpis.active.value);
+  const weeks = kpis.deliveriesThisWeek.sparkline.map((v, i) => ({ label: kpis.deliveriesThisWeek.weeks[i] !== undefined ? fmtMonthDay(kpis.deliveriesThisWeek.weeks[i]!) : `Wk ${i + 1}`, value: Math.round(v) }));
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-5 gap-4">
-        <Kpi label="Active subscribers" value={kpis.active.value} now={kpis.active.value} prev={kpis.active.prev} href={href("/customers")} />
-        <Kpi label="Deliveries this week" value={kpis.deliveriesThisWeek.value} now={kpis.deliveriesThisWeek.value} prev={kpis.deliveriesThisWeek.prev} href={href("/outlook")}>
-          <div className="h-[44px] w-[96px]" title="Next 6 weeks (roast outlook)">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={spark} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
-                <Area type="monotone" dataKey="v" stroke="#F16A21" strokeWidth={2} fill="#F16A21" fillOpacity={0.15} isAnimationActive={false} />
-              </AreaChart>
-            </ResponsiveContainer>
+      <div className="grid grid-cols-12 gap-4">
+        <div className="col-span-8 flex flex-col">
+          <h1 className="m-0 text-[44px] font-normal leading-[1.1] tracking-tight text-strong">Today's subscriptions</h1>
+          <p className="mb-5 mt-2 text-[15px] text-muted">
+            {pct(fresh.atPeakShare)} of the next bags will be <span className="font-medium text-strong">opened at peak freshness</span>
+          </p>
+          <div className="mb-6 flex flex-wrap gap-2">
+            <a className="pill" href={href("/inbox")}>
+              <span className="dot bg-accent" />
+              {nf(kpis.waitingForPerson.value)} waiting for a person
+            </a>
+            <a className="pill" href={href("/inbox?tab=approvals")}>
+              <span className="dot bg-strong" />
+              {nf(data.approvals.total)} waiting for approval
+            </a>
+            <a className="pill" href={href("/customers")}>
+              <span className="dot bg-[#A9A9A4]" />
+              {nf(data.runningOutSoon.total)} running out soon
+            </a>
           </div>
-        </Kpi>
-        <Kpi label="Check-ins going out today" value={kpis.checkInsToday.value} now={kpis.checkInsToday.value} prev={kpis.checkInsToday.prev} href={href("/today")} />
-        <Kpi label="Waiting for a person" value={kpis.waitingForPerson.value} now={kpis.waitingForPerson.value} prev={kpis.waitingForPerson.prev} good="down" href={href("/inbox")} />
-        <a
-          href={href("/customers")}
-          className="card block h-[96px] overflow-hidden px-4 py-2.5 text-ink no-underline hover:border-espresso"
-          title={`Of ${nf(kpis.freshness.total)} bags arriving in the next 4 weeks: ${nf(kpis.freshness.counts.best + kpis.freshness.counts.peak)} opened within ${kpis.freshness.peakEndDays} days of roasting, ${nf(kpis.freshness.counts.past_peak)} past peak, ${nf(kpis.freshness.counts.late)} arriving after the customer runs out (model median)`}
-        >
-          <div className="text-[13px] font-medium text-muted">Bags opened at peak</div>
-          <div className="tnum text-[36px] font-semibold leading-[1.05] text-espresso">{pct(kpis.freshness.atPeakShare)}</div>
-          <div className="truncate text-[12px] text-muted" title="Of the next four weeks of deliveries">
-            {nf(kpis.freshness.counts.past_peak)} past peak · {nf(kpis.freshness.counts.late)} late
+          <div className="mt-auto grid grid-cols-4 gap-3">
+            <StatTile icon={Group} label="Active" value={nf(kpis.active.value)} delta={<DeltaBadge now={kpis.active.value} prev={kpis.active.prev} />} href={href("/customers")} title="Active subscribers" meter={<Meter value={kpis.active.prev ? Math.min(1, kpis.active.prev / active) : 1} tone="ink" label={`${nf(kpis.active.prev)} last week`} />} />
+            <StatTile icon={DeliveryTruck} label="Deliveries" value={nf(kpis.deliveriesThisWeek.value)} delta={<DeltaBadge now={kpis.deliveriesThisWeek.value} prev={kpis.deliveriesThisWeek.prev} />} href={href("/outlook")} title="Deliveries this week" meter={<Meter value={kpis.deliveriesThisWeek.value / active} label={`${pct(kpis.deliveriesThisWeek.value / active)} of subscribers`} />} />
+            <StatTile icon={SendDiagonal} label="Check-ins" value={nf(kpis.checkInsToday.value)} delta={<DeltaBadge now={kpis.checkInsToday.value} prev={kpis.checkInsToday.prev} />} title="Check-ins going out today" meter={<Meter value={kpis.checkInsToday.value / active} tone="ink" label={`${pct(kpis.checkInsToday.value / active, 1)} of subscribers`} />} />
+            <StatTile icon={ChatLines} label="Needs reply" value={nf(kpis.waitingForPerson.value)} delta={<DeltaBadge now={kpis.waitingForPerson.value} prev={kpis.waitingForPerson.prev} good="down" />} href={href("/inbox")} title="Replies waiting for a person" meter={<Meter value={kpis.waitingForPerson.prev ? Math.min(1, kpis.waitingForPerson.value / Math.max(kpis.waitingForPerson.value, kpis.waitingForPerson.prev)) : 1} tone="ink" label={`${nf(kpis.waitingForPerson.prev)} a week ago`} />} />
           </div>
-        </a>
+        </div>
+        <Card className="col-span-4 flex flex-col">
+          <Eyebrow icon={Leaf}>Bag freshness</Eyebrow>
+          <div className="mb-3 mt-1 text-[13px] text-muted">Bags arriving in the next 4 weeks, when the customer opens them</div>
+          <div className="mt-auto">
+            <HalfGauge
+              segments={[
+                { label: "Past peak", value: fresh.counts.past_peak, color: INK },
+                { label: "Late", value: fresh.counts.late, color: TRACK },
+                { label: "At peak", value: fresh.counts.best + fresh.counts.peak, color: ACCENT },
+              ]}
+              center={pct(fresh.atPeakShare)}
+              caption={`within ${fresh.peakEndDays} days of roasting`}
+            />
+          </div>
+        </Card>
       </div>
 
       <div className="grid grid-cols-12 gap-4">
@@ -100,9 +106,9 @@ export function Today() {
                   </thead>
                   <tbody>
                     {data.runningOutSoon.items.map((c) => (
-                      <tr key={c.id} className="row">
+                      <tr key={c.id} className="row cursor-pointer" onClick={(e) => !(e.target as HTMLElement).closest("a,button") && go(`/customers/${c.id}`)}>
                         <td>
-                          <a className="font-medium text-orange-ink" href={href(`/customers/${c.id}`)}>
+                          <a className="font-medium text-link" href={href(`/customers/${c.id}`)}>
                             {c.name}
                           </a>
                         </td>
@@ -142,10 +148,10 @@ export function Today() {
                 </thead>
                 <tbody>
                   {data.goingOut.items.map((m) => (
-                    <tr key={m.messageId} className="row">
+                    <tr key={m.messageId} className="row cursor-pointer" onClick={(e) => !(e.target as HTMLElement).closest("a,button") && go(`/customers/${m.customerId}`)}>
                       <td className="tnum whitespace-nowrap">{fmtTime(m.at)}</td>
                       <td>
-                        <a className="font-medium text-orange-ink" href={href(`/customers/${m.customerId}`)}>
+                        <a className="font-medium text-link" href={href(`/customers/${m.customerId}`)}>
                           {m.name}
                         </a>
                       </td>
@@ -164,7 +170,7 @@ export function Today() {
           {((tab === "soon" && data.runningOutSoon.total > data.runningOutSoon.items.length) || (tab === "out" && data.goingOut.total > data.goingOut.items.length)) && (
             <div className="border-t border-line px-4 py-2 text-[13px] text-muted">
               Showing the first {tab === "soon" ? data.runningOutSoon.items.length : data.goingOut.items.length} of {nf(tab === "soon" ? data.runningOutSoon.total : data.goingOut.total)}.{" "}
-              <a href={href("/customers")} className="text-orange-ink">
+              <a href={href("/customers")} className="text-link">
                 All customers
               </a>
             </div>
@@ -172,9 +178,23 @@ export function Today() {
         </Card>
 
         <div className="col-span-4 space-y-4">
+          <Card>
+            <Eyebrow
+              icon={StatsUpSquare}
+              right={
+                <a href={href("/outlook")} className="text-[13px] text-link">
+                  Roast outlook
+                </a>
+              }
+            >
+              Deliveries ahead
+            </Eyebrow>
+            <div className="mt-2 text-[13px] text-muted">Expected bags per week (model median)</div>
+            <BarTrend data={weeks} highlight={0} height={150} unit=" bags" />
+          </Card>
           <Card pad={false}>
             <div className="flex items-center justify-between px-4 pb-1 pt-3">
-              <h2 className="m-0 text-[16px] font-semibold text-espresso">Needs a person</h2>
+              <h2 className="eyebrow">Needs a person</h2>
               <span className="chip plum tnum" aria-label={`${data.needsPerson.total} waiting`}>
                 {data.needsPerson.total}
               </span>
@@ -186,7 +206,7 @@ export function Today() {
                 {data.needsPerson.items.map((n) => (
                   <li key={n.messageId} className="border-t border-line px-4 py-2.5">
                     <div className="flex items-baseline justify-between gap-2">
-                      <a className="text-[14px] font-medium text-orange-ink" href={href(`/customers/${n.customerId}`)}>
+                      <a className="text-[14px] font-medium text-link" href={href(`/customers/${n.customerId}`)}>
                         {n.name}
                       </a>
                       <span className="text-[12px] text-muted">{relativeTime(n.at, data.now)}</span>
@@ -197,7 +217,7 @@ export function Today() {
               </ul>
             )}
             <div className="border-t border-line px-4 py-2 text-[13px]">
-              <a href={href("/inbox")} className="text-orange-ink">
+              <a href={href("/inbox")} className="text-link">
                 View all in Inbox
               </a>
             </div>
@@ -205,7 +225,7 @@ export function Today() {
 
           <Card pad={false}>
             <div className="flex items-center justify-between px-4 pb-1 pt-3">
-              <h2 className="m-0 text-[16px] font-semibold text-espresso">Waiting for approval</h2>
+              <h2 className="eyebrow">Waiting for approval</h2>
               <span className="chip tnum">{data.approvals.total}</span>
             </div>
             {data.approvals.items.length === 0 ? (
@@ -215,7 +235,7 @@ export function Today() {
                 {data.approvals.items.map((a) => (
                   <li key={a.id} className="border-t border-line px-4 py-2.5">
                     <div className="flex items-center justify-between gap-2">
-                      <a className="text-[14px] font-medium text-orange-ink" href={href(`/customers/${a.customerId}`)}>
+                      <a className="text-[14px] font-medium text-link" href={href(`/customers/${a.customerId}`)}>
                         {a.customerName}
                       </a>
                       <button className="btn" onClick={() => post(`/api/messages/${a.id}/approve`)}>
@@ -228,7 +248,7 @@ export function Today() {
               </ul>
             )}
             <div className="border-t border-line px-4 py-2 text-[13px]">
-              <a href={href("/inbox?tab=approvals")} className="text-orange-ink">
+              <a href={href("/inbox?tab=approvals")} className="text-link">
                 View all approvals
               </a>
             </div>

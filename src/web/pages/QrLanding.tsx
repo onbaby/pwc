@@ -170,7 +170,7 @@ export function QrLanding({ code }: { code: string }) {
 
 function Page({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-full bg-cream">
+    <div className="brand min-h-full">
       <header className="bg-espresso px-5 py-3 text-[#FBF6F1]">
         <div className="mx-auto max-w-[520px] text-[18px] font-semibold">Classic Cup</div>
       </header>

@@ -9,6 +9,7 @@ import { MessageThread } from "../components/MessageThread.tsx";
 import { PantryChart } from "../components/PantryChart.tsx";
 import { Card, ConsentChip, HowSure, Modal } from "../components/ui.tsx";
 import { fmtDay, fmtMonthDay, fmtTime, nf, relativeTime, usd } from "../format.ts";
+import { href } from "../router.ts";
 
 type ActionKind = "move" | "hold" | "pause" | "note" | null;
 
@@ -83,7 +84,7 @@ function ActionModal({ id, kind, profile, onClose }: { id: string; kind: Exclude
 function FreshTile({ title, f, tone }: { title: string; f: Freshness; tone: "muted" | "main" }) {
   const cls = f.status === "best" || f.status === "peak" ? "ok" : f.status === "late" ? "bad" : "warn";
   return (
-    <div className={`rounded-lg border p-3 ${tone === "main" ? "border-espresso" : "border-line"}`}>
+    <div className={`rounded-lg border p-3 ${tone === "main" ? "border-strong" : "border-line"}`}>
       <div className="text-[13px] text-muted">{title}</div>
       <div className="text-[16px] font-semibold">{fmtDay(f.arrival)}</div>
       {f.status === "late" ? (
@@ -113,7 +114,7 @@ function FreshnessCard({ p }: { p: Profile }) {
         : `On this date the bag is opened inside the 2–4 week peak.`;
   return (
     <Card>
-      <h2 className="m-0 mb-1 text-[20px] font-semibold text-espresso">Freshness at the cup</h2>
+      <h2 className="m-0 mb-1 text-[20px] font-medium tracking-tight text-strong">Freshness at the cup</h2>
       <div className="mb-3 text-[13px] text-muted">Roasted to order, at the door {WORLD.roastToDoorDays} days later, opened when the coffee ahead of it runs out. Best within {FRESHNESS.bestByDays} days of roasting; past peak after {FRESHNESS.peakEndDays}.</div>
       <div className={`grid gap-3 ${before || after ? "grid-cols-2" : "grid-cols-1"}`}>
         {before && <FreshTile title="Original date" f={before} tone="muted" />}
@@ -139,11 +140,14 @@ export function CustomerProfile({ id }: { id: string }) {
   const suggested = c.suggestedRhythmDays;
   return (
     <div>
-      <div className="sticky -top-6 z-20 -mx-6 mb-4 border-b border-line bg-cream/95 px-6 py-3 backdrop-blur">
+      <div className="sticky -top-4 z-20 -mx-6 mb-4 border-b border-line bg-cream/95 px-6 py-3 backdrop-blur">
+        <a href={href("/customers")} className="mb-1 inline-block text-[13px] text-muted no-underline hover:text-strong">
+          ← Customers
+        </a>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="m-0 text-[28px] font-semibold leading-tight text-espresso">{c.name}</h1>
+              <h1 className="m-0 text-[32px] font-normal leading-tight tracking-tight text-strong">{c.name}</h1>
               <ConsentChip label="Delivery texts" yes={c.consentDelivery} />
               <ConsentChip label="Offers" yes={c.consentOffers} />
               {c.state === "OPTED_OUT" && <span className="chip bad">Texts stopped</span>}
@@ -157,22 +161,17 @@ export function CustomerProfile({ id }: { id: string }) {
               {c.holiday && <span className="chip warn" title="The check-in asks if they're away; AWAY holds the delivery until they're back">Next delivery lands over {c.holiday}</span>}
             </div>
             <div className="mt-1 text-[14px] text-muted">
-              Member since {fmtMonthDay(c.memberSince)} · {SOURCE_LABEL[c.source]} sign-up · {c.plan} · {c.city} · Next delivery <b className="text-ink">{c.nextDelivery ? fmtDay(c.nextDelivery) : "none scheduled"}</b>
-              {suggested !== null && (
-                <>
-                  {" "}
-                  · Suggested at sign-up: every {Math.round(suggested / 7)} weeks · chose: every {Math.round(c.rhythmDays / 7)} weeks
-                </>
-              )}
+              Next delivery <b className="text-ink">{c.nextDelivery ? fmtDay(c.nextDelivery) : "none scheduled"}</b> · {c.plan}
+              {suggested !== null && Math.round(suggested / 7) !== Math.round(c.rhythmDays / 7) && <> (we suggested every {Math.round(suggested / 7)} weeks)</>} · {c.city} · {SOURCE_LABEL[c.source]} sign-up · member since {fmtMonthDay(c.memberSince)}
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button className="btn primary" onClick={async () => { const r = await post<{ ok: boolean; error?: string }>(`/api/customers/${id}/actions`, { action: "send_checkin_now" }); toast(r.ok ? "Check-in sent" : (r.error ?? "Could not send"), { tone: r.ok ? "info" : "error" }); }}>
+            <button className="btn primary" title="Text them now to ask how much coffee is left" onClick={async () => { const r = await post<{ ok: boolean; error?: string }>(`/api/customers/${id}/actions`, { action: "send_checkin_now" }); toast(r.ok ? "Check-in sent" : (r.error ?? "Could not send"), { tone: r.ok ? "info" : "error" }); }}>
               Send check-in now
             </button>
-            <button className="btn" onClick={() => setModal("move")}>Move delivery…</button>
-            <button className="btn" onClick={() => setModal("hold")}>Hold until…</button>
-            <button className="btn" onClick={() => setModal("pause")}>Pause…</button>
+            <button className="btn" title="Pick a new date for the next delivery" onClick={() => setModal("move")}>Move delivery…</button>
+            <button className="btn" title="Don't deliver before a date, for example while they travel" onClick={() => setModal("hold")}>Hold until…</button>
+            <button className="btn" title="Stop deliveries for a few weeks" onClick={() => setModal("pause")}>Pause…</button>
             <button className="btn" onClick={() => setModal("note")}>Add note</button>
           </div>
         </div>
@@ -181,17 +180,17 @@ export function CustomerProfile({ id }: { id: string }) {
       <div className="grid grid-cols-12 gap-5">
         <div className="col-span-8 space-y-5">
           <Card>
-            <h2 className="m-0 mb-1 text-[20px] font-semibold text-espresso">{p.pantry.title}</h2>
+            <h2 className="m-0 mb-1 text-[20px] font-medium tracking-tight text-strong">{p.pantry.title}</h2>
             <div className="mb-2 text-[13px] text-muted">Days of coffee on hand · {p.pantry.empty ?? "labelled directly on the chart"}</div>
             <PantryChart pantry={p.pantry} />
           </Card>
           <FreshnessCard p={p} />
           <Card>
-            <h2 className="m-0 mb-3 text-[20px] font-semibold text-espresso">Messages</h2>
+            <h2 className="m-0 mb-3 text-[20px] font-medium tracking-tight text-strong">Messages</h2>
             <MessageThread messages={p.messages} />
           </Card>
           <Card pad={false}>
-            <h2 className="m-0 px-4 pb-2 pt-4 text-[20px] font-semibold text-espresso">Order history</h2>
+            <h2 className="m-0 px-4 pb-2 pt-4 text-[20px] font-medium tracking-tight text-strong">Order history</h2>
             {p.deliveries.length === 0 ? (
               <div className="px-4 pb-4 text-[14px] text-muted">No orders yet.</div>
             ) : (
@@ -218,7 +217,7 @@ export function CustomerProfile({ id }: { id: string }) {
                         <span className={`chip ${d.status === "delivered" ? "ok" : d.status === "scheduled" ? "" : "warn"}`}>{d.status[0]!.toUpperCase() + d.status.slice(1)}</span>
                       </td>
                       <td className="tnum">{d.daysOnHandAtArrival !== null ? `${nf(d.daysOnHandAtArrival)} days` : "–"}</td>
-                      <td className="tnum">{d.openedAtAge !== null ? <span className={d.openedAtAge > FRESHNESS.peakEndDays ? "text-orange-ink" : ""}>~{d.openedAtAge} days</span> : "–"}</td>
+                      <td className="tnum">{d.openedAtAge !== null ? <span className={d.openedAtAge > FRESHNESS.peakEndDays ? "text-link" : ""}>~{d.openedAtAge} days</span> : "–"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -230,7 +229,7 @@ export function CustomerProfile({ id }: { id: string }) {
         <aside className="col-span-4">
           <div className="sticky top-[100px] space-y-5">
             <Card>
-              <h2 className="m-0 mb-3 text-[20px] font-semibold text-espresso">Why this date</h2>
+              <h2 className="m-0 mb-3 text-[20px] font-medium tracking-tight text-strong">Why this date</h2>
               {pr ? (
                 <div className="space-y-3 text-[14px]">
                   <div>
@@ -272,7 +271,7 @@ export function CustomerProfile({ id }: { id: string }) {
               )}
             </Card>
             <Card>
-              <h2 className="m-0 mb-2 text-[16px] font-semibold text-espresso">Activity log</h2>
+              <h2 className="m-0 mb-2 text-[16px] font-medium tracking-tight text-strong">Activity log</h2>
               {activity.length === 0 ? (
                 <div className="text-[13px] text-muted">Nothing yet.</div>
               ) : (
@@ -286,7 +285,7 @@ export function CustomerProfile({ id }: { id: string }) {
                 </ul>
               )}
               {p.activity.length > 5 && (
-                <button className="mt-2 border-0 bg-transparent p-0 text-[13px] text-orange-ink underline" onClick={() => setShowAll((s) => !s)}>
+                <button className="mt-2 border-0 bg-transparent p-0 text-[13px] text-link underline" onClick={() => setShowAll((s) => !s)}>
                   {showAll ? "Show less" : `Show all ${p.activity.length}`}
                 </button>
               )}

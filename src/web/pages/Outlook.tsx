@@ -24,7 +24,7 @@ export function OutlookPage() {
   return (
     <div>
       <PageTitle
-        sub="Planning view · DTC only · a small share of roaster volume."
+        sub="How much subscription coffee to roast in the coming weeks. Online subscriptions only, a small share of total roasting."
         right={
           <a className="btn no-underline" href="/api/outlook?format=csv" download="roast-outlook.csv">
             Export CSV
@@ -44,15 +44,15 @@ export function OutlookPage() {
             <div className="h-[300px] w-full" role="img" aria-label="Weekly pounds, P10 to P90 band with median line">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={rows} margin={{ top: 16, right: 56, bottom: 6, left: 0 }}>
-                  <CartesianGrid stroke="#E9DFD6" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#6B5A50" }} axisLine={{ stroke: "#E9DFD6" }} tickLine={false} />
-                  <YAxis domain={[0, Math.ceil((top * 1.1) / 100) * 100]} tickCount={5} tick={{ fontSize: 12, fill: "#6B5A50" }} axisLine={false} tickLine={false} width={48} tickFormatter={(v: number) => nf(v)} />
+                  <CartesianGrid stroke="#ECEAE7" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#6E6E6A" }} axisLine={{ stroke: "#ECEAE7" }} tickLine={false} />
+                  <YAxis domain={[0, Math.ceil((top * 1.1) / 100) * 100]} tickCount={5} tick={{ fontSize: 12, fill: "#6E6E6A" }} axisLine={false} tickLine={false} width={48} tickFormatter={(v: number) => nf(v)} />
                   <Area dataKey="band" stroke="none" fill="#F16A21" fillOpacity={0.2} isAnimationActive={false} />
-                  <Line dataKey="mid" stroke="#F16A21" strokeWidth={2.5} dot={{ r: 4, fill: "#F16A21", stroke: "#fff", strokeWidth: 1.5 }} isAnimationActive={false} />
+                  <Line dataKey="mid" stroke="#141414" strokeWidth={2} dot={{ r: 4, fill: "#F16A21", stroke: "#fff", strokeWidth: 1.5 }} isAnimationActive={false} />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
-            <div className="mt-1 text-[13px] text-muted">Orange line: middle estimate. Shaded band: P10 to P90 of {data.draws} simulated outcomes, including uncertainty in cancel and sign-up rates.</div>
+            <div className="mt-1 text-[13px] text-muted">Black line: middle estimate. Shaded band: P10 to P90 of {data.draws} simulated outcomes, including uncertainty in cancel and sign-up rates.</div>
           </>
         )}
       </Card>

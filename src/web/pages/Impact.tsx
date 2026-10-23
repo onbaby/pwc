@@ -39,10 +39,10 @@ interface ImpactDTO {
 }
 
 const CAFE_WEB_SIGNUPS = EXHIBITS.sources.in_cafe.newSubs + EXHIBITS.sources.website.newSubs;
-const ESPRESSO = "#643A2B";
-const ORANGE = "#F16A21";
-const PLUM = "#7F2754";
-const TICK = { fontSize: 12, fill: "#6B5A50" };
+const INK = "#141414";
+const ACCENT = "#F16A21";
+const GREY = "#A9A9A4";
+const TICK = { fontSize: 12, fill: "#6E6E6A" };
 
 const at = (phi: number): string => `${Math.round(phi * 100)} of every 100`;
 
@@ -73,14 +73,14 @@ function PacingCard({ d, cohort }: { d: ImpactArtifact; cohort: number }) {
       <div className="h-[320px] w-full" role="img" aria-label="Retention gain against the retention gain needed, by how many cancellations are caused by too much coffee">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={rows} margin={{ top: 14, right: 150, bottom: 22, left: 0 }}>
-            <CartesianGrid stroke="#E9DFD6" vertical={false} />
-            <XAxis dataKey="phi" type="number" domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tick={TICK} axisLine={{ stroke: "#E9DFD6" }} tickLine={false} label={{ value: "Of every 100 cancellations, how many are caused by too much coffee", position: "insideBottom", offset: -14, fontSize: 12, fill: "#6B5A50" }} />
+            <CartesianGrid stroke="#ECEAE7" vertical={false} />
+            <XAxis dataKey="phi" type="number" domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tick={TICK} axisLine={{ stroke: "#ECEAE7" }} tickLine={false} label={{ value: "Of every 100 cancellations, how many are caused by too much coffee", position: "insideBottom", offset: -14, fontSize: 12, fill: "#6E6E6A" }} />
             <YAxis domain={[0, top]} ticks={Array.from({ length: 5 }, (_, k) => (top * k) / 4)} tick={TICK} axisLine={false} tickLine={false} width={52} tickFormatter={(v: number) => `${Math.round(v * 10) / 10} pts`} />
-            <ReferenceLine x={cur.phi} stroke="#6B5A50" strokeDasharray="2 3" />
-            <Line dataKey="required" stroke={ESPRESSO} strokeWidth={2.5} strokeDasharray="8 5" dot={false} isAnimationActive={false} label={endLabel("Needed (pacing)", ESPRESSO, rows.length - 1, -7)} />
-            <Line dataKey="requiredCeil" stroke={ESPRESSO} strokeOpacity={0.45} strokeWidth={1.5} strokeDasharray="3 4" dot={false} isAnimationActive={false} label={endLabel("Needed (perfect)", "#6B5A50", rows.length - 1)} />
-            <Line dataKey="paced" stroke={ORANGE} strokeWidth={3} dot={false} isAnimationActive={false} label={endLabel("Paced", "#B34A12", rows.length - 1, 8)} />
-            <Line dataKey="ceiling" stroke={PLUM} strokeWidth={3} strokeDasharray="1 5" strokeLinecap="round" dot={false} isAnimationActive={false} label={endLabel("Perfect knowledge", PLUM, rows.length - 1)} />
+            <ReferenceLine x={cur.phi} stroke="#6E6E6A" strokeDasharray="2 3" />
+            <Line dataKey="required" stroke={INK} strokeWidth={2.5} strokeDasharray="8 5" dot={false} isAnimationActive={false} label={endLabel("Needed (pacing)", INK, rows.length - 1, -7)} />
+            <Line dataKey="requiredCeil" stroke={INK} strokeOpacity={0.45} strokeWidth={1.5} strokeDasharray="3 4" dot={false} isAnimationActive={false} label={endLabel("Needed (perfect)", "#6E6E6A", rows.length - 1)} />
+            <Line dataKey="paced" stroke={ACCENT} strokeWidth={3} dot={false} isAnimationActive={false} label={endLabel("Paced", "#141414", rows.length - 1, 8)} />
+            <Line dataKey="ceiling" stroke={GREY} strokeWidth={3} strokeDasharray="1 5" strokeLinecap="round" dot={false} isAnimationActive={false} label={endLabel("Perfect knowledge", GREY, rows.length - 1)} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -89,23 +89,23 @@ function PacingCard({ d, cohort }: { d: ImpactArtifact; cohort: number }) {
           <span className="mb-1 block text-muted">
             Of every 100 cancellations among cafe and website sign-ups, how many are caused by too much coffee? <b className="tnum text-ink">{cur.phi}</b>
           </span>
-          <input type="range" min={0} max={grid.length - 1} step={1} value={i} onChange={(e) => setI(Number(e.target.value))} className="w-full accent-[#643A2B]" aria-label="Cancellations caused by too much coffee, out of 100" aria-valuetext={`${cur.phi} of every 100`} />
+          <input type="range" min={0} max={grid.length - 1} step={1} value={i} onChange={(e) => setI(Number(e.target.value))} className="w-full accent-[#141414]" aria-label="Cancellations caused by too much coffee, out of 100" aria-valuetext={`${cur.phi} of every 100`} />
           <span className="text-[13px] text-muted">In this simulation, {pct(d.fixed.stockpileShare[i]!)} of customers on a fixed schedule are holding a stockpile at this setting. Exhibit C does not say what the real number is; the pilot would measure it.</span>
         </label>
         <div className="col-span-5 grid grid-cols-2 gap-3 text-[14px]">
           <div className="rounded-lg bg-cream p-3">
             <div className="text-[13px] text-muted">Pacing keeps</div>
-            <div className="tnum text-[20px] font-semibold text-espresso">{cur.paced.toFixed(1)} pts more</div>
+            <div className="tnum text-[20px] font-medium tracking-tight text-strong">{cur.paced.toFixed(1)} pts more</div>
             <div className="text-[13px] text-muted">needs {cur.required.toFixed(1)} pts to cover its cost</div>
           </div>
           <div className="rounded-lg bg-cream p-3">
             <div className="text-[13px] text-muted">Perfect knowledge keeps</div>
-            <div className="tnum text-[20px] font-semibold text-espresso">{cur.ceiling.toFixed(1)} pts more</div>
+            <div className="tnum text-[20px] font-medium tracking-tight text-strong">{cur.ceiling.toFixed(1)} pts more</div>
             <div className="text-[13px] text-muted">needs {cur.requiredCeil.toFixed(1)} pts</div>
           </div>
           <div className="col-span-2 rounded-lg bg-cream p-3">
             <div className="text-[13px] text-muted">Profit per sign-up vs a fixed schedule</div>
-            <div className="tnum text-[20px] font-semibold text-espresso">
+            <div className="tnum text-[20px] font-medium tracking-tight text-strong">
               {usd(profit, 2)} <span className="text-[13px] font-normal text-muted">(95% range {usd(pLo, 2)} to {usd(pHi, 2)})</span>
             </div>
             <div className="text-[13px] text-muted">
@@ -115,7 +115,7 @@ function PacingCard({ d, cohort }: { d: ImpactArtifact; cohort: number }) {
         </div>
       </div>
 
-      <h3 className="mb-2 mt-6 text-[16px] font-semibold text-espresso">What would make it better</h3>
+      <h3 className="mb-2 mt-6 text-[16px] font-medium tracking-tight text-strong">What would make it better</h3>
       <table>
         <thead>
           <tr>
@@ -174,7 +174,7 @@ function PilotCard({ p }: { p: ImpactDTO["pilot"] }) {
           ["Check-in + paced delivery", "The full program: moves proposed from replies; sooner moves need staff approval and the customer's YES."],
         ].map(([t, b]) => (
           <div key={t} className="rounded-lg border border-line p-3">
-            <div className="mb-1 font-semibold text-espresso">{t}</div>
+            <div className="mb-1 font-medium tracking-tight text-strong">{t}</div>
             <div className="text-muted">{b}</div>
           </div>
         ))}
@@ -246,32 +246,34 @@ function WhyDtcCard({ w, sources }: { w: ImpactDTO["whyDtc"]; sources: ImpactDTO
         The smallest channel ({pct(w.dtc.share)} of revenue) has the best margin ({pct(w.dtc.grossMargin)}) and grows fastest: +{pct(w.dtc.growth)}, {nf(w.growthMultiple.vsWholesaleCafes, 1)}× wholesale to cafes and {nf(w.growthMultiple.vsCompany, 1)}× the company. Classic Cup sees every DTC transaction and controls the schedule completely.
       </p>
       <div className="grid grid-cols-12 gap-5">
-        <table className="col-span-7">
-          <thead>
-            <tr>
-              <th>Channel (Exhibit A, FY25)</th>
-              <th className="text-right">Revenue</th>
-              <th className="text-right">Share</th>
-              <th className="text-right">Gross margin</th>
-              <th className="text-right">Growth</th>
-            </tr>
-          </thead>
-          <tbody>
-            {w.channels.map((c) => (
-              <tr key={c.id} className={`row ${c.id === "dtc" ? "font-semibold text-espresso" : ""}`}>
-                <td>{c.label}</td>
-                <td className="tnum text-right">{usd(c.revenueUSD / 1e6, 1)}m</td>
-                <td className="tnum text-right">{pct(c.share)}</td>
-                <td className="tnum text-right">{pct(c.grossMargin)}</td>
-                <td className="tnum text-right">{c.growth > 0 ? "+" : c.growth < 0 ? "−" : ""}{pct(Math.abs(c.growth))}</td>
+        <div className="col-span-7 min-w-0 overflow-x-auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Channel (Exhibit A, FY25)</th>
+                <th className="text-right">Revenue</th>
+                <th className="text-right">Share</th>
+                <th className="text-right">Gross margin</th>
+                <th className="text-right">Growth</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {w.channels.map((c) => (
+                <tr key={c.id} className={`row ${c.id === "dtc" ? "font-semibold text-strong" : ""}`}>
+                  <td>{c.label}</td>
+                  <td className="tnum text-right">{usd(c.revenueUSD / 1e6, 1)}m</td>
+                  <td className="tnum text-right">{pct(c.share)}</td>
+                  <td className="tnum text-right">{pct(c.grossMargin)}</td>
+                  <td className="tnum text-right">{c.growth > 0 ? "+" : c.growth < 0 ? "−" : ""}{pct(Math.abs(c.growth))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         <div className="col-span-5">
           <div className="rounded-lg bg-cream p-3 text-[14px]">
             <div className="text-[13px] text-muted">The catch: growth is first-time subscribers who don't stay</div>
-            <div className="tnum mt-1 text-[20px] font-semibold text-espresso">{nf(w.lostWithinYear)} of {nf(w.newSubs)}</div>
+            <div className="tnum mt-1 text-[20px] font-medium tracking-tight text-strong">{nf(w.lostWithinYear)} of {nf(w.newSubs)}</div>
             <div className="text-muted">new subscribers a year are gone within twelve months ({pct(w.ret90)} kept at 90 days, {pct(w.ret12, 1)} at a year).</div>
           </div>
           <table className="mt-2">
@@ -323,19 +325,19 @@ function OpportunityCard({ defaults, pacingNeverPays }: { defaults: ImpactDTO["o
       </p>
       <div className="grid grid-cols-12 gap-5">
         <div className="col-span-5 space-y-3">
-          {slider("Subscribers kept: more than today", pct(lift), <input type="range" min={0} max={0.3} step={0.01} value={lift} onChange={(e) => setLift(Number(e.target.value))} className="w-full accent-[#643A2B]" aria-label="Relative increase in subscribers kept" />, pacingNeverPays ? "Our simulation says timing deliveries alone does not reach this (next cards), so it has to come from timing plus offers, and the pilot measures it." : "What pacing and offers must deliver; the pilot measures it.")}
-          {slider("Grocery buyers who subscribe in a year", pct(conv, 1), <input type="range" min={0} max={0.1} step={0.005} value={conv} onChange={(e) => setConv(Number(e.target.value))} className="w-full accent-[#643A2B]" aria-label="Share of grocery buyers who subscribe" />, "What the bag QR funnel must deliver.")}
-          {slider("Grocery bags per buyer per year", nf(bags), <input type="range" min={6} max={48} step={1} value={bags} onChange={(e) => setBags(Number(e.target.value))} className="w-full accent-[#643A2B]" aria-label="Grocery bags per buyer per year" />, "Assumption: turns Exhibit B pounds into buyers. Fewer bags each means more buyers.")}
+          {slider("Subscribers kept: more than today", pct(lift), <input type="range" min={0} max={0.3} step={0.01} value={lift} onChange={(e) => setLift(Number(e.target.value))} className="w-full accent-[#141414]" aria-label="Relative increase in subscribers kept" />, pacingNeverPays ? "Our simulation says timing deliveries alone does not reach this (next cards), so it has to come from timing plus offers, and the pilot measures it." : "What pacing and offers must deliver; the pilot measures it.")}
+          {slider("Grocery buyers who subscribe in a year", pct(conv, 1), <input type="range" min={0} max={0.1} step={0.005} value={conv} onChange={(e) => setConv(Number(e.target.value))} className="w-full accent-[#141414]" aria-label="Share of grocery buyers who subscribe" />, "What the bag QR funnel must deliver.")}
+          {slider("Grocery bags per buyer per year", nf(bags), <input type="range" min={6} max={48} step={1} value={bags} onChange={(e) => setBags(Number(e.target.value))} className="w-full accent-[#141414]" aria-label="Grocery bags per buyer per year" />, "Assumption: turns Exhibit B pounds into buyers. Fewer bags each means more buyers.")}
         </div>
         <div className="col-span-7 grid grid-cols-2 gap-3 text-[14px]">
           <div className="rounded-lg bg-cream p-3">
             <div className="text-[13px] text-muted">Keeping more subscribers</div>
-            <div className="tnum text-[20px] font-semibold text-espresso">{usd(o.retentionGP)}</div>
+            <div className="tnum text-[20px] font-medium tracking-tight text-strong">{usd(o.retentionGP)}</div>
             <div className="text-[13px] text-muted">{pct(lift)} of today's DTC gross profit ({usd(d.dtcGrossProfit)}: Exhibit A revenue × {pct(EXHIBITS.dtc.grossMargin)} margin).</div>
           </div>
           <div className="rounded-lg bg-cream p-3">
             <div className="text-[13px] text-muted">Grocery buyers who subscribe</div>
-            <div className="tnum text-[20px] font-semibold text-espresso">{usd(o.groceryGP)}</div>
+            <div className="tnum text-[20px] font-medium tracking-tight text-strong">{usd(o.groceryGP)}</div>
             <div className="text-[13px] text-muted">
               {nf(d.converts)} new subscribers × {usd(d.netPerConvert)} each in their first year.
             </div>
@@ -375,7 +377,7 @@ function FreshnessSimCard({ d, f }: { d: ImpactArtifact; f: ImpactDTO["freshness
         ].map(([label, v]) => (
           <div key={label as string} className="rounded-lg bg-cream p-3">
             <div className="text-[13px] text-muted">{label}</div>
-            <div className="tnum text-[20px] font-semibold text-espresso">{nf(v as number)} days</div>
+            <div className="tnum text-[20px] font-medium tracking-tight text-strong">{nf(v as number)} days</div>
           </div>
         ))}
       </div>
@@ -386,29 +388,46 @@ function FreshnessSimCard({ d, f }: { d: ImpactArtifact; f: ImpactDTO["freshness
   );
 }
 
+const SECTIONS = [
+  { id: "why", label: "Why subscriptions" },
+  { id: "worth", label: "What it's worth" },
+  { id: "pacing", label: "Does pacing pay?" },
+  { id: "freshness", label: "Fresher coffee?" },
+  { id: "pilot", label: "Pilot plan" },
+  { id: "check", label: "Model check" },
+  { id: "offers", label: "Offer experiments" },
+  { id: "assumptions", label: "Assumptions" },
+];
+
 export function ImpactPage() {
   const { data } = useApi<ImpactDTO>("/api/impact", ["offer", "queue"]);
+  const jump = (id: string) => {
+    const el = document.getElementById(`impact-${id}`);
+    if (el instanceof HTMLDetailsElement) el.open = true;
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
   return (
     <div>
-      <PageTitle sub="Why this channel, what it could be worth, and whether each part pays, with the assumptions in plain sight.">Impact</PageTitle>
+      <PageTitle sub="Why subscriptions matter, what this could be worth, and whether each part pays for itself, with every assumption shown.">Impact</PageTitle>
       {!data ? (
         <Empty>Loading…</Empty>
       ) : (
         <div className="space-y-5">
-          <nav aria-label="Sections on this page" className="flex flex-wrap gap-2 text-[13px]">
-            {[["why", "Why DTC"], ["worth", "What it could be worth"], ["pacing", "Does pacing pay?"], ["fresh", "Freshness"], ["pilot", "Pilot plan"], ["check", "Real-data check"], ["offers", "Offer experiments"]].map(([id, label]) => (
-              <button key={id} className="chip" onClick={() => document.getElementById(`impact-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}>
-                {label}
+          {/* the page is long: jump to a section (buttons, since the hash holds the route) */}
+          <nav aria-label="Sections on this page" className="sticky top-0 z-10 -mx-1 flex flex-wrap gap-1.5 bg-cream/90 px-1 py-2 backdrop-blur">
+            {SECTIONS.filter((x) => x.id !== "freshness" || data.impact).map((x) => (
+              <button key={x.id} className="pill py-1.5 text-[13px]" onClick={() => jump(x.id)}>
+                {x.label}
               </button>
             ))}
           </nav>
-          <section id="impact-why"><WhyDtcCard w={data.whyDtc} sources={data.exhibits.sources} /></section>
-          <section id="impact-worth"><OpportunityCard defaults={data.opportunityDefaults} pacingNeverPays={data.impact?.paced.breakEvenPhi === null} /></section>
-          <section id="impact-pacing">{data.impact ? <PacingCard d={data.impact} cohort={CAFE_WEB_SIGNUPS} /> : <Card><SectionTitle>Is pacing paying for itself?</SectionTitle><Empty>The simulation has not been run. Run pnpm impact.</Empty></Card>}</section>
-          <section id="impact-fresh">{data.impact && <FreshnessSimCard d={data.impact} f={data.freshness} />}</section>
-          <section id="impact-pilot"><PilotCard p={data.pilot} /></section>
-          <section id="impact-check"><BacktestCard b={data.backtest} /></section>
-          <section id="impact-offers"><Card>
+          <section id="impact-why" className="scroll-mt-14"><WhyDtcCard w={data.whyDtc} sources={data.exhibits.sources} /></section>
+          <section id="impact-worth" className="scroll-mt-14"><OpportunityCard defaults={data.opportunityDefaults} pacingNeverPays={data.impact?.paced.breakEvenPhi === null} /></section>
+          <section id="impact-pacing" className="scroll-mt-14">{data.impact ? <PacingCard d={data.impact} cohort={CAFE_WEB_SIGNUPS} /> : <Card><SectionTitle>Is pacing paying for itself?</SectionTitle><Empty>The simulation has not been run. Run pnpm impact.</Empty></Card>}</section>
+          {data.impact && <section id="impact-freshness" className="scroll-mt-14"><FreshnessSimCard d={data.impact} f={data.freshness} /></section>}
+          <section id="impact-pilot" className="scroll-mt-14"><PilotCard p={data.pilot} /></section>
+          <section id="impact-check" className="scroll-mt-14"><BacktestCard b={data.backtest} /></section>
+          <Card id="impact-offers" className="scroll-mt-14">
             <SectionTitle>Offer experiments</SectionTitle>
             {data.offerExperiments.length === 0 ? (
               <Empty>No offers are running. Schedule one from Offers.</Empty>
@@ -416,16 +435,16 @@ export function ImpactPage() {
               <ul className="m-0 list-none p-0">
                 {data.offerExperiments.map((o) => (
                   <li key={o.id} className="flex items-center justify-between border-b border-line py-2 text-[14px] last:border-0">
-                    <a className="font-medium text-orange-ink" href={href(`/offers/${o.id}`)}>{o.name}</a>
+                    <a className="font-medium text-link" href={href(`/offers/${o.id}`)}>{o.name}</a>
                     <span className="text-muted">{o.statusLine}</span>
                   </li>
                 ))}
               </ul>
             )}
             <div className="mt-2 text-[13px] text-muted">Cancellation effects are read only at the pre-set sample size. Until then each offer shows acceptance, opt-outs and next check-in replies.</div>
-          </Card></section>
-          <details className="card p-4">
-            <summary className="cursor-pointer text-[16px] font-semibold text-espresso">Every assumption behind the simulation ({data.ledger.length})</summary>
+          </Card>
+          <details id="impact-assumptions" className="card scroll-mt-14 p-4">
+            <summary className="cursor-pointer text-[16px] font-medium tracking-tight text-strong">Every assumption behind the simulation ({data.ledger.length})</summary>
             <table className="mt-3">
               <thead>
                 <tr>

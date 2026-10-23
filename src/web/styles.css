@@ -1,6 +1,14 @@
 @import "tailwindcss";
 
 @font-face {
+  font-family: "Lufga";
+  src: url("/fonts/Lufga-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
   font-family: "Inter";
   src: url("/fonts/InterVariable.woff2") format("woff2");
   font-weight: 100 900;
@@ -8,173 +16,268 @@
   font-display: swap;
 }
 
-/* Palette inspired by Jittery Joe's public site and logo as observed Oct 19, 2026 (colors only: no names, marks or artwork).
-   Contrast rules (spec 5): orange only on white surfaces, never directly on cream and never as body text. */
+/* Console palette: white surfaces, black for emphasis, orange as the single accent.
+   Contrast: bright orange is a fill only (bars, gauges, dots). Orange text and white-on-orange use accent-ink (5.4:1 on white).
+   The coffee brand palette (espresso, brand-orange, plum) stays for customer-facing surfaces: see `.brand` below. */
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --color-brand-orange: #f16a21;
-  --color-orange-ink: #b34a12;
-  --color-espresso: #643a2b;
-  --color-plum: #7f2754;
-  --color-plum-tint: #f5e9ef;
+  --font-sans: "Lufga", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --color-accent: #f16a21;
+  --color-accent-tint: #fff1e8;
+  --color-accent-ink: #b34a12;
+  --color-link: #b34a12;
+  --color-strong: #141414;
   --color-ink: #1c1c1c;
-  --color-muted: #6b5a50;
-  --color-cream: #fbf6f1;
+  --color-muted: #6e6e6a;
+  --color-cream: #fafaf9;
   --color-surface: #ffffff;
-  --color-line: #e9dfd6;
+  --color-line: #eceae7;
   --color-success: #2e7d5b;
   --color-success-tint: #e6f2ec;
   --color-danger: #b42318;
   --color-danger-tint: #fbe9e7;
   --color-orange-tint: #fdeee4;
+  --color-brand-orange: #f16a21;
+  --color-orange-ink: #b34a12;
+  --color-espresso: #643a2b;
+  --color-plum: #7f2754;
+  --color-plum-tint: #f5e9ef;
 }
 
 :root {
-  --brand-orange: #f16a21;
-  --orange-ink: #b34a12;
-  --espresso: #643a2b;
-  --plum: #7f2754;
+  --accent: #f16a21;
+  --accent-ink: #b34a12;
+  --link: #b34a12;
+  --strong: #141414;
   --ink: #1c1c1c;
+  --muted: #6e6e6a;
+  --cream: #fafaf9;
+  --surface: #ffffff;
+  --line: #eceae7;
+  --hover: #f7f5f3;
+  --field: #ffffff;
+  --field-line: #d6d6d2;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --shadow-hover: 0 6px 20px -8px rgb(20 20 20 / 0.14), 0 2px 6px -2px rgb(20 20 20 / 0.06);
+}
+
+/* customer-facing pages (QR landing) keep the coffee brand palette */
+.brand {
+  --color-ink: #1c1c1c;
+  --color-muted: #6b5a50;
+  --color-cream: #fbf6f1;
+  --color-line: #e9dfd6;
+  --color-success: #2e7d5b;
+  --strong: #643a2b;
   --muted: #6b5a50;
   --cream: #fbf6f1;
   --surface: #ffffff;
   --line: #e9dfd6;
-}
-
-html,
-body,
-#root {
-  height: 100%;
-}
-body {
-  margin: 0;
+  --hover: #f6efe9;
+  --field-line: #d5c8bd;
   background: var(--cream);
-  color: var(--ink);
-  font-family: var(--font-sans);
-  font-size: 16px;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
 }
-.tnum {
-  font-variant-numeric: tabular-nums;
-}
-:focus-visible {
-  outline: 2px solid var(--orange-ink);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
-button {
-  cursor: pointer;
-  font: inherit;
-}
-table {
-  border-collapse: collapse;
-  width: 100%;
-}
-.card {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-}
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border-radius: 8px;
-  padding: 7px 14px;
-  font-size: 14px;
-  font-weight: 500;
-  border: 1px solid var(--espresso);
-  background: var(--surface);
-  color: var(--espresso);
-}
-.btn:hover {
-  background: #f6efe9;
-}
-.btn.primary {
-  background: var(--espresso);
+.brand .btn.primary {
+  background: var(--strong);
+  border-color: var(--strong);
   color: #fff;
 }
-.btn.primary:hover {
-  background: #52301f;
+
+/* base element styles and component classes sit in layers so Tailwind utilities can override them */
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    margin: 0;
+    background: var(--cream);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+  :focus-visible {
+    outline: 2px solid var(--strong);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  button {
+    cursor: pointer;
+    font: inherit;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+  th {
+    text-align: left;
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  th.text-right,
+  td.text-right {
+    text-align: right;
+  }
+  td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--line);
+    font-size: 14px;
+    vertical-align: middle;
+  }
+  tr.row {
+    height: 48px;
+  }
+  tr.row:hover td {
+    background: var(--hover);
+  }
+  input,
+  select,
+  textarea {
+    font: inherit;
+    font-size: 14px;
+    border: 1px solid var(--field-line);
+    border-radius: 10px;
+    padding: 7px 10px;
+    background: var(--field);
+    color: var(--ink);
+  }
 }
-.btn.danger {
-  border-color: #b42318;
-  color: #b42318;
+
+@layer components {
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+  }
+  /* small uppercase card heading with an icon, as on the dashboard tiles */
+  .eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--strong);
+  }
+  .eyebrow svg {
+    width: 15px;
+    height: 15px;
+    stroke-width: 1.6;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 10px;
+    padding: 7px 14px;
+    font-size: 14px;
+    font-weight: 500;
+    border: 1px solid var(--line);
+    background: var(--field);
+    color: var(--strong);
+  }
+  .btn:hover {
+    background: var(--hover);
+  }
+  .btn.primary {
+    background: var(--accent-ink);
+    border-color: var(--accent-ink);
+    color: #fff;
+  }
+  .btn.primary:hover {
+    background: #9a3f0f;
+  }
+  .btn.danger {
+    border-color: #b42318;
+    color: #b42318;
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .icon-btn {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--strong);
+  }
+  .icon-btn:hover {
+    background: var(--hover);
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border-radius: 999px;
+    padding: 2px 10px;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    border: 1px solid var(--line);
+    background: var(--hover);
+    color: var(--strong);
+  }
+  .chip.plum {
+    background: var(--strong);
+    color: #fff;
+    border-color: var(--strong);
+  }
+  .chip.ok {
+    background: #e6f2ec;
+    color: #2e7d5b;
+    border-color: #cfe5da;
+  }
+  .chip.warn {
+    background: #fdeee4;
+    color: #b34a12;
+    border-color: #f7d8c3;
+  }
+  .chip.bad {
+    background: #fbe9e7;
+    color: #b42318;
+    border-color: #f3cbc6;
+  }
+  /* status pill with a leading dot, as in "14 Hot Opportunities" */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 12px;
+    padding: 8px 14px;
+    font-size: 14px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--strong);
+    text-decoration: none;
+  }
+  .pill:hover {
+    background: var(--hover);
+  }
+  .pill .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+  }
 }
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border-radius: 999px;
-  padding: 2px 10px;
-  font-size: 13px;
-  font-weight: 500;
-  white-space: nowrap;
-  border: 1px solid var(--line);
-  background: #f6efe9;
-  color: var(--espresso);
-}
-.chip.plum {
-  background: #f5e9ef;
-  color: #7f2754;
-  border-color: #ecd3e0;
-}
-.chip.ok {
-  background: #e6f2ec;
-  color: #2e7d5b;
-  border-color: #cfe5da;
-}
-.chip.warn {
-  background: #fdeee4;
-  color: #b34a12;
-  border-color: #f7d8c3;
-}
-.chip.bad {
-  background: #fbe9e7;
-  color: #b42318;
-  border-color: #f3cbc6;
-}
-th {
-  text-align: left;
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--muted);
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--line);
-  white-space: nowrap;
-}
-th.text-right,
-td.text-right {
-  text-align: right;
-}
-td {
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--line);
-  font-size: 14px;
-  vertical-align: middle;
-}
-tr.row {
-  height: 48px;
-}
-tr.row:hover td {
-  background: #fcf8f4;
-}
-input,
-select,
-textarea {
-  font: inherit;
-  font-size: 14px;
-  border: 1px solid #d5c8bd;
-  border-radius: 8px;
-  padding: 7px 10px;
-  background: #fff;
-  color: var(--ink);
-}
+
 @keyframes progress {
   from {
     transform: translateX(-100%);
@@ -189,7 +292,289 @@ textarea {
   left: 0;
   right: 0;
   height: 2px;
-  background: var(--orange-ink);
+  background: var(--strong);
   animation: progress 1s linear infinite;
   z-index: 60;
+}
+
+/* motion: hover states and enter animations. Everything here is switched off under prefers-reduced-motion at the end. */
+@layer components {
+  .card {
+    transition:
+      box-shadow 0.25s var(--ease-out),
+      border-color 0.25s var(--ease-out),
+      transform 0.25s var(--ease-out);
+  }
+  .card:hover {
+    border-color: #dedbd7;
+    box-shadow: var(--shadow-hover);
+  }
+  /* cards that are links or buttons also lift */
+  a.card:hover,
+  button.card:hover {
+    transform: translateY(-2px);
+  }
+  .btn,
+  .icon-btn,
+  .pill,
+  .chip {
+    transition:
+      background-color 0.18s var(--ease-out),
+      border-color 0.18s var(--ease-out),
+      color 0.18s var(--ease-out),
+      box-shadow 0.18s var(--ease-out),
+      transform 0.18s var(--ease-out);
+  }
+  .btn:not(:disabled):hover,
+  .icon-btn:hover,
+  .pill:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px -6px rgb(20 20 20 / 0.18);
+  }
+  .btn.primary:not(:disabled):hover {
+    box-shadow: 0 6px 16px -6px rgb(179 74 18 / 0.5);
+  }
+  .btn:not(:disabled):active,
+  .icon-btn:active,
+  .pill:active,
+  button.chip:active {
+    transform: translateY(0) scale(0.97);
+    box-shadow: none;
+    transition-duration: 0.08s;
+  }
+  .btn svg,
+  .icon-btn svg {
+    transition: transform 0.25s var(--ease-spring);
+  }
+  .icon-btn:hover svg {
+    transform: rotate(-12deg) scale(1.08);
+  }
+  .pill .dot {
+    transition: transform 0.25s var(--ease-spring);
+  }
+  .pill:hover .dot {
+    transform: scale(1.3);
+  }
+  button.chip:hover {
+    filter: brightness(0.97);
+  }
+  /* sidebar links: icon nudges right on hover */
+  .nav-link {
+    transition:
+      background-color 0.18s var(--ease-out),
+      color 0.18s var(--ease-out);
+  }
+  .nav-link svg {
+    transition: transform 0.25s var(--ease-spring);
+  }
+  .nav-link:hover svg {
+    transform: translateX(2px) scale(1.06);
+  }
+  [role="tab"] {
+    transition:
+      background-color 0.18s var(--ease-out),
+      border-color 0.18s var(--ease-out),
+      color 0.18s var(--ease-out),
+      transform 0.18s var(--ease-out);
+  }
+  [role="tab"]:active {
+    transform: scale(0.97);
+  }
+  input,
+  select,
+  textarea {
+    transition:
+      border-color 0.18s var(--ease-out),
+      box-shadow 0.18s var(--ease-out);
+  }
+  input:hover,
+  select:hover,
+  textarea:hover {
+    border-color: #bdbdb8;
+  }
+  input:focus,
+  select:focus,
+  textarea:focus {
+    border-color: var(--accent-ink);
+    box-shadow: 0 0 0 3px rgb(241 106 33 / 0.15);
+    outline: none;
+  }
+  td {
+    transition: background-color 0.15s var(--ease-out);
+  }
+  a {
+    transition: color 0.15s var(--ease-out);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+}
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+}
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+}
+@keyframes ping {
+  75%,
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+/* page enter: the page fades up and its top-level blocks follow in a short stagger */
+.page-enter > * > * {
+  animation: fade-up 0.45s var(--ease-out) both;
+}
+.page-enter > * > :nth-child(2) { animation-delay: 0.04s; }
+.page-enter > * > :nth-child(3) { animation-delay: 0.08s; }
+.page-enter > * > :nth-child(4) { animation-delay: 0.12s; }
+.page-enter > * > :nth-child(5) { animation-delay: 0.16s; }
+.page-enter > * > :nth-child(n + 6) { animation-delay: 0.2s; }
+
+.anim-pop {
+  animation: pop-in 0.18s var(--ease-out) both;
+  transform-origin: top;
+}
+.anim-backdrop {
+  animation: fade-in 0.2s var(--ease-out) both;
+}
+.anim-modal {
+  animation: scale-in 0.28s var(--ease-spring) both;
+}
+.anim-drawer {
+  animation: slide-in-right 0.32s var(--ease-out) both;
+}
+.anim-toast {
+  animation: toast-in 0.3s var(--ease-spring) both;
+}
+.anim-ping {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: inherit;
+  animation: ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* iOS Messages thread (customer profile): dark grey panel, blue sent / grey received bubbles with tails */
+.imsg {
+  --imsg-bg: #1c1c1e;
+  --imsg-sent: #0a84ff;
+  --imsg-received: #3a3a3c;
+  background: var(--imsg-bg);
+  color: #fff;
+}
+.imsg-bubble {
+  position: relative;
+  border-radius: 18px;
+  background: var(--bubble);
+  color: #fff;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  animation: toast-in 0.3s var(--ease-spring) both;
+}
+.imsg-bubble.out {
+  --bubble: var(--imsg-sent);
+}
+.imsg-bubble.in {
+  --bubble: var(--imsg-received);
+}
+/* awaiting approval: a dimmer blue so it reads as not sent yet */
+.imsg-bubble.pending {
+  --bubble: #1f4f80;
+  color: #dbe9ff;
+}
+/* tail: a bubble-coloured curve, then a background-coloured curve cut out of it (the panel clips the cut-out with overflow: hidden) */
+.imsg-bubble::before,
+.imsg-bubble::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  height: 18px;
+}
+.imsg-bubble.out::before {
+  right: -7px;
+  width: 20px;
+  background: var(--bubble);
+  border-bottom-left-radius: 16px 14px;
+}
+.imsg-bubble.out::after {
+  right: -26px;
+  width: 26px;
+  background: var(--imsg-bg);
+  border-bottom-left-radius: 10px;
+}
+.imsg-bubble.in::before {
+  left: -7px;
+  width: 20px;
+  background: var(--bubble);
+  border-bottom-right-radius: 16px 14px;
+}
+.imsg-bubble.in::after {
+  left: -26px;
+  width: 26px;
+  background: var(--imsg-bg);
+  border-bottom-right-radius: 10px;
+}
+.imsg-meta {
+  color: #8e8e93;
+}
+.imsg-link {
+  color: #409cff;
+}
+.imsg-why {
+  background: #2c2c2e;
+  color: #e5e5ea;
+}
+.imsg .chip {
+  background: #2c2c2e;
+  border-color: #48484a;
+  color: #e5e5ea;
+}
+.imsg .chip.plum {
+  background: #e5e5ea;
+  border-color: #e5e5ea;
+  color: #1c1c1e;
 }
