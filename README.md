@@ -19,11 +19,25 @@ pnpm test        # 120+ tests: engine, flows, offers, freshness, holidays, bag Q
 pnpm typecheck
 ```
 
-Other commands: `pnpm seed` (write the deterministic sample database to a file; never run it while the server has the file open), `pnpm impact` (re-run the simulator and rewrite `artifacts/impact.json`), `pnpm backtest` (re-run the real-data check; see below).
+Other commands: `pnpm seed` (write the deterministic sample database to a file; never run it while the server has the file open), `pnpm impact` (re-run the simulator and rewrite `artifacts/impact.json`; no page shows it any more), `pnpm backtest` (re-run the real-data check; see below).
 
 ### The demo
 
 The sandbox clock starts at Sunday Oct 18, 2026, 9:00 am (America/New_York). Press **Ctrl+Alt+→** (matched on the physical key; ignored while you type in a text box) to advance to the next scripted event: the morning check-ins go out, Maya replies "6" and her delivery moves from Wed Oct 28 to Wed Nov 11 (all six automatic-send checks pass, and "Why we sent this" shows them), Priya texts that she is travelling and it lands in the Inbox. **Ctrl+Alt+D**, or the "Sandbox · sample data" badge, opens the sandbox drawer: advance, inject a reply as any customer, switch channel, reset. The script is `scenarios/demo.json`; the walkthrough is §6 of the spec.
+
+### Built for reps and account managers
+
+| What | Where | What it does |
+|---|---|---|
+| **Next action** | Top of every customer profile | One banner says what to do for this account: approve or hold a proposed move, answer what the customer wrote (inline reply, mark resolved), ask for a check-in, or "nothing needed". |
+| **Saved worklists** | Customers | Chips with live counts: Everyone, Needs attention, Running out soon, Waiting for approval, New (first 60 days). Combine with search, source, status and consent filters. |
+| **Export CSV** | Customers | Every row that matches the current view and filters, ready for a spreadsheet (cells that start with `=`, `+`, `-` or `@` are neutralised). |
+| **Jump anywhere** | Top bar, **Ctrl+K** | Type a page ("outlook", "offers") or a customer's name; Enter opens the first match. |
+| **Inbox count** | Sidebar and bell | Replies that need a person plus approvals, updated live. |
+
+### Showing it to judges
+
+**Ctrl+Alt+D** (or the "Sandbox · sample data" badge) opens a hidden drawer with a **Tour**: eight one-click stops (Today, Maya, Dev, approvals, customer worklists, Bag QR, Offers, Roast outlook), each with the line to say. **Ctrl+Alt+1 to 8** jump to the same stops without opening the drawer. The rest of the drawer is the sandbox controls described above.
 
 ### The v4.2 additions (from the team's original idea)
 
@@ -32,8 +46,6 @@ The sandbox clock starts at Sunday Oct 18, 2026, 9:00 am (America/New_York). Pre
 | **Freshness at the cup** | Customer profile, Today tile, order history | How many days after roasting each bag is opened (roast to door + coffee still on hand when it lands), against the case's 2–4 week window. Maya's Oct 28 bag would open at ≈ 35 days (past peak); moved to Nov 11 it opens at ≈ 21. |
 | **Holiday travel** | Check-in copy, `AWAY` keyword, profile chip, Settings | A check-in for a delivery landing in Thanksgiving week or Dec 21 – Jan 2 adds "Away? Reply AWAY" (no extra text). AWAY holds it until the Wednesday after; OLD undoes it; a hold that would stretch past 12 weeks goes to a person. |
 | **Bag QR** | Sidebar → Bag QR; the public page at `#/q/<lot>` | A QR code on retail bags opens that bag's roast date and age, then a subscription roasted to order with a suggested rhythm. Sign-ups land as website sign-ups, attributed to the lot and store; delivery texts start only after YES. Every scan also reports how long the bag sat on the shelf. Open one from the sandbox drawer ("Be a grocery shopper"). |
-| **Why DTC + what it's worth** | Impact (top two cards) | Exhibit A/C: DTC is 5% of revenue, 61% margin, +14% (2× wholesale cafes, 3.5× the company), but 6,622 of 8,670 new subscribers a year are gone within twelve months. A calculator sizes "keep X% more subscribers + convert Y% of grocery buyers" from Exhibits A–C. |
-| **Fresher at the cup?** | Impact | The simulator's average coffee age at the cup: ≈ 60 days fixed, 58 paced, 54 perfect knowledge. Timing alone buys a few days on average; what it fixes is the bag that waits a month before it's opened. |
 
 ## What you may need to provide (all optional)
 
@@ -41,7 +53,7 @@ The sandbox clock starts at Sunday Oct 18, 2026, 9:00 am (America/New_York). Pre
 |---|---|---|
 | `SPECTRUM_PROJECT_ID`, `SPECTRUM_PROJECT_SECRET` (Photon dashboard → project settings) and `PHONE_MAYA`, `PHONE_DEV` (opted-in team phones, E.164) in `.env` | `CHANNEL=photon`: send the demo's texts as real iMessages to two team phones | Nothing changes: the default `replay` channel runs the whole demo offline; `console` lets you type replies in the drawer |
 | Counsel review of both consent texts and quiet hours | Before any real customer is texted | Not needed for the sandbox |
-| Mentor answers: orders per subscriber, delivery days, cancel-reason shares, whether offer consent exists today | Replace the labelled assumptions on the Impact page | Assumptions are used and listed |
+| Mentor answers: orders per subscriber, delivery days, cancel-reason shares, whether offer consent exists today | Replace the labelled assumptions in `src/shared/constants.ts` (the LEDGER) | Assumptions are used and listed |
 | Mentor answers: grocery bags per buyer per year, whether retail bags can carry a printed lot code and QR | The grocery half of the opportunity calculator; the Bag QR pilot | 12 bags a year (labelled assumption, on a slider) |
 
 Copy `.env.example` to `.env` to set anything. `KEEP_DATA=1` keeps the database between boots (the default resets it so every dry run starts identical).
@@ -70,7 +82,7 @@ data/derived/ online_retail_gaps.csv (derived reorder gaps, committed with attri
 ## Honest limits
 
 - **Layer A (the starting guess) is fit on our own synthetic data**, so it is circular by construction; the console says so on every customer. Layers B (the replies) are what the pilot tests.
-- **The Impact page is a simulation.** Its parameters are in the assumptions table on that page. With our numbers, pacing alone never breaks even at any setting of "cancellations caused by too much coffee"; perfect pantry knowledge breaks even at 52 of every 100; reply rate is the biggest lever. The spec's illustrative ≈ 95 / ≈ 54 are not what this build computes; the page always shows the computed values.
+- **The simulator is not on screen any more.** The Impact page was removed from the console (the money case lives on the pitch slides). The simulator and its outputs (`artifacts/impact.json`) are still in the repo and tested: with our numbers, pacing alone never breaks even at any setting of "cancellations caused by too much coffee"; perfect pantry knowledge breaks even at 52 of every 100; reply rate is the biggest lever. The spec's illustrative ≈ 95 / ≈ 54 are not what this build computes.
 - **Real-data check.** UCI *Online Retail II* (Chen 2012, doi:10.24432/C5CG6D, CC BY 4.0): real repeat-purchase gaps, but wholesale buyers and no text replies. The method beat a calibrated last-gap baseline at the first two reorders and its 80% ranges held within 5 points at the first four. The protocol (`src/sim/backtest/PROTOCOL.md`) was committed before the first run, and the CLI refuses to run unless it is committed and clean. It does not test the reply model, the pantry estimate or the churn effect.
 - **Photon live path is untested** without credentials (it imports lazily and falls back to replay after 5 s). The Photon M1 test with a real phone is an open item.
 
@@ -81,7 +93,6 @@ data/derived/ online_retail_gaps.csv (derived reorder gaps, committed with attri
 
 1. **Dev Patel's run-out range** (Appendix A: ≈ 13/22/27/47 days at day 18) comes out as 8/15/19/35 in this build, outside the ±25% tolerance, because Layer A is fit on our simulator rather than the spec author's prior. The behaviour is as specified: "Not yet sure → holding off, no change".
 2. **Break-even** in the offer preview is 1000 × acceptance × cost per acceptance ÷ gross profit per saved customer, with value from 7–9.2 deliveries a year × the source's order value × 61% margin, summed over 12 months at 8% monthly attrition. Labelled in the ledger.
-3. **Impact chart** draws a fourth, lighter dashed line (the bar perfect knowledge must clear), because that bar differs from pacing's (it removes more deliveries). The spec's three lines are all there.
 4. **Simulator ledger notes:** the holiday freeze is not modelled in the simulator; staff approvals are assumed always given; expedited deliveries are not credited.
 5. **Stale approvals** (a proposal whose date has passed) expire automatically with a reason; the spec does not describe this.
 6. The offer editor lives in `pages/Offers.tsx` with the list rather than a separate `OfferEditor.tsx`.

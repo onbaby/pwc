@@ -445,6 +445,8 @@ Honest notes: QR scan and sign-up rates are labelled assumptions; the grocery ha
 
 ---
 
+**v4.2 → v4.3: built for reps, and easy to show.** The **Impact page is removed** (the money case, the simulation and the real-data check move to the pitch slides; the simulator, its artifacts and tests stay in the repo). Added for account management: a **Next action** banner on every customer profile; **saved worklists with live counts** and **CSV export** on Customers; **Ctrl+K** jump search for pages and customers. Added for showing it: a **Tour** in the hidden sandbox drawer and **Ctrl+Alt+1 to 8** shortcuts. Where earlier sections of this spec still mention the Impact page (§3.6, §6 beat 4, §10), they are superseded.
+
 ## Appendix A: Demo scenario (`scenarios/demo.json`)
 One sandbox clock: **Sun Oct 18, 2026, 9:00 am** (`America/New_York`). Calendar check (2026): Sep 30 Wed · Oct 14 Wed · Oct 18 Sun · Oct 28 Wed · Nov 4 Wed · Nov 11 Wed · Dec 9 Wed.
 

@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { api, post, toast, useLive } from "../api.tsx";
 import { fmtDay, fmtTime, etParts } from "../format.ts";
 import type { CustomerListItem } from "../../shared/types.ts";
+import { go } from "../router.ts";
+import { TOUR } from "../tour.ts";
 
 interface SandboxState {
   index: number;
@@ -55,6 +57,19 @@ export function SandboxDrawer({ onClose }: { onClose: () => void }) {
         </button>
       </div>
       <div className="flex-1 space-y-5 overflow-y-auto p-4 text-[14px]">
+        <section>
+          <div className="mb-1 text-[13px] font-semibold text-muted">Tour (Ctrl+Alt+1 to {TOUR.length})</div>
+          <ol className="m-0 list-none space-y-1 p-0">
+            {TOUR.map((t, i) => (
+              <li key={t.to}>
+                <button className="block w-full rounded-lg border border-line bg-surface px-3 py-2 text-left hover:border-strong" onClick={() => (go(t.to), onClose())}>
+                  <span className="font-medium text-strong">{i + 1}. {t.label}</span>
+                  <span className="block text-[12px] text-muted">{t.say}</span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </section>
         <section>
           <div className="mb-1 text-[13px] font-semibold text-muted">Clock</div>
           <div className="tnum">{s ? `${fmtDay(etParts(s.now).day)}, ${fmtTime(s.now)}` : "…"}</div>

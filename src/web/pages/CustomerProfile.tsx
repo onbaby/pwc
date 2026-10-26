@@ -127,6 +127,84 @@ function FreshnessCard({ p }: { p: Profile }) {
   );
 }
 
+/** What a rep should do next for this account, in one place: the first thing that needs a person, else the status. */
+function NextAction({ p }: { p: Profile }) {
+  const [reply, setReply] = useState("");
+  const [busy, setBusy] = useState(false);
+  const c = p.customer;
+  const first = c.name.split(" ")[0]!;
+  const pending = [...p.messages].reverse().find((m) => m.direction === "out" && m.status === "pending_approval");
+  const asked = [...p.messages].reverse().find((m) => m.direction === "in" && m.status === "needs_person");
+  const act = async (fn: () => Promise<{ ok: boolean; error?: string }>, done: string) => {
+    setBusy(true);
+    const r = await fn();
+    setBusy(false);
+    toast(r.ok ? done : (r.error ?? "That didn't work"), { tone: r.ok ? "info" : "error" });
+    if (r.ok) setReply("");
+  };
+  const checkin = [...p.messages].reverse().find((m) => m.direction === "out" && m.kind === "checkin" && (m.status === "sent" || m.status === "delivered" || m.status === "queued"));
+  let tone = "ok";
+  let title = "";
+  let body: React.ReactNode = null;
+  let actions: React.ReactNode = null;
+  if (pending) {
+    tone = "plum";
+    title = "Waiting for your approval";
+    body = (
+      <>
+        <b>{pending.reasonChip ?? "A proposed message"}</b>: “{pending.body}”
+        {pending.whySentence && <div className="mt-0.5 text-[13px] text-muted">{pending.whySentence}</div>}
+      </>
+    );
+    actions = (
+      <>
+        <button className="btn primary" disabled={busy} onClick={() => act(() => post(`/api/messages/${pending.id}/approve`), "Approved")}>Approve</button>
+        <button className="btn" disabled={busy} onClick={() => act(() => post(`/api/messages/${pending.id}/hold`), "Held")}>Hold</button>
+      </>
+    );
+  } else if (asked) {
+    tone = "plum";
+    title = `${first} wrote and needs a person`;
+    body = (
+      <>
+        “{asked.body}”
+        <div className="mt-2 flex gap-2">
+          <input aria-label={`Reply to ${first}`} className="min-w-0 flex-1" value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Type a reply (sent as Classic Cup)" />
+          <button className="btn primary" disabled={busy || !reply.trim()} onClick={() => act(() => post(`/api/customers/${c.id}/actions`, { action: "reply", body: reply, messageId: asked.id }), "Reply sent")}>Send</button>
+        </div>
+      </>
+    );
+    actions = <button className="btn" disabled={busy} onClick={() => act(() => post(`/api/customers/${c.id}/actions`, { action: "resolve", messageId: asked.id }), "Marked resolved")}>Mark resolved</button>;
+  } else if (c.state === "CANCELLED" || c.state === "OPTED_OUT") {
+    tone = "bad";
+    title = c.state === "CANCELLED" ? "Cancelled: nothing to do" : "Texts are off: nothing will be sent";
+    body = c.state === "OPTED_OUT" ? "They replied STOP. Only they can turn texts back on (by replying START)." : "No further deliveries are scheduled.";
+  } else if (c.holiday && c.nextDelivery) {
+    tone = "warn";
+    title = `Delivery lands over ${c.holiday}`;
+    body = "The check-in asks if they're away; if they reply AWAY the delivery is held until the Wednesday after they're back.";
+  } else if (p.projection && !p.projection.freshReply) {
+    tone = "warn";
+    title = checkin ? "Waiting for a reply to the check-in" : "No check-in yet this cycle";
+    body = checkin ? `The check-in went out ${relativeTime(checkin.at, p.now)}. Until ${first} replies the system holds off and changes nothing.` : "Without a reply the system holds off and changes nothing. You can ask now.";
+    if (!checkin) actions = <button className="btn primary" disabled={busy} onClick={() => act(() => post(`/api/customers/${c.id}/actions`, { action: "send_checkin_now" }), "Check-in sent")}>Send check-in now</button>;
+  } else {
+    title = "On track: nothing needed";
+    body = c.nextDelivery ? `Next delivery ${fmtDay(c.nextDelivery)}. The reminder goes out three days before.` : "No delivery is scheduled.";
+  }
+  const border = tone === "plum" ? "border-plum bg-plum-tint" : tone === "warn" ? "border-line bg-cream" : tone === "bad" ? "border-danger" : "border-line bg-surface";
+  return (
+    <section aria-label="Next action" className={`mb-5 flex items-start justify-between gap-4 rounded-xl border p-4 ${border}`}>
+      <div className="min-w-0 flex-1">
+        <div className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">Next action</div>
+        <div className="text-[18px] font-medium text-strong">{title}</div>
+        <div className="mt-0.5 text-[14px]">{body}</div>
+      </div>
+      {actions && <div className="flex shrink-0 gap-2">{actions}</div>}
+    </section>
+  );
+}
+
 export function CustomerProfile({ id }: { id: string }) {
   const { data: p } = useApi<Profile & { error?: string }>(`/api/customers/${id}`);
   const [modal, setModal] = useState<ActionKind>(null);
@@ -177,6 +255,7 @@ export function CustomerProfile({ id }: { id: string }) {
         </div>
       </div>
 
+      <NextAction p={p} />
       <div className="grid grid-cols-12 gap-5">
         <div className="col-span-8 space-y-5">
           <Card>

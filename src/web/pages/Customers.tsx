@@ -13,7 +13,17 @@ interface ListDTO {
   pageSize: number;
 }
 
+const VIEWS: Array<{ id: string; label: string; hint: string }> = [
+  { id: "", label: "Everyone", hint: "All active and held subscribers" },
+  { id: "attention", label: "Needs attention", hint: "A reply that needs a person, or a move waiting for approval" },
+  { id: "running", label: "Running out soon", hint: "Likely to run out within 14 days, with a usable estimate" },
+  { id: "approval", label: "Waiting for approval", hint: "A proposed move or offer that needs a yes from staff" },
+  { id: "new", label: "New (first 60 days)", hint: "The first deliveries, where pacing is not allowed to act yet" },
+];
+
 export function Customers() {
+  const [view, setView] = useState("");
+  const counts = useApi<Record<string, number>>("/api/customers/views", ["projection", "message", "queue"]).data;
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
   const [source, setSource] = useState("");
@@ -24,6 +34,8 @@ export function Customers() {
   if (status) qs.set("status", status);
   if (source) qs.set("source", source);
   if (consent) qs.set("consent", consent);
+  if (view) qs.set("view", view);
+  const csvHref = `/api/customers?${(() => { const c = new URLSearchParams(qs); c.delete("page"); c.set("format", "csv"); return c.toString(); })()}`;
   const { data } = useApi<ListDTO>(`/api/customers?${qs.toString()}`, ["projection"]);
   const reset = (fn: () => void) => () => {
     fn();
@@ -31,7 +43,24 @@ export function Customers() {
   };
   return (
     <div>
-      <PageTitle sub={data ? `${nf(data.total)} customers · select a row to open their profile` : undefined}>Customers</PageTitle>
+      <PageTitle
+        sub={data ? `${nf(data.total)} customers · select a row to open their profile` : undefined}
+        right={
+          <a className="btn no-underline" href={csvHref} download="customers.csv" title="Everything that matches the current view and filters, for a spreadsheet">
+            Export CSV
+          </a>
+        }
+      >
+        Customers
+      </PageTitle>
+      <div className="mb-3 flex flex-wrap gap-2" role="tablist" aria-label="Saved views">
+        {VIEWS.map((v) => (
+          <button key={v.id} role="tab" aria-selected={view === v.id} title={v.hint} className={`chip h-9 px-3.5 text-[14px] ${view === v.id ? "ok" : ""}`} onClick={() => (setView(v.id), setPage(1))}>
+            {v.label}
+            {counts && <span className="tnum ml-1.5 font-semibold">{nf(counts[v.id || "all"] ?? 0)}</span>}
+          </button>
+        ))}
+      </div>
       <Card pad={false}>
         <div className="flex flex-wrap items-center gap-3 border-b border-line p-3">
           <input aria-label="Search" placeholder="Search name, city or ID" value={q} onChange={(e) => (setQ(e.target.value), setPage(1))} className="w-[280px]" />
@@ -56,8 +85,8 @@ export function Customers() {
             <option value="no-offers">Offer consent: no</option>
             <option value="no-delivery">No delivery-text consent</option>
           </select>
-          {(q || status || source || consent) && (
-            <button className="btn" onClick={reset(() => (setQ(""), setStatus(""), setSource(""), setConsent("")))}>
+          {(q || status || source || consent || view) && (
+            <button className="btn" onClick={reset(() => (setQ(""), setStatus(""), setSource(""), setConsent(""), setView("")))}>
               Clear filters
             </button>
           )}

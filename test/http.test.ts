@@ -115,7 +115,7 @@ describe("HTTP: every route answers (spec 14)", () => {
     expect((await getJson(t, `/api/offers/${id}`)).status).toBe("Paused");
   });
 
-  it("GET /api/outlook (JSON and CSV), /api/impact, /api/settings", async () => {
+  it("GET /api/outlook (JSON and CSV), /api/settings", async () => {
     const o = await getJson(t, "/api/outlook");
     expect(o.weeks).toHaveLength(6);
     expect(o.note).toContain("small share of roaster volume");
@@ -125,11 +125,6 @@ describe("HTTP: every route answers (spec 14)", () => {
     expect(text).toContain("0.75 lb");
     expect(text).toContain("1.5 lb");
     expect(text.trim().split("\n").filter((l) => !l.startsWith("#"))).toHaveLength(7);
-    const imp = await getJson(t, "/api/impact");
-    expect(imp.impact.paced.gainPP.length).toBe(21);
-    expect(imp.backtest.success).toBeTruthy();
-    expect(imp.pilot.status).toBe("Not started");
-    expect(imp.ledger.length).toBeGreaterThan(5);
     const s = await getJson(t, "/api/settings");
     expect(s.deliveryDay).toBe("Wednesday");
     expect(s.quietHours).toEqual({ from: 21, to: 8 });

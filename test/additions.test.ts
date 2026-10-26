@@ -211,10 +211,8 @@ describe("in the console", () => {
     expect(get<{ n: number }>(t.db, "SELECT COUNT(*) AS n FROM messages WHERE customer_id = ? AND kind = 'reminder' AND status = 'queued'", id)!.n).toBe(1);
   });
 
-  it("GET /api/impact carries why-DTC and opportunity defaults; GET /api/settings lists the holiday windows", async () => {
-    const i = await getJson(t, "/api/impact");
-    expect(i.whyDtc.channels).toHaveLength(5);
-    expect(i.opportunityDefaults.retentionLift).toBe(0.1);
+  it("GET /api/settings lists the holiday windows; the Impact page and API are gone", async () => {
+    expect((await t.app.request("/api/impact")).headers.get("content-type") ?? "").not.toContain("application/json");
     const s = await getJson(t, "/api/settings");
     expect(s.holidays.map((h: { name: string }) => h.name)).toContain("Thanksgiving");
     expect(s.freshness.peakEndDays).toBe(FRESHNESS.peakEndDays);

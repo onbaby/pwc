@@ -4,7 +4,6 @@ import { BagQrPage } from "./pages/BagQr.tsx";
 import { QrLanding } from "./pages/QrLanding.tsx";
 import { CustomerProfile } from "./pages/CustomerProfile.tsx";
 import { Customers } from "./pages/Customers.tsx";
-import { ImpactPage } from "./pages/Impact.tsx";
 import { Inbox } from "./pages/Inbox.tsx";
 import { OfferPage, OffersList } from "./pages/Offers.tsx";
 import { OutlookPage } from "./pages/Outlook.tsx";
@@ -38,9 +37,6 @@ export function App() {
       break;
     case "outlook":
       page = <OutlookPage />;
-      break;
-    case "impact":
-      page = <ImpactPage />;
       break;
     case "settings":
       page = <Settings />;

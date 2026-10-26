@@ -13,10 +13,10 @@
 | Time | Section | On screen | Who | Rubric |
 |---|---|---|---|---|
 | 0:00–2:30 | 1. The problem | Slide: Exhibit C | Speaker 1 | Framing |
-| 2:30–4:30 | 2. Why DTC, and what is at stake | Slide (or Impact → top two cards) | Speaker 1 | Framing |
+| 2:30–4:30 | 2. Why DTC, and what is at stake | Slide | Speaker 1 | Framing |
 | 4:30–6:30 | 3. The idea in plain English | Slide: the pantry diagram | Speaker 2 | Recommendation |
 | 6:30–12:30 | 4. **Live demo** | The console | Speaker 2 drives, Speaker 1 narrates | Recommendation, Communication |
-| 12:30–14:30 | 5. Does it pay? What we know and don't | Impact page | Speaker 1 | Rigor |
+| 12:30–14:30 | 5. Does it pay? What we know and don't | Slide (evidence) | Speaker 1 | Rigor |
 | 14:30–16:30 | 6. The ask: a 12-week pilot; risks; ethics | Slide | Speaker 2 | Risk and adoption |
 | 16:30–17:30 | 7. Close | Slide | Speaker 1 | Communication |
 | 17:30–18:00 | Buffer | | | |
@@ -49,7 +49,7 @@
 >
 > If we keep 10% more subscribers and convert 5% of grocery buyers, that is about **$276,000 a year in gross profit** (about $79,000 from retention and $197,000 from grocery), with no new stores, no extra sales staff and no price increase. I want to be direct about what that number is: it is **arithmetic on the case exhibits plus one assumption we flag** (twelve grocery bags per buyer per year). It is not a forecast. What we ask you to approve is the experiment that finds out whether those two inputs are real.
 
-**Show:** Impact page, "Why direct to consumer?" and "What it could be worth" cards (or one slide with the same content).
+**Show:** one slide: the Exhibit A channel table (DTC highlighted), the Exhibit C "6,622 of 8,670" line, and the two-part prize arithmetic. (The console no longer has an Impact page; the money case lives on slides.)
 
 **If you only keep one sentence:** "It is arithmetic, not a forecast; the pilot measures the two inputs."
 
@@ -87,7 +87,7 @@ Use one slide with a picture of a coffee canister and a question mark.
 | T−10 min | Press **Ctrl+Alt+D**, confirm the drawer shows *Clock: Sun Oct 18, 9:00 am*, *Scripted events 0 of 3*, *Channel: Replay*. Press **Reset sandbox** once, then close the drawer. |
 | T−2 min | Land on **Today**. Do not scroll. |
 
-**Stage rule:** the presenter touches only two keys: **Ctrl+Alt+→** (advance the scripted story) and the mouse. Do not type in the drawer on stage.
+**Stage rule:** the presenter touches two keys and the mouse: **Ctrl+Alt+→** (advance the scripted story) and **Ctrl+Alt+1…8** (jump to a tour stop: 1 Today, 2 Maya, 3 Dev, 4 approvals, 5 Customers, 6 Bag QR, 7 Offers, 8 Roast outlook). **Ctrl+K** finds any page or customer. Do not type in the drawer on stage.
 
 ### The script
 
@@ -101,10 +101,10 @@ Use one slide with a picture of a coffee canister and a question mark.
 | 3:00 | **Trust** | Click **Why we sent this** on the proposal. | "Every text explains itself in plain English: what the customer said, how sure we are, which checks passed. A person can always see why." |
 | 3:30 | **Dev: when not to act** | Search "Dev Patel", open. | "Dev is new. One delivery, no reply yet. The system says **'not yet sure', so it does nothing.** Knowing when *not* to act is as important as acting." |
 | 4:00 | **Bag QR** | Press **Ctrl+Alt+D** → *Open the newest bag's QR page*. (New tab.) | "This is the second half: the grocery shelf. Every retail bag has a QR code with a lot number. A shopper scans it, sees **how many days ago this bag was roasted**, and can start a subscription roasted to order, with a rhythm suggested from two questions. No app, no account; texts start only after they reply YES. And the console now sees how long bags sit on shelves, something grocery has never told Classic Cup." Close the tab. |
-| 5:00 | **Money** | Click **Impact**; scroll to *What it could be worth*; move the sliders. | "Move the sliders and the dollars update. Everything is from the exhibits, and the one assumption is labelled." |
-| 5:30 | **Back to the slide** | Stop. | Hand off to section 5. |
+| 5:00 | **Worklists** | Press **Ctrl+Alt+5** (Customers). Click **Needs attention**, then **Export CSV**. | "This is how a rep works their day: saved lists with live counts. *Needs attention* is anyone with a reply a person must answer or a move waiting for approval. One click into any account, and the **Next action** banner at the top says what to do. Export hands the list to a spreadsheet." |
+| 5:40 | **Back to the slide** | Stop. | Hand off to section 5. |
 
-**Cut order if you run long:** Dev → "Why we sent this" → the money sliders (say it from the slide instead). **Never cut:** Maya's reply, move and freshness.
+**Cut order if you run long:** Dev → "Why we sent this" → the worklists beat. **Never cut:** Maya's reply, move and freshness.
 
 **If something fails:** (1) refresh the page; (2) press **Ctrl+Alt+D → Reset sandbox** and repeat from Maya; (3) play the backup recording and narrate over it. Never debug live.
 
@@ -114,7 +114,7 @@ Use one slide with a picture of a coffee canister and a question mark.
 
 ## 5. Does it pay? What we know, and don't (2:00)
 
-**Say, with the Impact page's pacing card:**
+**Say, over a slide with the pacing chart and the "what would make it better" table (take the numbers from `artifacts/impact.json`; the console no longer shows them):**
 
 > We also built a simulator of a few thousand synthetic customers, calibrated to the case's retention numbers, to ask: does timing deliveries pay for itself? **Our honest answer: timing alone does not, unless stockpiles drive almost all of these cancellations, and nobody knows that share today.** With *perfect* knowledge of every pantry, it pays once about half of cancellations are stockpile-driven. And the biggest lever by far is **how many customers reply to the text.** That is why we protect that text.
 >
@@ -122,7 +122,7 @@ Use one slide with a picture of a coffee canister and a question mark.
 >
 > Two more checks: first, we tested the method on **real purchase data**: over a million orders from a public retailer. It predicted repeat-purchase timing better than a simple "same gap as last time" rule, and its "80% range" really did contain the truth about 80% of the time. That is real data, but wholesalers, not coffee drinkers, and no text replies, so it tests the math, not the whole idea. Second, the plan for that test was committed to the repository *before* we ran it, so we could not choose the favorable result.
 
-**Show:** the slider and the *What would make it better* table; then the *Model check on real data* card.
+**Show:** the slide: pacing vs required retention, then the real-data table (from `artifacts/backtest.json`).
 
 **Avoid:** "AI will save $X." **Say instead:** "Here is the bar it has to clear, here is how likely it is to clear it, here is the experiment."
 

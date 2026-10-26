@@ -4,7 +4,7 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { computeOutlook, type OutlookCustomer } from "../engine/outlook.ts";
 import type { Projection } from "../engine/project.ts";
-import { ENGINE, EXHIBITS, FRESHNESS, LEDGER, QR, RULES, SOURCES, SOURCE_LABEL, WORLD, type Source } from "../shared/constants.ts";
+import { ENGINE, FRESHNESS, QR, RULES, SOURCE_LABEL, SOURCES, WORLD, type Source } from "../shared/constants.ts";
 import { dayFromISO, etInstant, etParts, fmtDay, fmtMonthDay, isoFromDay, MS_DAY, weekday, type Day } from "../shared/dates.ts";
 import type { CustomerRow } from "../shared/types.ts";
 import { COPY } from "./copy.ts";
@@ -20,8 +20,7 @@ import { buildProfile } from "./profile.ts";
 import { lotPublic, qrSignup, qrSummary, recordScan } from "./qr.ts";
 import { freshnessFromProjection, type FreshnessStatus } from "../engine/freshness.ts";
 import { upcomingHolidayWindows } from "../shared/holidays.ts";
-import { whyDtc } from "../shared/opportunity.ts";
-import { approvals, goingOutToday, listCustomers, needsPerson, runningOutSoon } from "./queries.ts";
+import { approvals, goingOutToday, listCustomers, needsPerson, runningOutSoon, viewCounts } from "./queries.ts";
 import type { Sandbox } from "./sandbox.ts";
 import type { Hub } from "./sse.ts";
 import { customerRow, nextScheduled, nowMs, todayOf } from "./store.ts";
@@ -38,7 +37,6 @@ export interface ServerCtx {
 
 const MIME: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json", ".svg": "image/svg+xml", ".woff2": "font/woff2", ".png": "image/png", ".ico": "image/x-icon", ".txt": "text/plain; charset=utf-8", ".map": "application/json" };
 
-const readJson = (path: string): unknown => (existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : null);
 
 /** Hand-written guards at the untrusted boundary (spec 12.1): request bodies. */
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -231,9 +229,24 @@ export function createApp(s: ServerCtx): Hono {
   });
 
   // ---- Customers -------------------------------------------------------------------------------------------------
+  app.get("/api/customers/views", (c) => c.json(viewCounts(db)));
   app.get("/api/customers", (c) => {
     const q = c.req.query();
-    return c.json(listCustomers(db, { q: q.q, status: q.status, source: q.source, consent: q.consent, page: q.page ? Number(q.page) : 1, pageSize: q.pageSize ? Number(q.pageSize) : 50 }));
+    const filter = { q: q.q, status: q.status, source: q.source, consent: q.consent, view: q.view };
+    if (q.format === "csv") {
+      const r = listCustomers(db, { ...filter, all: true });
+      const cell = (v: string | number | null): string => {
+        const t = v === null ? "" : String(v);
+        // a leading = + - @ would be run as a formula by a spreadsheet
+        const safe = /^[=+\-@]/.test(t) ? `'${t}` : t;
+        return /[",\n]/.test(safe) ? `"${safe.replaceAll('"', '""')}"` : safe;
+      };
+      const day = (d: number | null) => (d === null ? "" : isoFromDay(d));
+      const rows = r.items.map((i) => [i.id, i.name, i.city, SOURCE_LABEL[i.source], i.plan, day(i.nextDelivery), day(i.runOut?.lo ?? null), day(i.runOut?.mid ?? null), day(i.runOut?.hi ?? null), i.confidence, i.lastReply?.weeks ?? null, day(i.lastReply?.day ?? null), i.status, i.consentDelivery ? "yes" : "no", i.consentOffers ? "yes" : "no"].map(cell).join(","));
+      const head = "id,name,city,sign_up_source,plan,next_delivery,runs_out_early,runs_out_likely,runs_out_late,how_sure,last_reply_weeks,last_reply_date,status,delivery_texts,offer_texts";
+      return c.body([head, ...rows].join("\n") + "\n", 200, { "content-type": "text/csv; charset=utf-8", "content-disposition": 'attachment; filename="customers.csv"' });
+    }
+    return c.json(listCustomers(db, { ...filter, page: q.page ? Number(q.page) : 1, pageSize: q.pageSize ? Number(q.pageSize) : 50 }));
   });
   app.get("/api/customers/:id", (c) => {
     const p = buildProfile(db, c.req.param("id"));
@@ -355,22 +368,6 @@ export function createApp(s: ServerCtx): Hono {
       return c.body(lines.join("\n") + "\n", 200, { "content-type": "text/csv; charset=utf-8", "content-disposition": 'attachment; filename="roast-outlook.csv"' });
     }
     return c.json(o);
-  });
-
-  // ---- Impact ----------------------------------------------------------------------------------------------------
-  app.get("/api/impact", (c) => {
-    const offers = listOffers(db).filter((o) => o.row.status === "Running" || o.row.status === "Scheduled").map(({ row, results }) => ({ id: row.id, name: row.name, status: row.status, statusLine: results.statusLine, sends: results.sends }));
-    return c.json({
-      impact: readJson(join(s.artifactsDir, "impact.json")),
-      backtest: readJson(join(s.artifactsDir, "backtest.json")),
-      ledger: LEDGER,
-      exhibits: { sources: EXHIBITS.sources, labels: SOURCE_LABEL, newSubsPerYear: EXHIBITS.dtc.newSubsPerYear },
-      pilot: { status: "Not started", weeks: RULES.pilotWeeks, minReplyRate: RULES.pilotMinReplyRate, freezeFrom: dayFromISO(RULES.freezeFromISO), freezeTo: dayFromISO(RULES.freezeToISO), decemberIndex: EXHIBITS.monthlyIndex[11] },
-      offerExperiments: offers,
-      whyDtc: whyDtc(),
-      opportunityDefaults: { retentionLift: 0.1, groceryConversion: 0.05, bagsPerBuyerPerYear: QR.bagsPerBuyerPerYear },
-      freshness: { bestByDays: FRESHNESS.bestByDays, peakEndDays: FRESHNESS.peakEndDays, roastToDoorDays: WORLD.roastToDoorDays },
-    });
   });
 
   // ---- Bag QR: the console page, and the public page a grocery buyer opens from the bag ---------------------------
