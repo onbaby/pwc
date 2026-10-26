@@ -1,4 +1,4 @@
-# PROTOTYPE_SPEC — "Right on Time" team console (spec v4.1)
+# PROTOTYPE_SPEC — "Right on Time" team console (spec v4.3)
 
 > **For the build session. Start a new project from scratch.** This spec replaces v3 (in git history: `git show 57a7588:PROTOTYPE_SPEC.md`; the v3 build is commit `b09ece6`). New repo structure, new server, database and UI. *Option:* the team may copy v3's proven model, simulator, backtest and Photon modules from `b09ece6` with their tests (saves ≈ 7–8 person-days, §15); the spec does not depend on it.
 > Audience: an AI-literate judging panel (UGA AI Society × PwC case competition; prelim week of Nov 2, final Nov 13, 2026, PwC Atlanta). Talk 15–20 min, hard cutoff. **Demo under 7 minutes: 5:40 of narration + ~0:30 navigation ≈ 6:10.**
@@ -446,6 +446,109 @@ Honest notes: QR scan and sign-up rates are labelled assumptions; the grocery ha
 ---
 
 **v4.2 → v4.3: built for reps, and easy to show.** The **Impact page is removed** (the money case, the simulation and the real-data check move to the pitch slides; the simulator, its artifacts and tests stay in the repo). Added for account management: a **Next action** banner on every customer profile; **saved worklists with live counts** and **CSV export** on Customers; **Ctrl+K** jump search for pages and customers. Added for showing it: a **Tour** in the hidden sandbox drawer and **Ctrl+Alt+1 to 8** shortcuts. Where earlier sections of this spec still mention the Impact page (§3.6, §6 beat 4, §10), they are superseded.
+
+---
+
+## 18. Panel review of v4.3 and enhancement plan
+
+*Written after the v4.3 polish pass. Scores are a simulated panel's judgement against the case rubric, not a prediction. Rule for everything below: **no new limbs.** Each item sharpens a screen or a beat that already exists, so the 18-minute pitch gets clearer without a bigger product.*
+
+### 18.1 What the polish pass fixed (v4.3)
+
+| # | Found | Fix |
+|---|---|---|
+| 1 | 17 sample consent texts and YES replies were dated 11:00–11:01 am today, two hours **after** the sandbox clock (9:00 am); the All messages tab showed texts from the future | Sign-ups dated today are capped at 8:00 am; a test now fails if any message or event is dated after the clock |
+| 2 | The Bag QR table had ten rows called "Independent grocer" | Distinct sample store names ("Athens Corner Market", "Madison Harvest Market", …) |
+| 3 | Settings listed four holiday windows, two of them in 2027 | Only the next two (Thanksgiving and the winter holidays) |
+| 4 | "+200%" on a count of 2 (Needs reply) | Counts under 30 show the change as a number ("+4"); larger ones as a share |
+| 5 | A running offer opened on a full, greyed-out editor | The results lead; the locked settings sit in a collapsed "Offer settings" block |
+| 6 | The message thread used iMessage blue and charcoal | Espresso sent bubbles, warm-grey received bubbles, plum for "not sent yet" |
+| 7 | The console had drifted to white, black and orange | Back to the §5 palette: espresso headings and primary buttons, cream background, orange for fills and the active-page bar, plum chips on a tint, warm-grey lines and text |
+| 8 | The sticky customer header let the card beneath show through | Solid cream header |
+| 9 | Duplicate customer names; "Running out soon" led with "Not yet sure" rows (earlier round) | Unique names; usable estimates first |
+
+Verified still open (not fixed here): Dev Patel's run-out range is outside Appendix A's ±25% (README deviation 1); Photon live delivery, the AWAY flow and the bag-QR sign-up have no end-to-end test with a real phone.
+
+### 18.2 The panel
+
+| Judge | Lens | Score /100 | What lands | What they attack |
+|---|---|---|---|---|
+| **Consulting director** | Recommendation, risk and adoption | 78 | Clear problem (6,622 of 8,670 gone in a year), one concrete ask, a go/stop rule, "a person stays in charge" | With Impact gone, **no number is on screen**; the ask lives only on a slide. "Where does the pilot show up in the product?" |
+| **Roaster COO** | Operations | 72 | The outlook with a P10–P90 band and the CSV | "Does the outlook change when you move deliveries? Show me." The outlook looks the same before and after Maya's move |
+| **ML engineer** | Rigor | 74 | No LLM, explainable in one sentence, deterministic, "what would change it" table | The real-data check (the one piece of external evidence) is **no longer visible anywhere in the product**; "how do I know the ranges are honest?" |
+| **Responsible-AI lead** | Ethics, consent | 82 | Two consents, NO OFFERS vs STOP, quiet hours, YES for sooner moves, "Why we sent this" | "Auto-moves: can a rep undo one? Show me the undo." Customers can reply OLD, but staff have no button |
+| **Product designer** | Communication | 80 | Next action banner, clean worklists, palette, Maya's before/after | Maya's story is spread over four cards; the eye has to assemble "Oct 28 → Nov 11, 14 days fresher". Dense for a projector |
+| **Wholesale / sales lead** | Fit to a rep's day | 70 | Customers worklists, CSV export, Bag QR "by store" | The store table is a report, not a to-do list: "which store do I visit Monday?" |
+| **Average** | | **76** | | |
+
+**Where the points are** (rubric weights in brackets): Rigor [20] and Recommendation [25] lose the most, because the evidence and the ask are off-screen; Communication [15] loses to the scattered Maya story and projector legibility; Risk and adoption [15] loses a little for undo and rep workflow.
+
+### 18.3 Enhancement plan: sharpen what exists
+
+Ordered by points gained per day. **P0** = do before the Nov 2 prelim week; **P1** = before the Nov 13 final; **P2** = only if time is left.
+
+| # | Enhancement (where it lives) | What changes | Pitch beat and rubric line | Effort | Pri |
+|---|---|---|---|---|---|
+| **E1** | **Move summary and Undo** (the existing Next action banner on a customer profile) | After an automatic or approved move, the banner shows one sentence: "Moved Oct 28 → Nov 11 on Sun Oct 18. Opens 35 → 21 days after roasting. Customer can undo by replying OLD." with an **Undo move** button (the existing `move` action back to the original date, which texts the customer) | Demo beat "Maya": one glance instead of four cards. Responsible-AI [Risk 15], Communication [15] | 0.5 d | P0 |
+| **E2** | **Pilot scoreboard** (the existing KPI tiles on Today: replace the Check-ins meter with reply rate) | The tile shows the live **reply rate against the 40% go bar** and, on hover, the other go/stop inputs the pilot would use (late-delivery risk count, stockpile count, opt-outs this week). The ask now has a home in the product | Closing beat "The ask". Recommendation [25], Risk [15] | 0.5 d | P0 |
+| **E3** | **Evidence line in "Why this date"** (existing card on the profile) | One line and a disclosure: "Ranges checked on 1,067,371 real orders: 80% ranges held 79% of the time; protocol committed before the run." Reads `artifacts/backtest.json`. Restores the rigor evidence the Impact page used to carry | Q&A "how do you know?" and the ML judge. Rigor [20] | 0.5 d | P0 |
+| **E4** | **Stores to visit** (the existing "By store" table on Bag QR) | Rank stores by share of scans past 4 weeks; mark those ≥ 40% "Visit first: bags are sitting"; a **Copy note for rep** button writes a plain-text note (store, lot, shelf age, suggested action). Turns a report into a to-do | Beat "Bag QR"; wholesale judge. Recommendation [25], adoption [15] | 0.5 d | P1 |
+| **E5** | **Outlook shows the effect of moves** (existing Roast outlook) | A second, lighter line "if every delivery stayed on its original date" beside the plan, and one sentence: "Pending and automatic moves shift about N lb from week A to week B." Uses the outlook's existing pending-move inputs | Roaster COO question. Recommendation [25], Rigor [20] | 1 d | P1 |
+| **E6** | **Bulk approve the routine ones** (existing Approvals tab) | Group approvals by reason; "Approve all 9 that only need a routine OK (first deliveries)" with a confirm that lists the count. Never offered for discounts or anything with a blocked guardrail | Rep workflow. Adoption [15] | 0.5 d | P1 |
+| **E7** | **Demo pre-flight** (`pnpm demo:check`, a script, not a screen) | Boots the server in test mode, confirms the clock reads 9:00, the three personas exist, the scenario has three events, Maya ends on Nov 11, no message is dated after the clock, port is free; prints green ticks. Plus a rule to record the backup video from a passing run | Reliability on stage. Communication [15] | 0.5 d | P1 |
+| **E8** | **Presentation zoom** (a view setting in the existing sandbox drawer) | One toggle (Ctrl+Alt+Plus) raises the base text to 18 px and hides secondary captions; remembered per browser | Projector legibility. Communication [15] | 0.5 d | P2 |
+
+**Total P0: 1.5 days. P1: 2.5 days. P2: 0.5 day.**
+
+#### Acceptance criteria (so each is checkable)
+
+- **E1.** After advancing the demo twice, Maya's banner reads the move sentence with the right dates and freshness numbers (taken from `freshness.original` and `freshness.next`); **Undo move** restores Oct 28, texts her, and the banner returns to "On track". Test: HTTP flow test.
+- **E2.** The tile's value equals replies ÷ check-ins delivered in the last cycle from the database, not a constant; the 40% marker comes from `RULES.pilotMinReplyRate`. Test: value matches a SQL count.
+- **E3.** The line's numbers come from the artifact (never typed in the component). A web-source test fails if "1,067,371" appears as a literal in `src/web`.
+- **E4.** Order is by share past 4 weeks, descending; the note contains store, lot and age and has no customer names. Test: ordering and note content.
+- **E5.** The "original dates" line equals the plan when there are no moves and differs after Maya's move. Test: outlook before and after.
+- **E6.** The button never includes a discount offer or a message with `blockedBy` guardrails other than "not pay-as-you-go / fewer than 2 deliveries". Test: the group's ids exclude those.
+- **E7.** The script exits non-zero if any check fails, and is the first line of the stage checklist in `docs/SAMPLE_PITCH.md`.
+
+### 18.4 Revised demo order (v4.3)
+
+Narration 5:40 plus about 0:30 of navigation, using the Tour (Ctrl+Alt+1 to 8). The slide before the demo carries the Exhibit A/C story, the prize arithmetic and the evidence (the console no longer has an Impact page).
+
+| Beat | Page | Say | Budget |
+|---|---|---|---|
+| 1 Morning | Today (stop 1) | Four numbers and a worklist; **reply rate against the 40% bar (E2)** is the pilot's first test | 0:40 |
+| 2 Maya | Profile (stop 2) | Chart → check-in → reply "6" → move Oct 28 → Nov 11 → **move summary and Undo (E1)** → "Why this date" with **the evidence line (E3)** | 2:00 |
+| 3 Dev | Profile (stop 3) | "Not yet sure, so it does nothing" | 0:30 |
+| 4 A rep's day | Customers (stop 5) → Approvals (stop 4) | Needs-attention list, one click to the Next action banner; **bulk-approve the routine ones (E6)**; CSV export | 1:00 |
+| 5 Grocery shelf | Bag QR (stop 6) | Scans, sign-ups, **stores to visit (E4)** | 0:50 |
+| 6 The roaster | Roast outlook (stop 8) | **Effect of moves (E5)**, CSV | 0:30 |
+| (Offers) | Offers (stop 7) | Cut first if long | (0:30) |
+| 7 The ask | Slide | 12-week pilot, go if reply rate ≥ 40% and late deliveries and stockpiles fall; stop if a guardrail breaks two weeks running | 0:15 |
+
+**Cut order:** Offers → Dev → roaster beat → CSV. **Never cut:** Maya with Undo, the evidence line, the ask.
+
+### 18.5 New attack rows for the judge matrix (§13)
+
+| # | Attack | Answer | Where |
+|---|---|---|---|
+| 15 | "Can a person undo an automatic move?" | Yes: the customer replies OLD, or staff press Undo move on the banner; both text the customer | Profile banner (E1) |
+| 16 | "Where is the proof the ranges are honest?" | On every "Why this date": 79% held on 1.07M real orders, protocol committed first | Profile (E3) |
+| 17 | "Where does the 40% come from, and how would we see it?" | The pilot's go bar; the tile shows today's reply rate live | Today (E2) |
+| 18 | "Does the roaster's number change when you move deliveries?" | Yes: the outlook shows plan vs unmoved, and the lb shifted | Outlook (E5) |
+| 19 | "What does a rep do on Monday?" | Needs-attention list → banner → one action; stores to visit | Customers, Bag QR (E4) |
+
+### 18.6 What not to build
+
+No language model or free-text parsing; no additional offer types; no roles and permissions screen; no customer app or portal; no new dashboards. Each of these adds surface area the panel will probe, and none moves a rubric line more than E1 to E3 do.
+
+### 18.7 Before the pitch (not features)
+
+1. Photon M1 test with one real phone, or say "replay" out loud.
+2. Mentor answers: orders per subscriber, delivery days, cancel-reason shares, offer-consent today, grocery bags per buyer, retail bag QR printing.
+3. Counsel review of both consent texts.
+4. Team sign-off on the palette (colors only).
+5. A recorded backup of a passing run; one rehearsal at 1280×720 on the presenting laptop with notifications off.
+
 
 ## Appendix A: Demo scenario (`scenarios/demo.json`)
 One sandbox clock: **Sun Oct 18, 2026, 9:00 am** (`America/New_York`). Calendar check (2026): Sep 30 Wed · Oct 14 Wed · Oct 18 Sun · Oct 28 Wed · Nov 4 Wed · Nov 11 Wed · Dec 9 Wed.
