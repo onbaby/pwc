@@ -49,7 +49,7 @@ export function Today() {
               {nf(data.approvals.total)} waiting for approval
             </a>
             <a className="pill" href={href("/customers")}>
-              <span className="dot bg-[#A9A9A4]" />
+              <span className="dot bg-[#B9AA9D]" />
               {nf(data.runningOutSoon.total)} running out soon
             </a>
           </div>

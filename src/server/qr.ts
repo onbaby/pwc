@@ -43,12 +43,11 @@ function pilotAccounts(): AccountSeed[] {
     { id: "RB", name: "Regional chain B", city: "Atlanta area", kind: "chain", bagsPerWeek: bagsPerWeek(GROCERY.regionalChains.lbsPerMonth), shelfMedian: 21 },
   ];
   const cities = ["Athens", "Athens", "Athens", "Watkinsville", "Bogart", "Winterville", "Madison", "Monroe", "Jefferson", "Commerce"];
-  const seen = new Map<string, number>();
+  // generic, clearly sample names that are different from one another (a table of ten "Independent grocer" rows reads as a bug)
+  const kinds = ["Corner Market", "Neighborhood Grocer", "Family Market", "Fresh Pantry", "Town Market", "Country Grocer", "Main Street Market", "Village Foods", "Harvest Market", "Green Door Grocer"];
   for (let i = 0; i < QR.pilotAccounts - 2; i++) {
     const city = cities[i % cities.length]!;
-    const k = (seen.get(city) ?? 0) + 1;
-    seen.set(city, k);
-    out.push({ id: `G${String(i + 1).padStart(2, "0")}`, name: `Independent grocer${k > 1 ? ` ${k}` : ""}`, city, kind: "independent", bagsPerWeek: bagsPerWeek(GROCERY.independents.lbsPerMonth), shelfMedian: 30 });
+    out.push({ id: `G${String(i + 1).padStart(2, "0")}`, name: `${city} ${kinds[i % kinds.length]}`, city, kind: "independent", bagsPerWeek: bagsPerWeek(GROCERY.independents.lbsPerMonth), shelfMedian: 30 });
   }
   return out;
 }

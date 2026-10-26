@@ -137,6 +137,17 @@ function Section({ n, title, children }: { n: number; title: string; children: R
   );
 }
 
+/** A live offer's settings stay available but out of the way: the results are what a manager comes to see. */
+function LockedWrap({ locked, children }: { locked: boolean; children: React.ReactNode }) {
+  if (!locked) return <>{children}</>;
+  return (
+    <details className="card p-4">
+      <summary className="cursor-pointer text-[16px] font-medium text-strong">Offer settings (locked while the offer is live)</summary>
+      <div className="mt-4">{children}</div>
+    </details>
+  );
+}
+
 const numOrUndef = (v: string): number | undefined => (v === "" ? undefined : Number(v));
 
 export function OfferPage({ id }: { id: string }) {
@@ -222,6 +233,7 @@ export function OfferPage({ id }: { id: string }) {
         </Card>
       )}
 
+      <LockedWrap locked={locked}>
       <div className="grid grid-cols-12 gap-5">
         <div className="col-span-7 space-y-5">
           <Section n={1} title="Offer type and message">
@@ -355,6 +367,7 @@ export function OfferPage({ id }: { id: string }) {
           </div>
         </aside>
       </div>
+      </LockedWrap>
     </div>
   );
 }

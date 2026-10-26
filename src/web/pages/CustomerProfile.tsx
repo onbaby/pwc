@@ -218,7 +218,7 @@ export function CustomerProfile({ id }: { id: string }) {
   const suggested = c.suggestedRhythmDays;
   return (
     <div>
-      <div className="sticky -top-4 z-20 -mx-6 mb-4 border-b border-line bg-cream/95 px-6 py-3 backdrop-blur">
+      <div className="sticky -top-4 z-20 -mx-6 mb-4 border-b border-line bg-cream px-6 py-3">
         <a href={href("/customers")} className="mb-1 inline-block text-[13px] text-muted no-underline hover:text-strong">
           ← Customers
         </a>

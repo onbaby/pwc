@@ -46,4 +46,11 @@ describe("sample data and worklists", () => {
   it("the Impact page and its API are gone", async () => {
     expect((await t.app.request("/api/impact")).headers.get("content-type") ?? "").not.toContain("application/json");
   });
+
+  it("nothing sent or received is dated after the sandbox clock", () => {
+    const now = Number(all<{ value: string }>(t.db, "SELECT value FROM settings WHERE key = 'clock' OR key = 'now'")[0]?.value ?? 0);
+    expect(now).toBeGreaterThan(0);
+    expect(all<{ n: number }>(t.db, "SELECT COUNT(*) AS n FROM messages WHERE at > ? AND status NOT IN ('queued','cancelled')", now)[0]!.n).toBe(0);
+    expect(all<{ n: number }>(t.db, "SELECT COUNT(*) AS n FROM events WHERE at > ?", now)[0]!.n).toBe(0);
+  });
 });

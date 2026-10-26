@@ -3,9 +3,9 @@ import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis } from "rechar
 import { nf, pct } from "../format.ts";
 
 /** Dashboard building blocks: tile, meter, half gauge and bar trend. Orange is a fill only; numbers and labels stay ink. */
-export const INK = "#141414";
+export const INK = "#643A2B";
 export const ACCENT = "#F16A21";
-export const TRACK = "#E4E2DF";
+export const TRACK = "#EADFD5";
 
 type Icon = ComponentType<{ width?: number; height?: number; strokeWidth?: number; "aria-hidden"?: boolean }>;
 
@@ -29,7 +29,8 @@ export function DeltaBadge({ now, prev, good = "up" }: { now: number; prev: numb
   return (
     <span className={`tnum rounded-md px-1.5 py-0.5 text-[12px] font-medium ${ok ? "bg-success-tint text-success" : "bg-danger-tint text-danger"}`} title="vs last week">
       {d > 0 ? "+" : "−"}
-      {pct(Math.abs(d), Math.abs(d) < 0.1 ? 1 : 0)}
+      {/* "+200%" on a count of 2 is noise: small counts change by a number, large ones by a share */}
+      {prev < 30 ? Math.abs(now - prev) : pct(Math.abs(d), Math.abs(d) < 0.1 ? 1 : 0)}
     </span>
   );
 }
@@ -129,8 +130,8 @@ export function BarTrend({ data, highlight = 0, height = 170, unit = "" }: { dat
     <div style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 8, right: 0, bottom: 0, left: 0 }} barCategoryGap="30%">
-          <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#6E6E6A" }} axisLine={false} tickLine={false} interval={0} />
-          <Tooltip cursor={{ fill: "rgba(0,0,0,0.04)" }} contentStyle={{ borderRadius: 12, border: "1px solid #ECEAE7", fontSize: 13 }} formatter={(v) => [`${nf(Number(v))}${unit}`, ""]} separator="" />
+          <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#6B5A50" }} axisLine={false} tickLine={false} interval={0} />
+          <Tooltip cursor={{ fill: "rgba(0,0,0,0.04)" }} contentStyle={{ borderRadius: 12, border: "1px solid #E9DFD6", fontSize: 13 }} formatter={(v) => [`${nf(Number(v))}${unit}`, ""]} separator="" />
           <Bar dataKey="value" radius={[6, 6, 6, 6]} maxBarSize={18} isAnimationActive={false}>
             {data.map((d, i) => (
               <Cell key={d.label} fill={i === highlight ? ACCENT : INK} />

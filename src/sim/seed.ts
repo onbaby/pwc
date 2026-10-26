@@ -243,7 +243,7 @@ export function generateSeed(opts: SeedOptions): SeedData {
     const r = new Stream("seed-cust", seed, id);
     const consentDelivery = r.next() < 0.96;
     const consentOffers = consentDelivery && r.next() < 0.62;
-    const signupMs = etInstant(p.signupDay, 11, 0);
+    const signupMs = Math.min(etInstant(p.signupDay, 11, 0), etInstant(TODAY, 8, 0)); // nothing is dated after the sandbox clock (9:00 am today)
     const name = pickName(names, usedNames);
     const h = history(c, p, consentDelivery, signupMs, r, name.split(" ")[0]!);
     const planType: PlanType = p.source === "gift" && r.next() < 0.55 ? "gift" : r.next() < 0.07 ? "prepaid" : "payg";

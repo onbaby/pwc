@@ -17,9 +17,9 @@ interface QrDTO {
   recentSignups: Array<{ customerId: string; name: string; at: number; lot: string; ageAtScan: number; status: string }>;
 }
 
-const INK = "#141414";
+const INK = "#643A2B";
 const ACCENT = "#F16A21";
-const TICK = { fontSize: 12, fill: "#6E6E6A" };
+const TICK = { fontSize: 12, fill: "#6B5A50" };
 
 export const bagUrl = (code: string): string => `${window.location.origin}/#/q/${code}`;
 
@@ -62,8 +62,8 @@ export function BagQrPage() {
               <div className="h-[220px]" role="img" aria-label="Weekly QR scans and subscriptions started">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={weeks} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-                    <CartesianGrid stroke="#ECEAE7" vertical={false} />
-                    <XAxis dataKey="week" tick={TICK} axisLine={{ stroke: "#ECEAE7" }} tickLine={false} />
+                    <CartesianGrid stroke="#E9DFD6" vertical={false} />
+                    <XAxis dataKey="week" tick={TICK} axisLine={{ stroke: "#E9DFD6" }} tickLine={false} />
                     <YAxis tick={TICK} axisLine={false} tickLine={false} width={40} tickCount={5} />
                     <Bar dataKey="scans" name="Scans" fill={INK} fillOpacity={0.6} isAnimationActive={false} />
                     <Bar dataKey="signups" name="Subscriptions started" fill={ACCENT} isAnimationActive={false} />

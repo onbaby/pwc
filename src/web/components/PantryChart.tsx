@@ -2,7 +2,7 @@ import { Area, CartesianGrid, ComposedChart, LabelList, Line, ReferenceDot, Refe
 import type { CustomerProfile } from "../../shared/types.ts";
 import { fmtMonthDay } from "../format.ts";
 
-const INK = "#141414";
+const INK = "#643A2B";
 const ACCENT = "#F16A21";
 
 /**
@@ -44,23 +44,23 @@ export function PantryChart({ pantry }: { pantry: CustomerProfile["pantry"] }) {
     <div className="h-[320px] w-full" role="img" aria-label={pantry.title}>
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={rows} margin={{ top: 22, right: 28, bottom: 6, left: 0 }}>
-          <CartesianGrid stroke="#ECEAE7" vertical={false} />
-          <XAxis dataKey="day" type="number" domain={[first, last]} ticks={ticks} tickFormatter={(d: number) => fmtMonthDay(d)} tick={{ fontSize: 12, fill: "#6E6E6A" }} axisLine={{ stroke: "#ECEAE7" }} tickLine={false} />
-          <YAxis yAxisId="y" domain={[0, ymax]} ticks={Array.from({ length: 5 }, (_, i) => (ymax * i) / 4)} tickFormatter={(v: number) => String(Math.round(v))} tick={{ fontSize: 12, fill: "#6E6E6A" }} axisLine={false} tickLine={false} width={34} />
+          <CartesianGrid stroke="#E9DFD6" vertical={false} />
+          <XAxis dataKey="day" type="number" domain={[first, last]} ticks={ticks} tickFormatter={(d: number) => fmtMonthDay(d)} tick={{ fontSize: 12, fill: "#6B5A50" }} axisLine={{ stroke: "#E9DFD6" }} tickLine={false} />
+          <YAxis yAxisId="y" domain={[0, ymax]} ticks={Array.from({ length: 5 }, (_, i) => (ymax * i) / 4)} tickFormatter={(v: number) => String(Math.round(v))} tick={{ fontSize: 12, fill: "#6B5A50" }} axisLine={false} tickLine={false} width={34} />
           <Area yAxisId="y" dataKey="band" type="stepAfter" connectNulls={false} stroke="none" fill={ACCENT} fillOpacity={0.2} isAnimationActive={false} />
           <Area yAxisId="y" dataKey="est" type="monotone" stroke="rgba(20,20,20,0.6)" strokeWidth={2.5} fill="rgba(20,20,20,0.06)" connectNulls={false} dot={false} isAnimationActive={false} />
           <Line yAxisId="y" dataKey="link" stroke={INK} strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls={false} isAnimationActive={false} />
           <Scatter yAxisId="y" data={deliveryDots} dataKey="y" fill={INK} isAnimationActive={false} shape={(p: { cx?: number; cy?: number }) => <circle cx={p.cx} cy={p.cy} r={5} fill={INK} stroke="#fff" strokeWidth={1.5} />} />
           {replyDots.length > 0 && (
             <Scatter yAxisId="y" data={replyDots} dataKey="y" fill={INK} isAnimationActive={false} shape={(p: { cx?: number; cy?: number }) => <circle cx={p.cx} cy={p.cy} r={5} fill="#fff" stroke={INK} strokeWidth={2} />}>
-            <LabelList dataKey="label" position="top" style={{ fontSize: 12, fill: "#141414", fontWeight: 600 }} />
+            <LabelList dataKey="label" position="top" style={{ fontSize: 12, fill: "#643A2B", fontWeight: 600 }} />
           </Scatter>
           )}
-          <ReferenceLine yAxisId="y" x={today} stroke="#6E6E6A" strokeDasharray="3 3" label={{ value: "today", position: "insideTopRight", fontSize: 12, fill: "#6E6E6A" }} />
-          {runOut && <ReferenceLine yAxisId="y" x={runOut.mid} stroke="transparent" label={{ value: "Likely runs out", position: "top", fontSize: 12, fill: "#141414", fontWeight: 600 }} />}
-          <ReferenceDot yAxisId="y" x={lastEst.day} y={lastEst.days} r={0} label={{ value: "Estimated coffee on hand", position: "right", fontSize: 12, fill: "#141414" }} />
-          {scheduled !== null && <ReferenceDot yAxisId="y" x={scheduled} y={0} r={7} fill="#fff" stroke={INK} strokeWidth={2} label={{ value: proposed !== null ? `was ${fmtMonthDay(scheduled)}` : `scheduled ${fmtMonthDay(scheduled)}`, position: proposed !== null ? "left" : "top", fontSize: 12, fill: "#141414" }} />}
-          {proposed !== null && <ReferenceDot yAxisId="y" x={proposed} y={0} r={7} fill={ACCENT} stroke="#fff" strokeWidth={1.5} label={{ value: `now ${fmtMonthDay(proposed)}`, position: "right", fontSize: 12, fill: "#141414", fontWeight: 600 }} />}
+          <ReferenceLine yAxisId="y" x={today} stroke="#6B5A50" strokeDasharray="3 3" label={{ value: "today", position: "insideTopRight", fontSize: 12, fill: "#6B5A50" }} />
+          {runOut && <ReferenceLine yAxisId="y" x={runOut.mid} stroke="transparent" label={{ value: "Likely runs out", position: "top", fontSize: 12, fill: "#643A2B", fontWeight: 600 }} />}
+          <ReferenceDot yAxisId="y" x={lastEst.day} y={lastEst.days} r={0} label={{ value: "Estimated coffee on hand", position: "right", fontSize: 12, fill: "#643A2B" }} />
+          {scheduled !== null && <ReferenceDot yAxisId="y" x={scheduled} y={0} r={7} fill="#fff" stroke={INK} strokeWidth={2} label={{ value: proposed !== null ? `was ${fmtMonthDay(scheduled)}` : `scheduled ${fmtMonthDay(scheduled)}`, position: proposed !== null ? "left" : "top", fontSize: 12, fill: "#643A2B" }} />}
+          {proposed !== null && <ReferenceDot yAxisId="y" x={proposed} y={0} r={7} fill={ACCENT} stroke="#fff" strokeWidth={1.5} label={{ value: `now ${fmtMonthDay(proposed)}`, position: "right", fontSize: 12, fill: "#643A2B", fontWeight: 600 }} />}
         </ComposedChart>
       </ResponsiveContainer>
     </div>

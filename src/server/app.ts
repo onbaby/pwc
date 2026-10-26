@@ -403,7 +403,7 @@ export function createApp(s: ServerCtx): Hono {
       consentTexts: { delivery: COPY.consentDelivery(), offers: COPY.consentOffers() },
       standingHoldout: { share: RULES.globalHoldoutShare, months: RULES.globalHoldoutMonths, members: get<{ n: number }>(db, "SELECT COUNT(*) AS n FROM global_holdout")?.n ?? 0 },
       engineVersion: ENGINE.version,
-      holidays: upcomingHolidayWindows(todayOf(db)),
+      holidays: upcomingHolidayWindows(todayOf(db), 2),
       freshness: { bestByDays: FRESHNESS.bestByDays, peakEndDays: FRESHNESS.peakEndDays, roastToDoorDays: WORLD.roastToDoorDays },
       environment: "Sandbox · sample data",
     }),
