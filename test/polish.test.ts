@@ -27,10 +27,10 @@ describe("sample data and worklists", () => {
     for (const v of ["attention", "running", "approval", "new"]) {
       const r = await getJson<{ total: number }>(t, `/api/customers?view=${v}&pageSize=1`);
       expect(r.total, v).toBe(counts[v]);
-      expect(r.total, v).toBeLessThanOrEqual(counts.all);
+      expect(r.total, v).toBeLessThanOrEqual(counts.all ?? 0);
     }
     expect(counts.attention).toBeGreaterThan(0);
-    expect(counts.approval).toBeLessThanOrEqual(counts.attention);
+    expect(counts.approval).toBeLessThanOrEqual(counts.attention ?? 0);
   });
 
   it("CSV export: every matching row, a header, and formula-looking text is neutralised", async () => {
