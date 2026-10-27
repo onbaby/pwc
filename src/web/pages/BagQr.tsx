@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from "recharts";
-import { useApi } from "../api.tsx";
+import { toast, useApi } from "../api.tsx";
 import { BagLabel, downloadSvg } from "../components/BagLabel.tsx";
 import { Card, Empty, PageTitle, SectionTitle } from "../components/ui.tsx";
 import { fmtDay, fmtMonthDay, nf, pct, relativeTime } from "../format.ts";
@@ -16,6 +16,9 @@ interface QrDTO {
   latestLots: Array<{ code: string; roast: string; roastDate: number; account: string; bags: number }>;
   recentSignups: Array<{ customerId: string; name: string; at: number; lot: string; ageAtScan: number; status: string }>;
 }
+
+/** a store where this share of scanned bags was already past 4 weeks old gets a visit first */
+const VISIT_BAR = 0.5;
 
 const INK = "#643A2B";
 const ACCENT = "#F16A21";
@@ -41,6 +44,19 @@ export function BagQrPage() {
   const t = d.totals;
   const shown = d.latestLots.find((l) => l.code === lot) ?? d.latestLots[0];
   const scanned = d.freshnessAtScan.best + d.freshnessAtScan.peak + d.freshnessAtScan.past_peak;
+  const copyNote = async (a: QrDTO["accounts"][number]) => {
+    const text = [
+      `${a.name} (${a.city}): bags are sitting.`,
+      `${nf(a.scans)} scans in the pilot; median bag age at scan ${a.medianShelfAge === null ? "unknown" : `${nf(a.medianShelfAge)} days`}; ${a.pastPeakShare === null ? "–" : pct(a.pastPeakShare)} were scanned after 4 weeks.`,
+      "Suggested: pull bags older than 3 weeks, check the order size against sell-through, and show the QR code to staff.",
+    ].join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      toast(`Note for ${a.name} copied`, { tone: "info" });
+    } catch {
+      toast("Could not copy to the clipboard", { tone: "error" });
+    }
+  };
   const weeks = d.weeks.map((w) => ({ week: fmtMonthDay(w.weekOf), scans: w.scans, signups: w.signups }));
   return (
     <div>
@@ -91,10 +107,11 @@ export function BagQrPage() {
                   <th className="text-right">Subscriptions</th>
                   <th className="text-right">Median age at scan</th>
                   <th className="text-right">Scanned past 4 weeks</th>
+                  <th>Next step</th>
                 </tr>
               </thead>
               <tbody>
-                {d.accounts.map((a) => (
+                {[...d.accounts].sort((a, b) => (b.pastPeakShare ?? -1) - (a.pastPeakShare ?? -1)).map((a) => (
                   <tr key={a.id} className="row">
                     <td>
                       <div className="font-medium">{a.name}</div>
@@ -105,6 +122,16 @@ export function BagQrPage() {
                     <td className="tnum text-right">{nf(a.signups)}</td>
                     <td className="tnum text-right">{a.medianShelfAge === null ? "–" : `${nf(a.medianShelfAge)} days`}</td>
                     <td className="tnum text-right">{a.pastPeakShare === null ? "–" : <span className={a.pastPeakShare > 0.25 ? "font-semibold text-danger" : ""}>{pct(a.pastPeakShare)}</span>}</td>
+                    <td className="whitespace-nowrap">
+                      {a.pastPeakShare !== null && a.pastPeakShare >= VISIT_BAR ? (
+                        <span className="flex items-center gap-2">
+                          <span className="chip warn" title={`${pct(VISIT_BAR)} or more of this store's scanned bags were already past 4 weeks old`}>Visit first</span>
+                          <button className="btn" onClick={() => copyNote(a)} title="Copy a short note for the rep who covers this store">Copy note</button>
+                        </span>
+                      ) : (
+                        <span className="text-[13px] text-muted">On track</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -14,6 +14,7 @@ interface TodayDTO {
     active: { value: number; prev: number };
     deliveriesThisWeek: { value: number; prev: number; sparkline: number[]; weeks: number[] };
     checkInsToday: { value: number; prev: number };
+    replyRate: { reached: number; replied: number; rate: number | null; goBar: number; optOutsThisWeek: number; windowDays: number };
     waitingForPerson: { value: number; prev: number };
     freshness: { total: number; counts: { best: number; peak: number; past_peak: number; late: number }; atPeakShare: number; peakEndDays: number };
   };
@@ -56,7 +57,14 @@ export function Today() {
           <div className="mt-auto grid grid-cols-4 gap-3">
             <StatTile icon={Group} label="Active" value={nf(kpis.active.value)} delta={<DeltaBadge now={kpis.active.value} prev={kpis.active.prev} />} href={href("/customers")} title="Active subscribers" meter={<Meter value={kpis.active.prev ? Math.min(1, kpis.active.prev / active) : 1} tone="ink" label={`${nf(kpis.active.prev)} last week`} />} />
             <StatTile icon={DeliveryTruck} label="Deliveries" value={nf(kpis.deliveriesThisWeek.value)} delta={<DeltaBadge now={kpis.deliveriesThisWeek.value} prev={kpis.deliveriesThisWeek.prev} />} href={href("/outlook")} title="Deliveries this week" meter={<Meter value={kpis.deliveriesThisWeek.value / active} label={`${pct(kpis.deliveriesThisWeek.value / active)} of subscribers`} />} />
-            <StatTile icon={SendDiagonal} label="Check-ins" value={nf(kpis.checkInsToday.value)} delta={<DeltaBadge now={kpis.checkInsToday.value} prev={kpis.checkInsToday.prev} />} title="Check-ins going out today" meter={<Meter value={kpis.checkInsToday.value / active} tone="ink" label={`${pct(kpis.checkInsToday.value / active, 1)} of subscribers`} />} />
+            <StatTile
+              icon={SendDiagonal}
+              label="Reply rate"
+              value={kpis.replyRate.rate === null ? "–" : pct(kpis.replyRate.rate)}
+              delta={kpis.replyRate.rate === null ? undefined : <span className={`tnum rounded-md px-1.5 py-0.5 text-[12px] font-medium ${kpis.replyRate.rate >= kpis.replyRate.goBar ? "bg-success-tint text-success" : "bg-danger-tint text-danger"}`}>{kpis.replyRate.rate >= kpis.replyRate.goBar ? "above the bar" : "below the bar"}</span>}
+              title={`${nf(kpis.replyRate.replied)} of ${nf(kpis.replyRate.reached)} customers asked in the last ${kpis.replyRate.windowDays} days answered within 5 days. The pilot goes ahead only if at least ${pct(kpis.replyRate.goBar)} do. ${nf(kpis.checkInsToday.value)} check-ins go out today; ${nf(kpis.replyRate.optOutsThisWeek)} STOP or NO OFFERS this week.`}
+              meter={<Meter value={kpis.replyRate.rate ?? 0} mark={kpis.replyRate.goBar} label={`Pilot bar ${pct(kpis.replyRate.goBar)} · ${nf(kpis.checkInsToday.value)} asked today`} />}
+            />
             <StatTile icon={ChatLines} label="Needs reply" value={nf(kpis.waitingForPerson.value)} delta={<DeltaBadge now={kpis.waitingForPerson.value} prev={kpis.waitingForPerson.prev} good="down" />} href={href("/inbox")} title="Replies waiting for a person" meter={<Meter value={kpis.waitingForPerson.prev ? Math.min(1, kpis.waitingForPerson.value / Math.max(kpis.waitingForPerson.value, kpis.waitingForPerson.prev)) : 1} tone="ink" label={`${nf(kpis.waitingForPerson.prev)} a week ago`} />} />
           </div>
         </div>

@@ -111,12 +111,37 @@ function kpis(db: Db, today: Day, now: number, ctx: AppCtx) {
   const personPrev = get<{ n: number }>(db, "SELECT COUNT(*) AS n FROM messages WHERE status IN ('needs_person','resolved') AND at <= ? AND (resolved_at IS NULL OR resolved_at > ?)", prevNow, prevNow)?.n ?? 0;
   const o = outlook(db, ctx);
   return {
+    replyRate: replyRateKpi(db, now),
     freshness: freshnessKpi(db, today),
     active: { value: active, prev: activePrev },
     deliveriesThisWeek: { value: delivThis, prev: delivPrev, sparkline: o.weeks.map((w) => w.deliveries.p50), weeks: o.weeks.map((w) => w.wednesday) },
     checkInsToday: { value: checkToday, prev: checkPrev },
     waitingForPerson: { value: person, prev: personPrev },
   };
+}
+
+/**
+ * The pilot's first test (spec 10): of the customers asked in the last 14 days, how many answered the check-in within
+ * 5 days. Counted from the messages table (never a constant). The go bar is RULES.pilotMinReplyRate. Also the other
+ * pilot inputs that are visible today: opt-outs this week, and replies still waiting for a person.
+ */
+function replyRateKpi(db: Db, now: number) {
+  const since = now - 14 * MS_DAY;
+  // only customers who have had a delivery can describe a pantry, so a first-timer's check-in is not counted against the rate
+  const hasHad = "EXISTS (SELECT 1 FROM deliveries d WHERE d.customer_id = m.customer_id AND d.status = 'delivered')";
+  const reached = get<{ n: number }>(db, `SELECT COUNT(DISTINCT m.customer_id) AS n FROM messages m WHERE m.kind = 'checkin' AND m.direction = 'out' AND m.status IN ('sent','delivered') AND m.at >= ? AND m.at <= ? AND ${hasHad}`, since, now)?.n ?? 0;
+  const replied =
+    get<{ n: number }>(
+      db,
+      `SELECT COUNT(DISTINCT m.customer_id) AS n FROM messages m
+         JOIN messages r ON r.customer_id = m.customer_id AND r.direction = 'in' AND r.reason_code = 'WEEKS_LEFT' AND r.at > m.at AND r.at <= m.at + ?
+        WHERE m.kind = 'checkin' AND m.direction = 'out' AND m.status IN ('sent','delivered') AND m.at >= ? AND m.at <= ? AND ${hasHad}`,
+      5 * MS_DAY,
+      since,
+      now,
+    )?.n ?? 0;
+  const optOuts = get<{ n: number }>(db, "SELECT COUNT(DISTINCT customer_id) AS n FROM messages WHERE direction = 'in' AND reason_code IN ('KEYWORD_STOP','KEYWORD_NO_OFFERS') AND at >= ? AND at <= ?", now - 7 * MS_DAY, now)?.n ?? 0;
+  return { reached, replied, rate: reached ? replied / reached : null, goBar: RULES.pilotMinReplyRate, optOutsThisWeek: optOuts, windowDays: 14 };
 }
 
 /** How fresh the bags arriving in the next four weeks will be when opened (model median), from stored projections. */
@@ -279,6 +304,9 @@ export function createApp(s: ServerCtx): Hono {
       case "resolve":
         a = num(b.messageId) !== undefined ? { action, messageId: num(b.messageId)! } : undefined;
         break;
+      case "undo_move":
+        a = { action };
+        break;
     }
     if (!a) return c.json({ ok: false, error: "Unknown or incomplete action." }, 400);
     const r = staffAction(ctx, id, a);
@@ -393,6 +421,13 @@ export function createApp(s: ServerCtx): Hono {
   });
 
   // ---- Settings (static, read-only) ----------------------------------------------------------------------------
+  // The real-data check, summarised for the profile's "Why this date" card. Numbers come from the committed artifact.
+  app.get("/api/evidence", (c) => {
+    const path = join(s.artifactsDir, "backtest.json");
+    if (!existsSync(path)) return c.json({ available: false });
+    const b = JSON.parse(readFileSync(path, "utf8")) as { protocol: { commit: string; committedBeforeRun: boolean }; dataset: { name: string; license: string; counts: { rows: number } }; pooledCoverage80: number; success: { passed: boolean; line: string }; rows: Array<{ k: string; n: number }> };
+    return c.json({ available: true, dataset: b.dataset.name, license: b.dataset.license, orders: b.dataset.counts.rows, predictions: b.rows.reduce((n, r) => n + r.n, 0), pooledCoverage80: b.pooledCoverage80, protocolCommit: b.protocol.commit.slice(0, 10), committedBeforeRun: b.protocol.committedBeforeRun, passed: b.success.passed, line: b.success.line });
+  });
   app.get("/api/settings", (c) =>
     c.json({
       deliveryDay: RULES.deliveryWeekday,

@@ -127,6 +127,37 @@ function FreshnessCard({ p }: { p: Profile }) {
   );
 }
 
+interface EvidenceDTO {
+  available: boolean;
+  dataset?: string;
+  orders?: number;
+  predictions?: number;
+  pooledCoverage80?: number;
+  protocolCommit?: string;
+  committedBeforeRun?: boolean;
+  line?: string;
+}
+
+/** Why the range can be trusted: the real-data check, in one line with the detail one click away. */
+function Evidence() {
+  const { data } = useApi<EvidenceDTO>("/api/evidence", []);
+  if (!data?.available || data.pooledCoverage80 === undefined) return null;
+  return (
+    <details className="rounded-lg bg-cream p-2.5 text-[13px]">
+      <summary className="cursor-pointer font-medium text-strong">Are these ranges honest? Checked on real orders</summary>
+      <div className="mt-1.5 space-y-1 text-muted">
+        <div>
+          We tested the method on <b className="tnum text-ink">{nf(data.orders ?? 0)}</b> real orders ({data.dataset}). Its “80% range” held the next order <b className="tnum text-ink">{Math.round(data.pooledCoverage80 * 100)}%</b> of the time.
+        </div>
+        <div>{data.line}</div>
+        <div>
+          The test plan was committed (<code>{data.protocolCommit}</code>) before it was run{data.committedBeforeRun ? "" : " (not verified)"}. These are wholesale buyers, with no text replies, so it tests the math, not the whole idea; the pilot tests the rest.
+        </div>
+      </div>
+    </details>
+  );
+}
+
 /** What a rep should do next for this account, in one place: the first thing that needs a person, else the status. */
 function NextAction({ p }: { p: Profile }) {
   const [reply, setReply] = useState("");
@@ -179,6 +210,26 @@ function NextAction({ p }: { p: Profile }) {
     tone = "bad";
     title = c.state === "CANCELLED" ? "Cancelled: nothing to do" : "Texts are off: nothing will be sent";
     body = c.state === "OPTED_OUT" ? "They replied STOP. Only they can turn texts back on (by replying START)." : "No further deliveries are scheduled.";
+  } else if (c.baseArrival && c.nextDelivery && c.baseArrival !== c.nextDelivery) {
+    const f = p.freshness;
+    const by = [...p.messages].reverse().find((m) => m.direction === "out" && m.kind === "proposal" && (m.status === "sent" || m.status === "delivered") && m.why?.to === c.nextDelivery);
+    const who = by?.reasonCode === "MOVE_LATER_AUTO" ? "automatically" : by?.reasonCode?.startsWith("STAFF") ? "by staff" : "";
+    title = `Moved ${who ? who + ": " : ""}${fmtDay(c.baseArrival)} → ${fmtDay(c.nextDelivery)}`;
+    body = (
+      <>
+        {f.original && f.next && f.next.status !== "late" && f.original.status !== "late" ? (
+          <>The next bag now opens about <b>{f.next.openedAtAge} days</b> after roasting instead of {f.original.openedAtAge} ({f.next.openedAtAge < f.original.openedAtAge ? `${f.original.openedAtAge - f.next.openedAtAge} days fresher` : "a little later"}).</>
+        ) : (
+          <>The delivery now lands {fmtDay(c.nextDelivery)}.</>
+        )}{" "}
+        {first} was told, and can undo it by replying OLD.
+      </>
+    );
+    actions = (
+      <button className="btn" disabled={busy} title={`Put it back on ${fmtDay(c.baseArrival)} and text ${first}`} onClick={() => act(() => post(`/api/customers/${c.id}/actions`, { action: "undo_move" }), "Move undone: the customer has been told")}>
+        Undo move
+      </button>
+    );
   } else if (c.holiday && c.nextDelivery) {
     tone = "warn";
     title = `Delivery lands over ${c.holiday}`;
@@ -192,7 +243,7 @@ function NextAction({ p }: { p: Profile }) {
     title = "On track: nothing needed";
     body = c.nextDelivery ? `Next delivery ${fmtDay(c.nextDelivery)}. The reminder goes out three days before.` : "No delivery is scheduled.";
   }
-  const border = tone === "plum" ? "border-plum bg-plum-tint" : tone === "warn" ? "border-line bg-cream" : tone === "bad" ? "border-danger" : "border-line bg-surface";
+  const border = tone === "plum" ? "border-plum bg-plum-tint" : tone === "warn" ? "border-line bg-cream" : tone === "bad" ? "border-danger" : "border-[#cfe5da] bg-[#f3faf6]";
   return (
     <section aria-label="Next action" className={`mb-5 flex items-start justify-between gap-4 rounded-xl border p-4 ${border}`}>
       <div className="min-w-0 flex-1">
@@ -343,6 +394,7 @@ export function CustomerProfile({ id }: { id: string }) {
                       </ul>
                     )}
                   </div>
+                  <Evidence />
                   <div className="text-[12px] text-muted" title="Estimated from 500 what-if pantries">Estimated from 500 what-if versions of this pantry, updated {relativeTime(pr.computedAt, p.now)}.</div>
                 </div>
               ) : (

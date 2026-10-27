@@ -36,7 +36,7 @@ export function DeltaBadge({ now, prev, good = "up" }: { now: number; prev: numb
 }
 
 /** A track with a filled share and a tick marker at its end. */
-export function Meter({ value, tone = "accent", label }: { value: number; tone?: "accent" | "ink"; label?: string }) {
+export function Meter({ value, tone = "accent", label, mark }: { value: number; tone?: "accent" | "ink"; label?: string; /** a target to beat, 0 to 1, drawn as a labelled line */ mark?: number }) {
   const v = Math.max(0, Math.min(1, value));
   return (
     <div className="mt-auto">
@@ -45,6 +45,7 @@ export function Meter({ value, tone = "accent", label }: { value: number; tone?:
         <div className="absolute left-0 top-1/2 h-[5px] -translate-y-1/2 rounded-full" style={{ width: `${v * 100}%`, background: tone === "accent" ? ACCENT : INK }} />
         <div className="absolute top-0 h-4 w-px bg-muted" style={{ left: `min(${v * 100}%, calc(100% - 1px))` }} />
         {v < 0.94 && <div className="absolute top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-muted" style={{ left: `calc(${v * 100}% + 4px)` }} />}
+        {mark !== undefined && <div className="absolute -top-0.5 h-5 w-[2px] rounded bg-strong" style={{ left: `${mark * 100}%` }} title={`Target: ${Math.round(mark * 100)}%`} />}
       </div>
       {label && <div className="mt-1 text-[12px] text-muted">{label}</div>}
     </div>
