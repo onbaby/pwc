@@ -8,6 +8,9 @@ import { DatabaseSync, type SQLInputValue } from "node:sqlite";
  */
 export type Db = DatabaseSync;
 
+/** Bump when the schema changes. */
+const SCHEMA_VERSION = 2;
+
 export const SCHEMA = `
 CREATE TABLE IF NOT EXISTS customers (
   id TEXT PRIMARY KEY,
@@ -22,12 +25,10 @@ CREATE TABLE IF NOT EXISTS customers (
   status TEXT NOT NULL DEFAULT 'ACTIVE',
   consent_delivery INTEGER NOT NULL DEFAULT 0,
   consent_delivery_at TEXT,
-  consent_offers INTEGER NOT NULL DEFAULT 0,
-  consent_offers_at TEXT,
   signup_answers TEXT NOT NULL DEFAULT '{}',
   cancelled_at INTEGER,
   gift_ends TEXT,
-  in_pilot INTEGER NOT NULL DEFAULT 0,
+  arm TEXT,
   base_arrival TEXT,
   proposal_count INTEGER NOT NULL DEFAULT 0,
   checkin_cycles_skipped INTEGER NOT NULL DEFAULT 0,
@@ -68,7 +69,6 @@ CREATE TABLE IF NOT EXISTS messages (
   kind TEXT NOT NULL,
   reason_code TEXT,
   status TEXT NOT NULL,
-  offer_id INTEGER,
   snapshot TEXT NOT NULL DEFAULT '{}',
   resolved_at INTEGER
 );
@@ -83,52 +83,6 @@ CREATE TABLE IF NOT EXISTS projections (
   engine_version TEXT NOT NULL,
   events_hash TEXT NOT NULL,
   json TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS offers (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL,
-  type TEXT NOT NULL,
-  family TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'Draft',
-  audience TEXT NOT NULL DEFAULT '{}',
-  holdout_mode TEXT NOT NULL DEFAULT 'global',
-  holdout_pct REAL NOT NULL DEFAULT 0,
-  caps TEXT NOT NULL DEFAULT '{}',
-  approval_required INTEGER NOT NULL DEFAULT 0,
-  budget REAL NOT NULL DEFAULT 0,
-  discount_pct REAL NOT NULL DEFAULT 0,
-  template TEXT NOT NULL DEFAULT '',
-  created_at INTEGER NOT NULL,
-  scheduled_at INTEGER,
-  paused_reason TEXT
-);
-
-CREATE TABLE IF NOT EXISTS offer_assignments (
-  offer_id INTEGER NOT NULL,
-  customer_id TEXT NOT NULL,
-  family TEXT NOT NULL,
-  arm TEXT NOT NULL,
-  message_id INTEGER,
-  accepted_at INTEGER,
-  assigned_at INTEGER NOT NULL,
-  PRIMARY KEY (offer_id, customer_id)
-);
-CREATE INDEX IF NOT EXISTS idx_assign_customer ON offer_assignments(customer_id);
-
-CREATE TABLE IF NOT EXISTS experiment_membership (
-  customer_id TEXT NOT NULL,
-  offer_id INTEGER NOT NULL,
-  family TEXT NOT NULL,
-  started_at INTEGER NOT NULL,
-  outcome_closes_at INTEGER NOT NULL,
-  PRIMARY KEY (customer_id, offer_id)
-);
-
-CREATE TABLE IF NOT EXISTS global_holdout (
-  customer_id TEXT PRIMARY KEY,
-  assigned_at INTEGER NOT NULL,
-  until_at INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS notes (
@@ -191,13 +145,19 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 `;
 
-const TABLES = ["customers", "deliveries", "events", "messages", "projections", "offers", "offer_assignments", "experiment_membership", "global_holdout", "notes", "audit_log", "settings", "retail_accounts", "retail_lots", "qr_scans", "qr_signups"] as const;
+const TABLES = ["customers", "deliveries", "events", "messages", "projections", "notes", "audit_log", "settings", "retail_accounts", "retail_lots", "qr_scans", "qr_signups"] as const;
 
 export function openDb(path: string): Db {
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path, { timeout: 5000 });
   if (path !== ":memory:") db.exec("PRAGMA journal_mode=WAL");
   db.exec("PRAGMA synchronous=NORMAL");
+  // the sandbox database is disposable sample data: a file written by an older schema is rebuilt, never migrated
+  const version = (db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version;
+  if (version !== SCHEMA_VERSION) {
+    for (const t of all<{ name: string }>(db, "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")) db.exec(`DROP TABLE IF EXISTS ${t.name}`);
+    db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
+  }
   db.exec(SCHEMA);
   return db;
 }

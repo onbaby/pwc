@@ -5,7 +5,6 @@ export type ConsoleEvent =
   | { type: "message"; customerId: string; messageId: number }
   | { type: "projection"; customerId: string }
   | { type: "queue" }
-  | { type: "offer"; offerId: number }
   | { type: "clock"; now: number }
   | { type: "toast"; message: string };
 

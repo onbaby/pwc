@@ -1,4 +1,4 @@
-# PROTOTYPE_SPEC — "Right on Time" team console (spec v4.3)
+# PROTOTYPE_SPEC — "Right on Time" team console (spec v4.4)
 
 > **For the build session. Start a new project from scratch.** This spec replaces v3 (in git history: `git show 57a7588:PROTOTYPE_SPEC.md`; the v3 build is commit `b09ece6`). New repo structure, new server, database and UI. *Option:* the team may copy v3's proven model, simulator, backtest and Photon modules from `b09ece6` with their tests (saves ≈ 7–8 person-days, §15); the spec does not depend on it.
 > Audience: an AI-literate judging panel (UGA AI Society × PwC case competition; prelim week of Nov 2, final Nov 13, 2026, PwC Atlanta). Talk 15–20 min, hard cutoff. **Demo under 7 minutes: 5:40 of narration + ~0:30 navigation ≈ 6:10.**
@@ -77,7 +77,7 @@ Layout (fits 1280×720 above the fold):
 ### 3.3 Inbox
 Tabs: **Needs a person** (default; free-text replies and unclear cases, oldest first; actions Reply · Hold until… · Pause · Move… · Resolve) · **Approvals** (sooner moves, discount offers, anything a rule sends for review; Approve / Hold) · **All messages** (searchable audit log of every text, with reason chips and "why we sent this"). Each queue has exactly one home; Today shows the top items and links here.
 
-### 3.4 Offers (§8)
+### 3.4 Offers (§8) — **removed in v4.4; see §19**
 - **List:** name, type, status (Draft · Scheduled · Running · Paused · Ended), audience size, holdout, sends, status line, e.g. "Collecting data · 212 of 1,060 per group · first read est. Mar 2027".
 - **Create/edit** (one page, four sections, pre-filled templates): 1) type + message preview; 2) audience (rule chips); 3) timing (rides with the next reminder; never a new text); 4) safety (holdout mode, caps, approval, budget). **Live preview panel:** eligible count, excluded counts by reason (incl. "no offer consent", "stockpiled", "in pacing pilot", "no message to ride on", "had an offer in last 30 days", "in another experiment"), a sample message for a real customer, and the **break-even range**.
 - **Results:** per-offer acceptance, opt-outs within 7 days, next check-in reply rate (readable in weeks); cancellation effects read only at the pre-computed sample size (§8.5).
@@ -183,7 +183,7 @@ UCI *Online Retail II* (CC BY 4.0; Chen 2012, doi:10.24432/C5CG6D; 1,067,371 row
 
 ---
 
-## 8. Offers: the rules
+## 8. Offers: the rules — **removed in v4.4; kept for history, see §19**
 
 ### 8.1 Offer types (no generic discount)
 | Type | Example | Discount | Exhibit C reason it targets |
@@ -447,6 +447,8 @@ Honest notes: QR scan and sign-up rates are labelled assumptions; the grocery ha
 
 **v4.2 → v4.3: built for reps, and easy to show.** The **Impact page is removed** (the money case, the simulation and the real-data check move to the pitch slides; the simulator, its artifacts and tests stay in the repo). Added for account management: a **Next action** banner on every customer profile; **saved worklists with live counts** and **CSV export** on Customers; **Ctrl+K** jump search for pages and customers. Added for showing it: a **Tour** in the hidden sandbox drawer and **Ctrl+Alt+1 to 8** shortcuts. Where earlier sections of this spec still mention the Impact page (§3.6, §6 beat 4, §10), they are superseded.
 
+**v4.3 → v4.4: matched to the slide deck.** The **Offers feature is removed** (page, routes, tables, the NO OFFERS/ROTATE/SMALLER/SWAP keywords, the second consent, the standing holdout). A **Pilot page** now runs the deck's A/B test: new subscribers are split at random between AI timing and a fixed-schedule control, and the page reads the deck's measures and stop rule. The **QR page shows 20% off a first fresh bag** (slide 7). §19 has the gap analysis. Where earlier sections mention offers (§3.4, §8, parts of §6, §9, §11, §13), they are superseded.
+
 ---
 
 ## 18. Panel review of v4.3 and enhancement plan
@@ -549,6 +551,36 @@ No language model or free-text parsing; no additional offer types; no roles and 
 4. Team sign-off on the palette (colors only).
 5. A recorded backup of a passing run; one rehearsal at 1280×720 on the presenting laptop with notifications off.
 
+
+## 19. Matching the demo to the slide deck (v4.4)
+
+*Source: the team's deck, "Fresh at the Cup" (Group 1). Rule: the demo should show what the slides promise and nothing the slides do not.*
+
+### 19.1 Gaps found
+
+| Deck says | The v4.3 console did | Fix (v4.4) |
+|---|---|---|
+| **A/B pilot:** "Randomly split new subscribers: half get AI timing, half stay on fixed schedules" | Treated everyone as AI-timed. The only control group was inside Offers | `arm` on every new customer, assigned by `hash(customer id) mod 2`; the control arm is never sent a check-in or moved; the **Pilot** page compares the arms |
+| **Measure:** cancellation rate, revenue per subscriber, freshness complaints; QR scans per bag and scan-to-subscribe | Reply rate and freshness only on Today; QR numbers on their own page | Pilot page rows for all three measures, plus a QR panel and the 40% reply-rate gate. New **STALE** keyword counts a freshness complaint per arm |
+| **Stop rule:** "if churn isn't below the control group by month 3, turn it off" | Not shown anywhere | Stop-rule card with weeks to go, today's gap, and the 95% chance margin; reads "below / not below control" at week 13 |
+| **Timeline:** build, A/B pilot (months 2–4), QR in Athens grocery (month 5), scale or stop | Not shown | "Week N of 13" bar with the four stages |
+| **"20% off a first fresh bag"** on the QR page | No price promise on the page | QR page shows the first-bag price (20% off) and the first delivery is priced that way (`QR.firstBagDiscount`) |
+| **"Nothing changes without the subscriber's yes. Opt-in, STOP anytime, data used only for deliveries."** | A second, optional opt-in for offers, and offer texts | Offers removed: one delivery-text opt-in, no marketing texts |
+| **"Too slow? They text SEND NOW."** | Reply SOONER (needs a YES) | The reminder now says "Running low? Reply SEND NOW"; SOONER still works. Either one proposes a sooner delivery that needs the customer's YES (and staff approval) |
+
+### 19.2 What was removed
+Offers page and API; offer types, eligibility, guardrails, sensor protection, break-even and sample-size panels; the standing 10% holdout; `offers`, `offer_assignments`, `experiment_membership`, `global_holdout` tables and `messages.offer_id`; keywords NO OFFERS, ROTATE, SMALLER, SWAP; the offers consent text and checkbox. The database schema is versioned: a file written by an older schema is rebuilt on start, never migrated.
+
+### 19.3 Honesty rules for the Pilot page
+- The sample data builds in **no difference** between the arms (same churn, same complaint rate). The page says so, and it is the answer to "why does your pilot show no win?" We do not show judges a made-up result.
+- A gap before week 13 is shown with the margin chance alone can produce at that sample size, so it is read neither as a win nor as a failure.
+- The arms are balanced by construction on count, not on outcome; the page shows the split by sign-up source.
+- Customers who joined before the pilot are outside the test; the console works them as a daily tool. In the real plan they stay on their current schedule during the test.
+
+### 19.4 Still open from the deck
+- Slide 5's "$140K added profit" is not reproduced by the console (the handbook's arithmetic gives about $276K at 12 bags per buyer); say $140K, keep $276K for questions.
+- Slide 8 contains stray text ("bro") in the extracted deck; check and delete.
+- Ask the mentors whether "revenue per subscriber" should count the QR first-bag discount.
 
 ## Appendix A: Demo scenario (`scenarios/demo.json`)
 One sandbox clock: **Sun Oct 18, 2026, 9:00 am** (`America/New_York`). Calendar check (2026): Sep 30 Wed · Oct 14 Wed · Oct 18 Sun · Oct 28 Wed · Nov 4 Wed · Nov 11 Wed · Dec 9 Wed.

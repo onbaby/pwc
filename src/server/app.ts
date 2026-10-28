@@ -4,7 +4,7 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { computeOutlook, type OutlookCustomer } from "../engine/outlook.ts";
 import type { Projection } from "../engine/project.ts";
-import { ENGINE, FRESHNESS, QR, RULES, SOURCE_LABEL, SOURCES, WORLD, type Source } from "../shared/constants.ts";
+import { ENGINE, FRESHNESS, QR, RULES, SOURCE_LABEL, WORLD, type Source } from "../shared/constants.ts";
 import { dayFromISO, etInstant, etParts, fmtDay, fmtMonthDay, isoFromDay, MS_DAY, weekday, type Day } from "../shared/dates.ts";
 import type { CustomerRow } from "../shared/types.ts";
 import { COPY } from "./copy.ts";
@@ -14,8 +14,7 @@ import type { AppCtx } from "./flows/context.ts";
 import { handleInbound } from "./flows/inbound.ts";
 import { advanceClock } from "./flows/schedule.ts";
 import { toDTO } from "./flows/send.ts";
-import { approveOffer, createOffer, draftOf, listOffers, offerResults, parseAudience, pauseOffer, previewOffer, runSensorChecks, scheduleOffer, updateOffer } from "./offers/lifecycle.ts";
-import { OFFER_TYPES, type OfferDraft, type OfferRow } from "./offers/types.ts";
+import { pilotSummary } from "./pilot.ts";
 import { buildProfile } from "./profile.ts";
 import { lotPublic, qrSignup, qrSummary, recordScan } from "./qr.ts";
 import { freshnessFromProjection, type FreshnessStatus } from "../engine/freshness.ts";
@@ -42,55 +41,6 @@ const MIME: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const str = (v: unknown, max = 2000): string | undefined => (typeof v === "string" && v.length <= max ? v : undefined);
 const num = (v: unknown): number | undefined => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
-
-function parseDraft(b: unknown): OfferDraft | string {
-  if (!isObj(b)) return "Expected an object.";
-  const type = str(b.type) as OfferDraft["type"] | undefined;
-  if (!type || !(type in OFFER_TYPES)) return "Choose an offer type.";
-  const name = str(b.name, 120)?.trim();
-  if (!name) return "Give the offer a name.";
-  const aud = isObj(b.audience) ? b.audience : {};
-  const sources = Array.isArray(aud.sources) ? (aud.sources.filter((s) => typeof s === "string" && (SOURCES as readonly string[]).includes(s)) as Source[]) : undefined;
-  const audience: OfferDraft["audience"] = {
-    sources: sources?.length ? sources : undefined,
-    memberDaysMin: num(aud.memberDaysMin),
-    memberDaysMax: num(aud.memberDaysMax),
-    runOutMinDays: num(aud.runOutMinDays),
-    runOutMaxDays: num(aud.runOutMaxDays),
-    onHand: aud.onHand === "lt7" || aud.onHand === "lt14" || aud.onHand === "ge14" ? aud.onHand : undefined,
-    lastReplyMaxWeeks: num(aud.lastReplyMaxWeeks),
-    skipped2of4: aud.skipped2of4 === true ? true : undefined,
-    giftEndingWithinDays: num(aud.giftEndingWithinDays),
-    notStockpiled: aud.notStockpiled === true ? true : undefined,
-  };
-  const holdoutMode = b.holdoutMode === "experiment" || b.holdoutMode === "none" ? b.holdoutMode : "global";
-  return { name, type, audience, holdoutMode, holdoutPct: Math.min(Math.max(num(b.holdoutPct) ?? 50, 0), 90), discountPct: Math.min(Math.max(num(b.discountPct) ?? 0, 0), 100), budget: Math.max(num(b.budget) ?? 0, 0), approvalRequired: b.approvalRequired === true };
-}
-
-function offerDTO(db: Db, row: OfferRow, results = offerResults(db, row.id)) {
-  const draft = draftOf(row);
-  const preview = row.status === "Draft" || row.status === "Pending approval" || row.status === "Paused" ? previewOffer(db, draft, row.id) : null;
-  return {
-    id: row.id,
-    name: row.name,
-    type: row.type,
-    typeLabel: OFFER_TYPES[row.type].label,
-    reason: OFFER_TYPES[row.type].reason,
-    status: row.status,
-    audience: parseAudience(row),
-    holdoutMode: row.holdout_mode,
-    holdoutPct: row.holdout_pct,
-    discountPct: row.discount_pct,
-    budget: row.budget,
-    approvalRequired: !!row.approval_required,
-    pausedReason: row.paused_reason,
-    audienceSize: preview ? preview.eligible : results.treatmentAssigned + results.holdoutAssigned,
-    holdout: row.holdout_mode === "experiment" ? `${row.holdout_pct}% experiment holdout` : row.holdout_mode === "global" ? "Standing 10% holdout" : "No holdout",
-    sends: results.sends,
-    statusLine: row.status === "Draft" ? "Not scheduled" : row.status === "Pending approval" ? "Waiting for manager approval" : results.statusLine,
-    results,
-  };
-}
 
 /** Monday-free week: Sunday through Saturday, containing `day`. */
 const weekStart = (day: Day): Day => day - weekday(day);
@@ -140,7 +90,7 @@ function replyRateKpi(db: Db, now: number) {
       since,
       now,
     )?.n ?? 0;
-  const optOuts = get<{ n: number }>(db, "SELECT COUNT(DISTINCT customer_id) AS n FROM messages WHERE direction = 'in' AND reason_code IN ('KEYWORD_STOP','KEYWORD_NO_OFFERS') AND at >= ? AND at <= ?", now - 7 * MS_DAY, now)?.n ?? 0;
+  const optOuts = get<{ n: number }>(db, "SELECT COUNT(DISTINCT customer_id) AS n FROM messages WHERE direction = 'in' AND reason_code = 'KEYWORD_STOP' AND at >= ? AND at <= ?", now - 7 * MS_DAY, now)?.n ?? 0;
   return { reached, replied, rate: reached ? replied / reached : null, goBar: RULES.pilotMinReplyRate, optOutsThisWeek: optOuts, windowDays: 14 };
 }
 
@@ -257,7 +207,7 @@ export function createApp(s: ServerCtx): Hono {
   app.get("/api/customers/views", (c) => c.json(viewCounts(db)));
   app.get("/api/customers", (c) => {
     const q = c.req.query();
-    const filter = { q: q.q, status: q.status, source: q.source, consent: q.consent, view: q.view };
+    const filter = { q: q.q, status: q.status, source: q.source, consent: q.consent, arm: q.arm, view: q.view };
     if (q.format === "csv") {
       const r = listCustomers(db, { ...filter, all: true });
       const cell = (v: string | number | null): string => {
@@ -267,8 +217,8 @@ export function createApp(s: ServerCtx): Hono {
         return /[",\n]/.test(safe) ? `"${safe.replaceAll('"', '""')}"` : safe;
       };
       const day = (d: number | null) => (d === null ? "" : isoFromDay(d));
-      const rows = r.items.map((i) => [i.id, i.name, i.city, SOURCE_LABEL[i.source], i.plan, day(i.nextDelivery), day(i.runOut?.lo ?? null), day(i.runOut?.mid ?? null), day(i.runOut?.hi ?? null), i.confidence, i.lastReply?.weeks ?? null, day(i.lastReply?.day ?? null), i.status, i.consentDelivery ? "yes" : "no", i.consentOffers ? "yes" : "no"].map(cell).join(","));
-      const head = "id,name,city,sign_up_source,plan,next_delivery,runs_out_early,runs_out_likely,runs_out_late,how_sure,last_reply_weeks,last_reply_date,status,delivery_texts,offer_texts";
+      const rows = r.items.map((i) => [i.id, i.name, i.city, SOURCE_LABEL[i.source], i.plan, day(i.nextDelivery), day(i.runOut?.lo ?? null), day(i.runOut?.mid ?? null), day(i.runOut?.hi ?? null), i.confidence, i.lastReply?.weeks ?? null, day(i.lastReply?.day ?? null), i.status, i.consentDelivery ? "yes" : "no"].map(cell).join(","));
+      const head = "id,name,city,sign_up_source,plan,next_delivery,runs_out_early,runs_out_likely,runs_out_late,how_sure,last_reply_weeks,last_reply_date,status,delivery_texts";
       return c.body([head, ...rows].join("\n") + "\n", 200, { "content-type": "text/csv; charset=utf-8", "content-disposition": 'attachment; filename="customers.csv"' });
     }
     return c.json(listCustomers(db, { ...filter, page: q.page ? Number(q.page) : 1, pageSize: q.pageSize ? Number(q.pageSize) : 50 }));
@@ -316,16 +266,13 @@ export function createApp(s: ServerCtx): Hono {
   // ---- Inbox -----------------------------------------------------------------------------------------------------
   // the sidebar badge and inbox tabs: totals only
   app.get("/api/inbox/counts", (c) => {
-    const pendingOffers = get<{ n: number }>(db, "SELECT COUNT(*) AS n FROM offers WHERE status = 'Pending approval'")?.n ?? 0;
-    return c.json({ needs: needsPerson(db).total, approvals: approvals(db).total + pendingOffers });
+    return c.json({ needs: needsPerson(db).total, approvals: approvals(db).total });
   });
   app.get("/api/inbox", (c) => {
     const tab = c.req.query("tab") ?? "needs";
     if (tab === "needs") return c.json(needsPerson(db));
     if (tab === "approvals") {
-      const m = approvals(db);
-      const offers = all<OfferRow>(db, "SELECT * FROM offers WHERE status = 'Pending approval'").map((o) => offerDTO(db, o));
-      return c.json({ items: m.items, total: m.total + offers.length, offers });
+      return c.json(approvals(db));
     }
     const q = c.req.query("q")?.trim();
     const page = Math.max(Number(c.req.query("page") ?? 1), 1);
@@ -344,43 +291,8 @@ export function createApp(s: ServerCtx): Hono {
     return c.json(r, r.ok ? 200 : 400);
   });
 
-  // ---- Offers ----------------------------------------------------------------------------------------------------
-  app.get("/api/offers", (c) => c.json({ offers: listOffers(db).map(({ row, results }) => offerDTO(db, row, results)), types: OFFER_TYPES }));
-  app.get("/api/offers/:id", (c) => {
-    const row = get<OfferRow>(db, "SELECT * FROM offers WHERE id = ?", Number(c.req.param("id")));
-    return row ? c.json(offerDTO(db, row)) : c.json({ error: "not found" }, 404);
-  });
-  app.post("/api/offers", async (c) => {
-    const d = parseDraft(await body(c));
-    if (typeof d === "string") return c.json({ ok: false, error: d }, 400);
-    return c.json({ ok: true, id: createOffer(ctx, d) });
-  });
-  app.put("/api/offers/:id", async (c) => {
-    const d = parseDraft(await body(c));
-    if (typeof d === "string") return c.json({ ok: false, error: d }, 400);
-    const r = updateOffer(ctx, Number(c.req.param("id")), d);
-    return c.json(r, r.ok ? 200 : 400);
-  });
-  app.post("/api/offers/:id/preview", async (c) => {
-    const id = c.req.param("id");
-    const d = parseDraft(await body(c));
-    if (typeof d === "string") return c.json({ ok: false, error: d }, 400);
-    return c.json({ ok: true, preview: previewOffer(db, d, id === "new" ? undefined : Number(id)) });
-  });
-  app.post("/api/offers/:id/schedule", (c) => {
-    const r = scheduleOffer(ctx, Number(c.req.param("id")));
-    return c.json(r, r.ok ? 200 : 400);
-  });
-  app.post("/api/offers/:id/approve", (c) => {
-    const r = approveOffer(ctx, Number(c.req.param("id")));
-    return c.json(r, r.ok ? 200 : 400);
-  });
-  app.post("/api/offers/:id/pause", async (c) => {
-    const b = await body(c);
-    const r = pauseOffer(ctx, Number(c.req.param("id")), str(b.reason) ?? "Paused by staff");
-    return c.json(r, r.ok ? 200 : 400);
-  });
-  app.post("/api/offers/check", (c) => c.json({ paused: runSensorChecks(ctx) }));
+  // ---- Pilot -----------------------------------------------------------------------------------------------------
+  app.get("/api/pilot", (c) => c.json(pilotSummary(db)));
 
   // ---- Roast outlook ---------------------------------------------------------------------------------------------
   app.get("/api/outlook", (c) => {
@@ -416,7 +328,7 @@ export function createApp(s: ServerCtx): Hono {
     const name = str(b.name, 120);
     const phone = str(b.phone, 40);
     if (scanId === undefined || !code || name === undefined || phone === undefined) return c.json({ ok: false, error: "Please fill in every field." }, 400);
-    const r = qrSignup(ctx, { scanId, code, name, phone, cups: num(b.cups) ?? 0, people: num(b.people) ?? 0, rhythmDays: num(b.rhythmDays) ?? 0, consentDelivery: b.consentDelivery === true, consentOffers: b.consentOffers === true });
+    const r = qrSignup(ctx, { scanId, code, name, phone, cups: num(b.cups) ?? 0, people: num(b.people) ?? 0, rhythmDays: num(b.rhythmDays) ?? 0, consentDelivery: b.consentDelivery === true });
     return c.json(r, r.ok ? 200 : 400);
   });
 
@@ -432,11 +344,10 @@ export function createApp(s: ServerCtx): Hono {
     c.json({
       deliveryDay: RULES.deliveryWeekday,
       quietHours: { from: RULES.quietHours.from, to: RULES.quietHours.to },
-      caps: { routine: RULES.routineTextsPerDelivery, other: RULES.otherTextsPerDelivery, offerEveryDays: RULES.offerCapDays },
+      caps: { routine: RULES.routineTextsPerDelivery, other: RULES.otherTextsPerDelivery },
       freeze: { from: dayFromISO(RULES.freezeFromISO), to: dayFromISO(RULES.freezeToISO) },
       cautiousness: getSetting(db, "cautiousness", ENGINE.defaultCautiousness),
-      consentTexts: { delivery: COPY.consentDelivery(), offers: COPY.consentOffers() },
-      standingHoldout: { share: RULES.globalHoldoutShare, months: RULES.globalHoldoutMonths, members: get<{ n: number }>(db, "SELECT COUNT(*) AS n FROM global_holdout")?.n ?? 0 },
+      consentTexts: { delivery: COPY.consentDelivery() },
       engineVersion: ENGINE.version,
       holidays: upcomingHolidayWindows(todayOf(db), 2),
       freshness: { bestByDays: FRESHNESS.bestByDays, peakEndDays: FRESHNESS.peakEndDays, roastToDoorDays: WORLD.roastToDoorDays },

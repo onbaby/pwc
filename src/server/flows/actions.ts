@@ -37,6 +37,7 @@ export function staffAction(ctx: AppCtx, customerId: string, a: StaffAction): { 
   switch (a.action) {
     case "send_checkin_now": {
       if (c.status === "OPTED_OUT" || c.status === "CANCELLED") return { ok: false, error: "This customer has stopped texts or cancelled." };
+      if (c.arm === "fixed") return { ok: false, error: "This customer is in the control group of the pilot, so they are not sent check-ins. A customer who asks to hold or pause still can." };
       const id = insertMessage(ctx, { customerId, at: nowMs(db), direction: "out", body: "", kind: "checkin", reasonCode: "CHECKIN_DUE", status: "queued", snapshot: { reasonChip: "Check-in sent by staff" } });
       const row = get<MessageRow>(db, "SELECT * FROM messages WHERE id = ?", id)!;
       sendQueuedCheckIn(ctx, row);

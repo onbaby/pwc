@@ -1,4 +1,4 @@
-import { Bell, ChatLines, Gift, Group, HomeSimple, QrCode, Search as SearchIcon, Settings, StatsUpSquare } from "iconoir-react";
+import { Bell, ChatLines, Flask, Group, HomeSimple, QrCode, Search as SearchIcon, Settings, StatsUpSquare } from "iconoir-react";
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
 import { api, post, toast, useApi, useLive, useProgress, useToasts } from "../api.tsx";
 import { fmtDay, fmtTime, etParts } from "../format.ts";
@@ -29,7 +29,6 @@ const NAV: Array<{ group: string; items: NavItem[] }> = [
   {
     group: "Grow",
     items: [
-      { id: "offers", label: "Offers", icon: Gift, hint: "Targeted offers and how they are doing" },
       { id: "qr", label: "Bag QR", icon: QrCode, hint: "Grocery bags that turn buyers into subscribers" },
     ],
   },
@@ -38,6 +37,10 @@ const NAV: Array<{ group: string; items: NavItem[] }> = [
     items: [
       { id: "outlook", label: "Roast outlook", icon: StatsUpSquare, hint: "How much to roast in the coming weeks" },
     ],
+  },
+  {
+    group: "Prove it",
+    items: [{ id: "pilot", label: "Pilot", icon: Flask, hint: "AI timing against a fixed-schedule control group" }],
   },
 ];
 
@@ -115,7 +118,7 @@ export function Shell({ route, children }: { route: Route; children: ReactNode }
   const [menu, setMenu] = useState(false);
   const [sandbox, setSandbox] = useState(true);
   const section = route.path[0] ?? "today";
-  const counts = useApi<{ needs: number; approvals: number }>("/api/inbox/counts", ["message", "queue", "offer"]).data;
+  const counts = useApi<{ needs: number; approvals: number }>("/api/inbox/counts", ["message", "queue"]).data;
   const waiting = counts ? counts.needs + counts.approvals : 0;
   const advancing = useRef(false);
 

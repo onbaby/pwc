@@ -210,6 +210,14 @@ function NextAction({ p }: { p: Profile }) {
     tone = "bad";
     title = c.state === "CANCELLED" ? "Cancelled: nothing to do" : "Texts are off: nothing will be sent";
     body = c.state === "OPTED_OUT" ? "They replied STOP. Only they can turn texts back on (by replying START)." : "No further deliveries are scheduled.";
+  } else if (c.arm === "fixed") {
+    tone = "warn";
+    title = "Control group: nothing to do";
+    body = (
+      <>
+        {first} is on a fixed schedule for the pilot, so there are no check-ins and no moves. {first}'s cancellations, spend and complaints are compared with the AI group on the <a className="text-link" href={href("/pilot")}>Pilot page</a>.
+      </>
+    );
   } else if (c.baseArrival && c.nextDelivery && c.baseArrival !== c.nextDelivery) {
     const f = p.freshness;
     const by = [...p.messages].reverse().find((m) => m.direction === "out" && m.kind === "proposal" && (m.status === "sent" || m.status === "delivered") && m.why?.to === c.nextDelivery);
@@ -278,7 +286,11 @@ export function CustomerProfile({ id }: { id: string }) {
             <div className="flex items-center gap-3">
               <h1 className="m-0 text-[32px] font-normal leading-tight tracking-tight text-strong">{c.name}</h1>
               <ConsentChip label="Delivery texts" yes={c.consentDelivery} />
-              <ConsentChip label="Offers" yes={c.consentOffers} />
+              {c.arm && (
+                <span className={`chip ${c.arm === "fixed" ? "warn" : "plum"}`} title="New subscribers are split at random: half get AI timing, half stay on a fixed schedule so the two can be compared">
+                  Pilot · {c.arm === "fixed" ? "fixed schedule (control)" : "AI timing"}
+                </span>
+              )}
               {c.state === "OPTED_OUT" && <span className="chip bad">Texts stopped</span>}
               {c.state === "CANCELLED" && <span className="chip bad">Cancelled</span>}
               {c.state === "HELD" && <span className="chip warn">Held until {c.heldUntil ? fmtMonthDay(c.heldUntil) : ""}</span>}
@@ -295,9 +307,11 @@ export function CustomerProfile({ id }: { id: string }) {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button className="btn primary" title="Text them now to ask how much coffee is left" onClick={async () => { const r = await post<{ ok: boolean; error?: string }>(`/api/customers/${id}/actions`, { action: "send_checkin_now" }); toast(r.ok ? "Check-in sent" : (r.error ?? "Could not send"), { tone: r.ok ? "info" : "error" }); }}>
-              Send check-in now
-            </button>
+            {c.arm !== "fixed" && (
+              <button className="btn primary" title="Text them now to ask how much coffee is left" onClick={async () => { const r = await post<{ ok: boolean; error?: string }>(`/api/customers/${id}/actions`, { action: "send_checkin_now" }); toast(r.ok ? "Check-in sent" : (r.error ?? "Could not send"), { tone: r.ok ? "info" : "error" }); }}>
+                Send check-in now
+              </button>
+            )}
             <button className="btn" title="Pick a new date for the next delivery" onClick={() => setModal("move")}>Move delivery…</button>
             <button className="btn" title="Don't deliver before a date, for example while they travel" onClick={() => setModal("hold")}>Hold until…</button>
             <button className="btn" title="Stop deliveries for a few weeks" onClick={() => setModal("pause")}>Pause…</button>

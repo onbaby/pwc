@@ -6,7 +6,6 @@ import type { CustomerRow, MessageRow, WhySnapshot } from "../../shared/types.ts
 import { all, get, run, type Db } from "../db.ts";
 import { COPY, CHECKIN_WINDOW } from "../copy.ts";
 import { addEvent, audit, customerRow, deliveredDays, nextScheduled, nowMs, projectionOf, setNow } from "../store.ts";
-import { pendingOfferFor } from "../offers/assign.ts";
 import type { AppCtx } from "./context.ts";
 import { insertMessage, sendText, updateMessage } from "./send.ts";
 
@@ -22,29 +21,13 @@ export function cancelQueued(ctx: AppCtx, customerId: string, kinds: string[]): 
   for (const r of rows) updateMessage(ctx, r.id, { status: "cancelled" });
 }
 
-/** Reminder text for a delivery date, with this customer's offer riding along if one is due (never a new text). */
-export function composeReminder(db: Db, customerId: string, arrival: Day): { body: string; snapshot: WhySnapshot; offerId: number | null; code: string } {
-  const offer = pendingOfferFor(db, customerId, arrival);
-  if (!offer) return { body: COPY.reminder({ new: arrival }), snapshot: { reasonChip: "Reminder" }, offerId: null, code: "REMINDER" };
-  const body =
-    offer.type === "rotation"
-      ? COPY.reminderRotation({ new: arrival })
-      : offer.type === "smaller"
-        ? COPY.reminderSmaller({ new: arrival })
-        : offer.type === "seasonal_swap"
-          ? COPY.reminderSwap({ new: arrival })
-          : COPY.reminderGiftToOwn({ new: arrival, percent: offer.discountPct });
-  return { body, snapshot: { reasonChip: `Reminder + offer: ${offer.name}`, offerType: offer.name }, offerId: offer.offerId, code: "REMINDER" };
-}
-
 export function queueReminder(ctx: AppCtx, customerId: string, arrival: Day): void {
   const c = customerRow(ctx.db, customerId);
   if (!c || !c.consent_delivery || c.status === "OPTED_OUT" || c.status === "CANCELLED") return;
   cancelQueued(ctx, customerId, ["reminder"]);
   const at = etInstant(arrival - ENGINE.reminderDaysBefore, 10, 0);
   if (at < nowMs(ctx.db)) return;
-  const r = composeReminder(ctx.db, customerId, arrival);
-  insertMessage(ctx, { customerId, at, direction: "out", body: r.body, kind: "reminder", reasonCode: r.code, status: "queued", offerId: r.offerId, snapshot: r.snapshot });
+  insertMessage(ctx, { customerId, at, direction: "out", body: COPY.reminder({ new: arrival }), kind: "reminder", reasonCode: "REMINDER", status: "queued", snapshot: { reasonChip: "Reminder" } });
 }
 
 export interface CheckInPlan {
@@ -57,6 +40,8 @@ export function queueCheckIn(ctx: AppCtx, customerId: string, arrival: Day, atOv
   const db = ctx.db;
   const c = customerRow(db, customerId);
   if (!c || !c.consent_delivery || c.status === "OPTED_OUT" || c.status === "CANCELLED" || c.status === "PAUSED") return;
+  // the control arm stays on its fixed schedule: no check-in, so nothing to move (the deck's A/B pilot)
+  if (c.arm === "fixed") return;
   cancelQueued(ctx, customerId, ["checkin"]);
   const at = atOverride ?? checkInInstant(customerId, arrival - ENGINE.checkInDaysBefore);
   if (at < nowMs(db) - 12 * 3_600_000) return;
@@ -204,14 +189,9 @@ export function advanceClock(ctx: AppCtx, targetMs: number): { sent: number } {
     if (msgAt <= delAt && nextMsg) {
       if (nextMsg.kind === "checkin") sendQueuedCheckIn(ctx, nextMsg);
       else {
-        // a queued text (reminder, an offer riding on one, a quiet-hours deferral)
-        const res = sendText(ctx, { customerId: nextMsg.customer_id, body: nextMsg.body, kind: nextMsg.kind, reasonCode: nextMsg.reason_code ?? "REMINDER", snapshot: JSON.parse(nextMsg.snapshot) as WhySnapshot, offerId: nextMsg.offer_id, at: nextMsg.at, reuseMessageId: nextMsg.id });
+        // a queued text (reminder, a quiet-hours deferral)
+        const res = sendText(ctx, { customerId: nextMsg.customer_id, body: nextMsg.body, kind: nextMsg.kind, reasonCode: nextMsg.reason_code ?? "REMINDER", snapshot: JSON.parse(nextMsg.snapshot) as WhySnapshot, at: nextMsg.at, reuseMessageId: nextMsg.id });
         if ("blocked" in res) updateMessage(ctx, nextMsg.id, { status: "skipped", snapshot: { ...(JSON.parse(nextMsg.snapshot) as WhySnapshot), reasonChip: `Not sent: ${res.blocked}` } });
-        else if (nextMsg.offer_id) {
-          run(db, "UPDATE offer_assignments SET message_id = ? WHERE offer_id = ? AND customer_id = ?", nextMsg.id, nextMsg.offer_id, nextMsg.customer_id);
-          run(db, "UPDATE offers SET status = 'Running' WHERE id = ? AND status = 'Scheduled'", nextMsg.offer_id);
-          ctx.emit({ type: "offer", offerId: nextMsg.offer_id });
-        }
       }
       sent++;
     } else {

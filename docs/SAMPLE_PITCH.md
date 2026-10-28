@@ -35,7 +35,7 @@
 
 **Show:** Exhibit C table (source, new subs, kept at 90 days, top cancel reason). Point at the first two rows.
 
-**Land the point:** "Different customers cancel for different reasons. One fix will not work for all of them." (This sets up the second lever, targeted offers, and the QR code.)
+**Land the point:** "Different customers cancel for different reasons. One fix will not work for all of them." (This sets up the second lever, the QR code that brings in new subscribers.)
 
 ---
 
@@ -87,7 +87,7 @@ Use one slide with a picture of a coffee canister and a question mark.
 | T−10 min | Press **Ctrl+Alt+D**, confirm the drawer shows *Clock: Sun Oct 18, 9:00 am*, *Scripted events 0 of 3*, *Channel: Replay*. Press **Reset sandbox** once, then close the drawer. |
 | T−2 min | Land on **Today**. Do not scroll. |
 
-**Stage rule:** the presenter touches two keys and the mouse: **Ctrl+Alt+→** (advance the scripted story) and **Ctrl+Alt+1…8** (jump to a tour stop: 1 Today, 2 Maya, 3 Dev, 4 approvals, 5 Customers, 6 Bag QR, 7 Offers, 8 Roast outlook). **Ctrl+K** finds any page or customer. Do not type in the drawer on stage.
+**Stage rule:** the presenter touches two keys and the mouse: **Ctrl+Alt+→** (advance the scripted story) and **Ctrl+Alt+1…8** (jump to a tour stop: 1 Today, 2 Maya, 3 Dev, 4 approvals, 5 Customers, 6 Bag QR, 7 Roast outlook, 8 Pilot). **Ctrl+K** finds any page or customer. Do not type in the drawer on stage.
 
 ### The script
 
@@ -108,7 +108,7 @@ Use one slide with a picture of a coffee canister and a question mark.
 
 **If something fails:** (1) refresh the page; (2) press **Ctrl+Alt+D → Reset sandbox** and repeat from Maya; (3) play the backup recording and narrate over it. Never debug live.
 
-**Optional (30 seconds, only if time): Offers.** *Offers → New.* "Different cancel reasons need different offers. For people who signed up 'only sampling,' this one rotates a new roast each delivery. It never adds a text, it's capped at one a month, and it always has a control group, so we measure whether it worked. The tool computes who is eligible and why others are excluded."
+**Optional (45 seconds, only if time): the Pilot page.** *Ctrl+Alt+8.* "This is the test we are asking for. New subscribers are split at random: half get AI timing, half stay on a fixed schedule. These rows are what we will read: cancellations, revenue per subscriber, freshness complaints. The stop rule is on the page: if AI-timed churn isn't below the control group by the end of month 3, we turn it off. The numbers here are sample data with no difference built in, so they read alike. We are not going to show you a made-up win."
 
 ---
 
@@ -142,10 +142,10 @@ Use one slide with a picture of a coffee canister and a question mark.
 - Humans approve anything risky; free-text replies always go to a person.
 
 **Ethics and law (rubric: "be concrete and ethical about the AI"):**
-- Two separate opt-ins: delivery texts and offers. "NO OFFERS" stops offers only; "STOP" stops everything.
+- One opt-in for delivery texts, double opt-in on the QR sign-up, and no marketing texts. "STOP" stops everything.
 - No texts 9 pm–8 am; at most three routine texts per delivery.
 - Sooner deliveries cost the customer money earlier, so they need **an explicit YES**.
-- Offers that discount are limited to gift recipients, need manager approval, and use only source, gift status and tenure (never city, ZIP or name).
+- The only price promise is the QR page's 20% off a first bag, shown before sign-up and applied to the first delivery only.
 - Counsel should review the consent wording before any real texting. We flag this as open.
 
 **Honest limits, to say yourself before a judge does:**
@@ -171,14 +171,14 @@ Use one slide with a picture of a coffee canister and a question mark.
 | **Why is timing alone not profitable in your sim?** | Fewer deliveries means less revenue, and the stockpile share of cancellations is unknown. We show the bar it has to clear (about 2.7 points of retention at our placeholder). Reply rate is the lever. |
 | **Where does $276K come from?** | Exhibit A (DTC gross profit $793K × 10%) plus grocery volume from Exhibit B at 12 bags per buyer × a 5% conversion × first-year value of a subscriber, minus the grocery margin given up. The 12 bags and the percentages are assumptions; the page lets you change them. |
 | **Freshness: did you prove fresher coffee?** | Not on average: our sim shows about 60 days on a fixed schedule vs 58 paced (age at the cup). What timing fixes is the bag that waits a month behind a stockpile. The profile shows that per customer. Bag size is the other lever. |
-| **Won't customers hate texts?** | One routine question per delivery, at most three routine texts, none at night, STOP and NO OFFERS always work, and offers pause automatically if opt-outs pass 2%. |
-| **A wrong date makes someone run out.** | We aim at the *early* end of the range plus a 3-day cushion; every reminder says "Running low? Reply SOONER"; sooner moves need a YES. |
-| **Why discounts only for gifts?** | Only the gift cohort cancels over price; margin is the channel's strength; discounting everyone pays people who would have stayed. Every offer has a holdout to prove it. |
+| **Won't customers hate texts?** | One routine question per delivery, at most three routine texts, none at night, STOP always works, and the reply rate and opt-outs are on the Today and Pilot pages. |
+| **A wrong date makes someone run out.** | We aim at the *early* end of the range plus a 3-day cushion; every reminder says "Running low? Reply SEND NOW"; sooner moves need a YES. |
+| **Why not discount everyone?** | Margin is the channel's strength and discounting everyone pays people who would have stayed. The one promise is 20% off a first fresh bag on the QR page, so a grocery shopper has a reason to try it. |
 | **Is the data real?** | The console runs on synthetic customers matched to the case's numbers (badge on screen, said aloud). The real-data check uses public retail data. |
 | **Is the QR page a customer portal?** | One page on the existing website, no login, ending in the same subscription. |
 | **Why not wholesale or the cafes?** | DTC is visible, controllable and testable in a quarter. The same "text as a sensor" idea can extend to the 744 wholesale accounts later. |
 | **How much does this cost to run?** | Server-side software with no per-call fees; the placeholder program cost is $2 per active subscriber-year (texts and care time), flagged as unverified; first question to the client. |
-| **What would you need from Classic Cup?** | Orders per subscriber, delivery days, cancel-reason shares, whether offer consent exists today, bags per grocery buyer, and whether retail bags can carry a printed code. |
+| **What would you need from Classic Cup?** | Orders per subscriber, delivery days, cancel-reason shares, bags per grocery buyer, and whether retail bags can carry a printed code. |
 
 ---
 

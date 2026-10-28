@@ -1,3 +1,4 @@
+import { EXHIBITS } from "../src/shared/constants.ts";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { freshnessAt } from "../src/engine/freshness.ts";
 import { COPY } from "../src/server/copy.ts";
@@ -183,7 +184,7 @@ describe("in the console", () => {
 
     const scan = await postJson(t, "/api/qr/scan", { code });
     expect(scan.json.ok).toBe(true);
-    const form = { scanId: scan.json.scanId, code, name: "Jo Rivera", phone: "(706) 555-0142", cups: 2, people: 2, rhythmDays: 42, consentDelivery: true, consentOffers: false };
+    const form = { scanId: scan.json.scanId, code, name: "Jo Rivera", phone: "(706) 555-0142", cups: 2, people: 2, rhythmDays: 42, consentDelivery: true };
     expect((await postJson(t, "/api/qr/signup", { ...form, phone: "12" })).status).toBe(400);
     expect((await postJson(t, "/api/qr/signup", { ...form, rhythmDays: 30 })).status).toBe(400);
     const ok = await postJson(t, "/api/qr/signup", form);
@@ -194,7 +195,8 @@ describe("in the console", () => {
     const c = customerRow(t.db, id)!;
     expect(c.status).toBe("OPT_IN_PENDING");
     expect(c.consent_delivery).toBe(0);
-    expect(c.consent_offers).toBe(0);
+    expect(c.arm === "ai" || c.arm === "fixed").toBe(true); // every new subscriber joins the A/B split
+    expect(get<{ price: number }>(t.db, "SELECT price FROM deliveries WHERE customer_id = ?", id)!.price).toBe(Math.round(EXHIBITS.sources.website.aov * 0.8)); // the deck: 20% off a first fresh bag
     expect(c.source).toBe("website");
     expect(nextScheduled(t.db, id)!.day).toBe(lot.firstDelivery);
     const consent = get<MessageRow>(t.db, "SELECT * FROM messages WHERE customer_id = ? AND kind = 'consent'", id)!;

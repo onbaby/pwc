@@ -21,12 +21,10 @@ export interface CustomerRow {
   status: ConvState;
   consent_delivery: number;
   consent_delivery_at: string | null;
-  consent_offers: number;
-  consent_offers_at: string | null;
   signup_answers: string;
   cancelled_at: number | null;
   gift_ends: string | null;
-  in_pilot: number;
+  arm: "ai" | "fixed" | null;
   base_arrival: string | null;
   proposal_count: number;
   checkin_cycles_skipped: number;
@@ -42,7 +40,7 @@ export interface SignupAnswers {
   note?: string;
 }
 
-export type MessageKind = "checkin" | "reminder" | "proposal" | "sooner" | "offer" | "clarify" | "confirmation" | "consent" | "system" | "reply" | "staff" | "other";
+export type MessageKind = "checkin" | "reminder" | "proposal" | "sooner" | "clarify" | "confirmation" | "consent" | "system" | "reply" | "staff" | "other";
 export type MessageStatus = "queued" | "sent" | "delivered" | "failed" | "held" | "pending_approval" | "received" | "needs_person" | "resolved" | "cancelled" | "skipped";
 
 export interface MessageRow {
@@ -54,7 +52,6 @@ export interface MessageRow {
   kind: MessageKind;
   reason_code: string | null;
   status: MessageStatus;
-  offer_id: number | null;
   snapshot: string;
   resolved_at: number | null;
 }
@@ -71,14 +68,13 @@ export interface WhySnapshot {
   weeks?: number;
   technical?: Record<string, unknown>;
   blockedBy?: string[];
-  offerType?: string;
   amount?: number;
   /** a sooner text the customer has answered YES to */
   confirmed?: boolean;
   /** a check-in for a delivery landing in a holiday travel window also asked "Away? Reply AWAY" */
   holiday?: string;
   /** which consent a consent text asks for */
-  consentFor?: "delivery" | "offers";
+  consentFor?: "delivery";
 }
 
 export type StatusChip = "Check-in sent" | "Reply received" | "Move proposed" | "Holding off" | "On schedule" | "Held" | "Paused" | "Cancelled" | "Texts off";
@@ -97,7 +93,7 @@ export interface CustomerListItem {
   status: StatusChip;
   state: ConvState;
   consentDelivery: boolean;
-  consentOffers: boolean;
+  arm: "ai" | "fixed" | null;
 }
 
 export interface MessageDTO {
@@ -111,7 +107,6 @@ export interface MessageDTO {
   reasonCode: string | null;
   reasonChip: string | null;
   status: MessageStatus;
-  offerId: number | null;
   why: WhySnapshot | null;
   whySentence: string | null;
 }
@@ -144,11 +139,11 @@ export interface CustomerProfile {
     size: string;
     state: ConvState;
     consentDelivery: boolean;
-    consentOffers: boolean;
-    nextDelivery: number | null;
+      nextDelivery: number | null;
     baseArrival: number | null;
     signupAnswers: SignupAnswers;
-    inPilot: boolean;
+    /** pilot arm: AI timing, a fixed schedule (control), or null for customers who joined before the pilot */
+    arm: "ai" | "fixed" | null;
     heldUntil: number | null;
     /** arrived through a grocery bag's QR code */
     acquisition: { lot: string; roast: string; store: string; at: number; ageAtScan: number } | null;

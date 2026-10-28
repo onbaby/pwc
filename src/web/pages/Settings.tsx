@@ -1,15 +1,15 @@
 import { useApi } from "../api.tsx";
 import { Card, Empty, PageTitle, SectionTitle } from "../components/ui.tsx";
-import { fmtDay, pct } from "../format.ts";
+import { fmtDay } from "../format.ts";
+import { href } from "../router.ts";
 
 interface SettingsDTO {
   deliveryDay: string;
   quietHours: { from: number; to: number };
-  caps: { routine: number; other: number; offerEveryDays: number };
+  caps: { routine: number; other: number };
   freeze: { from: number; to: number };
   cautiousness: string;
-  consentTexts: { delivery: string; offers: string };
-  standingHoldout: { share: number; months: number; members: number };
+  consentTexts: { delivery: string };
   engineVersion: string;
   holidays: Array<{ name: string; from: number; to: number }>;
   freshness: { bestByDays: number; peakEndDays: number; roastToDoorDays: number };
@@ -36,8 +36,6 @@ export function Settings() {
               <dd className="m-0">{hour(s.quietHours.from)} to {hour(s.quietHours.to)} Eastern: texts wait until morning</dd>
               <dt className="text-muted">Texts per delivery</dt>
               <dd className="m-0">{s.caps.routine} routine and {s.caps.other} other. Replies to a customer and legal texts are exempt.</dd>
-              <dt className="text-muted">Offers</dt>
-              <dd className="m-0">At most one per customer every {s.caps.offerEveryDays} days, riding on a reminder that was going out anyway</dd>
               <dt className="text-muted">Holiday freeze</dt>
               <dd className="m-0">{fmtDay(s.freeze.from)} to {fmtDay(s.freeze.to)}: no automatic moves</dd>
               <dt className="text-muted">Cautiousness</dt>
@@ -63,9 +61,9 @@ export function Settings() {
             </dl>
           </Card>
           <Card>
-            <SectionTitle>Standing holdout</SectionTitle>
+            <SectionTitle>Pilot control group</SectionTitle>
             <p className="m-0 text-[14px]">
-              {pct(s.standingHoldout.share)} of customers who agreed to offers get none for {s.standingHoldout.months} months, so every offer is measured against people who were never offered anything. Currently {s.standingHoldout.members.toLocaleString("en-US")} customers.
+              New subscribers are split at random when they join: half get AI timing, half stay on a fixed schedule with no check-ins and no moves. The split is fixed by the customer's ID, so it never changes. The <a href={href("/pilot")}>Pilot page</a> compares the two.
             </p>
             <p className="mb-0 mt-4 text-[13px] text-muted">
               {s.environment} · engine {s.engineVersion}
@@ -73,14 +71,10 @@ export function Settings() {
           </Card>
           <Card className="col-span-2">
             <SectionTitle>Consent texts (sent word for word)</SectionTitle>
-            <div className="grid grid-cols-2 gap-4 text-[14px]">
+            <div className="grid grid-cols-1 gap-4 text-[14px]">
               <div>
                 <div className="mb-1 text-[13px] font-semibold text-muted">Delivery texts</div>
                 <div className="rounded-lg bg-cream p-3">{s.consentTexts.delivery}</div>
-              </div>
-              <div>
-                <div className="mb-1 text-[13px] font-semibold text-muted">Offers (separate, not required to buy)</div>
-                <div className="rounded-lg bg-cream p-3">{s.consentTexts.offers}</div>
               </div>
             </div>
           </Card>

@@ -1,11 +1,12 @@
 import { EXHIBITS, FRESHNESS, GROCERY, QR, WORLD, ENGINE, type Source } from "../shared/constants.ts";
+import { armFor } from "../shared/pilot.ts";
 import { dayFromISO, etInstant, etParts, isoFromDay, nextWednesdayOnOrAfter, weekday, type Day } from "../shared/dates.ts";
 import { hash32, Stream } from "../shared/rng.ts";
 import { nearestRhythm } from "../sim/world.ts";
 import { COPY } from "./copy.ts";
 import { all, get, run, type Db } from "./db.ts";
 import type { AppCtx } from "./flows/context.ts";
-import { priceFor, queueReminder } from "./flows/schedule.ts";
+import { queueReminder } from "./flows/schedule.ts";
 import { sendText } from "./flows/send.ts";
 import { audit, nowMs, todayOf } from "./store.ts";
 
@@ -199,11 +200,13 @@ export function lotPublic(db: Db, code: string) {
     peakEndDays: FRESHNESS.peakEndDays,
     roastToDoorDays: WORLD.roastToDoorDays,
     price: EXHIBITS.sources[QR.cohortLike].aov,
+    firstBagPrice: Math.round(EXHIBITS.sources[QR.cohortLike].aov * (1 - QR.firstBagDiscount)),
+    firstBagDiscountPct: Math.round(QR.firstBagDiscount * 100),
     // roasted to order: a day to roast, then roast-to-door, landing on a Wednesday (never sooner than the usual lead time)
     firstDelivery: nextWednesdayOnOrAfter(today + Math.max(ENGINE.minLeadDays, WORLD.roastToDoorDays + 1)),
     rhythmMenu: WORLD.rhythmMenu,
     rhythms,
-    consentTexts: { delivery: COPY.consentDelivery(), offers: COPY.consentOffers() },
+    consentTexts: { delivery: COPY.consentDelivery() },
     today,
   };
 }
@@ -224,7 +227,6 @@ export interface QrSignupInput {
   people: number;
   rhythmDays: number;
   consentDelivery: boolean;
-  consentOffers: boolean;
 }
 
 /** Normalise a US mobile number to E.164; undefined if it is not one. */
@@ -265,8 +267,8 @@ export function qrSignup(ctx: AppCtx, i: QrSignupInput): { ok: true; customerId:
   const city = lot.store.replace(/ area$/, "");
   run(
     db,
-    `INSERT INTO customers(id, name, city, source, signup_date, plan_cadence_days, suggested_cadence_days, size, plan_type, status, consent_delivery, consent_delivery_at, consent_offers, consent_offers_at, signup_answers, base_arrival)
-     VALUES (?,?,?,?,?,?,?,?,?,?,0,NULL,?,?,?,?)`,
+    `INSERT INTO customers(id, name, city, source, signup_date, plan_cadence_days, suggested_cadence_days, size, plan_type, status, consent_delivery, consent_delivery_at, signup_answers, arm, base_arrival)
+     VALUES (?,?,?,?,?,?,?,?,?,?,0,NULL,?,?,?)`,
     id,
     name,
     city,
@@ -277,12 +279,11 @@ export function qrSignup(ctx: AppCtx, i: QrSignupInput): { ok: true; customerId:
     "12 oz",
     "payg",
     i.consentDelivery ? "OPT_IN_PENDING" : "ACTIVE",
-    i.consentOffers ? 1 : 0,
-    i.consentOffers ? isoFromDay(today) : null,
     JSON.stringify({ cups: i.cups, people: i.people, note: `Subscribed from bag ${i.code} (${lot.roast}, roasted ${lot.ageDays} days before the scan)` }),
+    armFor(id),
     isoFromDay(first),
   );
-  run(db, "INSERT INTO deliveries(customer_id, scheduled_date, status, size, price, items) VALUES (?,?,?,?,?,?)", id, isoFromDay(first), "scheduled", "12 oz", priceFor({ source: QR.cohortLike }), "Coffee, 12 oz");
+  run(db, "INSERT INTO deliveries(customer_id, scheduled_date, status, size, price, items) VALUES (?,?,?,?,?,?)", id, isoFromDay(first), "scheduled", "12 oz", lot.firstBagPrice, "Coffee, 12 oz, first bag 20% off");
   run(db, "UPDATE qr_scans SET customer_id = ? WHERE id = ?", id, scan.id);
   run(db, "INSERT INTO qr_signups(customer_id, scan_id, lot_code, phone, at) VALUES (?,?,?,?,?)", id, scan.id, i.code, phone, now);
   audit(db, "customer", "qr_signup", id, { lot: i.code, rhythmDays: i.rhythmDays, suggested });

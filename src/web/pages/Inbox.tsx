@@ -18,7 +18,6 @@ interface Needs {
 interface Approvals {
   items: Array<MessageDTO & { customerName: string }>;
   total: number;
-  offers: Array<{ id: number; name: string; typeLabel: string; discountPct: number; budget: number; audienceSize: number }>;
 }
 interface AllMsgs {
   items: MessageDTO[];
@@ -107,7 +106,7 @@ export function Inbox({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   const needs = useApi<Needs>(tab === "needs" ? "/api/inbox?tab=needs" : null);
   const approvals = useApi<Approvals>(tab === "approvals" ? "/api/inbox?tab=approvals" : null);
   const all = useApi<AllMsgs>(tab === "all" ? `/api/inbox?tab=all&page=${page}${q.trim() ? `&q=${encodeURIComponent(q.trim())}` : ""}` : null);
-  const counts = useApi<{ needs: number; approvals: number }>("/api/inbox/counts", ["message", "queue", "offer"]).data;
+  const counts = useApi<{ needs: number; approvals: number }>("/api/inbox/counts", ["message", "queue"]).data;
   const { now: liveNow } = useLive();
   const now = liveNow ?? Date.now();
   return (
@@ -143,27 +142,10 @@ export function Inbox({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
         {tab === "approvals" &&
           (!approvals.data ? (
             <Empty>Loading…</Empty>
-          ) : approvals.data.items.length === 0 && approvals.data.offers.length === 0 ? (
+          ) : approvals.data.items.length === 0 ? (
             <Empty>Nothing needs approving.</Empty>
           ) : (
             <ul className="m-0 list-none p-0">
-              {approvals.data.offers.map((o) => (
-                <li key={`o${o.id}`} className="flex items-start justify-between gap-4 border-b border-line px-4 py-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[15px] font-semibold">{o.name}</span>
-                      <span className="chip plum">Discount offer · {o.discountPct}% off</span>
-                    </div>
-                    <div className="mt-1 text-[14px] text-muted">
-                      {o.typeLabel} · budget {o.budget ? `$${nf(o.budget)}` : "none set"} · needs manager approval before it can be scheduled
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <a className="btn no-underline" href={href(`/offers/${o.id}`)}>Review</a>
-                    <button className="btn primary" onClick={async () => { const r = await post<{ ok: boolean; error?: string }>(`/api/offers/${o.id}/approve`); toast(r.ok ? "Offer approved and scheduled" : (r.error ?? "Could not approve"), { tone: r.ok ? "info" : "error" }); }}>Approve</button>
-                  </div>
-                </li>
-              ))}
               {approvals.data.items.map((m) => (
                 <li key={m.id} className="flex items-start justify-between gap-4 border-b border-line px-4 py-3">
                   <div className="min-w-0">

@@ -5,8 +5,8 @@ import { QrLanding } from "./pages/QrLanding.tsx";
 import { CustomerProfile } from "./pages/CustomerProfile.tsx";
 import { Customers } from "./pages/Customers.tsx";
 import { Inbox } from "./pages/Inbox.tsx";
-import { OfferPage, OffersList } from "./pages/Offers.tsx";
 import { OutlookPage } from "./pages/Outlook.tsx";
+import { PilotPage } from "./pages/Pilot.tsx";
 import { Settings } from "./pages/Settings.tsx";
 import { Today } from "./pages/Today.tsx";
 import { useRoute } from "./router.ts";
@@ -29,11 +29,11 @@ export function App() {
     case "inbox":
       page = <Inbox tab={tab} setTab={setTab} />;
       break;
-    case "offers":
-      page = id ? <OfferPage key={id} id={id} /> : <OffersList />;
-      break;
     case "qr":
       page = <BagQrPage />;
+      break;
+    case "pilot":
+      page = <PilotPage />;
       break;
     case "outlook":
       page = <OutlookPage />;

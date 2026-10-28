@@ -69,13 +69,13 @@ Reset the sandbox first (`pnpm demo`, Ctrl+Alt+D). Use the tour shortcuts (→ f
 |---|---|---|---|
 | 0:00-0:40 | Today | "A rep opens this each morning." | Reply-rate tile vs the 40% bar; who needs a person; running out soon |
 | 0:40-1:55 | Maya | "Her bag is running out after the date we'd have picked." | Pantry chart and range; "Why this date"; the text thread; automatic later move with **Undo move** |
-| 1:55-2:40 | Dev | "Sooner moves are never automatic." | A sooner proposal waiting for approval and the customer's YES |
-| 2:40-3:20 | Approvals | "Humans stay in charge." | Approve one; the text goes out |
-| 3:20-4:10 | QR / stores | "Grocery stops being a blind spot." | Scan landing; stores ranked by stale share; **Visit first**, Copy note |
-| 4:10-4:50 | Outlook | "And the roaster gets a weekly plan." | Six-week band and CSV export |
-| 4:50-5:00 | Close | "Everything you saw is the sample data; the pilot is how we find out for real." | Back to the slide |
+| 1:55-2:40 | Dev | "Knowing when not to act." | New subscriber, no reply yet: the system holds off and changes nothing |
+| 2:40-3:20 | Approvals | "Humans stay in charge; sooner moves always need a yes." | Approve one; the text goes out |
+| 3:20-4:10 | QR / stores | "Grocery stops being a blind spot." | Scan landing with 20% off a first bag (slide 7); stores ranked by stale share; **Visit first**, Copy note |
+| 4:10-4:30 | Outlook | "And the roaster gets a weekly plan." | Six-week band; skip the table |
+| 4:30-5:00 | Pilot | "This is the test on slide 8, running." | Week 5 of 13; AI against control; the stop rule; "sample data has no difference built in, so they read alike" |
 
-Not in the main run (use in Q&A or if time is left): Customers saved views, Offers editor and holdout.
+Not in the main run (use in Q&A or if time is left): Customers saved views and the Customers pilot-group filter (open a control-group profile to show "nothing to do, by design").
 
 ## Rehearsal rules
 1. Each person rehearses their block alone against a timer, then the whole chain twice. The handoff sentences are fixed.
@@ -86,5 +86,5 @@ Not in the main run (use in Q&A or if time is left): Customers saved views, Offe
 ## Fix before the pitch
 - **Slide 8 has stray text:** the extracted text shows "bro" after the stop rule. Check the slide and delete it.
 - **Slide 5 says $140K; the handbook computes about $276K** (10% more subscribers kept plus 5% of grocery buyers converted). The $140K is the safe, deck-consistent number. P3 should say $140K and keep $276K for questions.
-- Slide 7 says "20% off a first fresh bag" while the console's offers cap discounts at 10% and need manager approval. Say 20% is the proposed launch promotion, or change the slide; do not let the demo contradict it unprepared.
+- Slide 7's "20% off a first fresh bag" is now in the demo: the QR page shows the 20% off price for the first bag and the first delivery is priced that way.
 - No slide covers the demo, so P4 should say out loud "we'll switch to the live product" and P5 should say "back to the slides".

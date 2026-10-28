@@ -13,6 +13,6 @@ export const TOUR: TourStop[] = [
   { to: "/inbox?tab=approvals", label: "Inbox: a person stays in charge", say: "Anything risky waits here with a plain-English reason." },
   { to: "/customers", label: "Customers: worklists for reps", say: "Saved views (needs attention, running out, new), a CSV export, one click into any account." },
   { to: "/qr", label: "Bag QR: grocery to subscriber", say: "Scans, sign-ups and how long bags sit on the shelf, by store." },
-  { to: "/offers/new", label: "Offers: targeted and measured", say: "Who is eligible and why others are excluded, break-even, and a control group." },
   { to: "/outlook", label: "Roast outlook: for the roaster", say: "Six weeks of pounds with a likely range, exportable." },
+  { to: "/pilot", label: "Pilot: the test we are proposing", say: "Half of new subscribers get AI timing, half stay fixed; the stop rule is read at month 3." },
 ];

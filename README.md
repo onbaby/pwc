@@ -1,6 +1,6 @@
 # Right on Time: the team handbook
 
-**What this is.** A working prototype of a staff console for Classic Cup Coffee's online subscription team (UGA AI Society × PwC case competition). It times each subscriber's next bag to when they will actually run out of coffee, so every bag is opened fresh: **not too early** (sitting a month behind a stockpile) and **not too late** (after the canister is empty). It learns each customer's pantry from one text question, keeps a person in charge of anything risky, runs targeted retention offers with a control group, and turns grocery-shelf buyers into subscribers with a QR code on the bag.
+**What this is.** A working prototype of a staff console for Classic Cup Coffee's online subscription team (UGA AI Society × PwC case competition). It times each subscriber's next bag to when they will actually run out of coffee, so every bag is opened fresh: **not too early** (sitting a month behind a stockpile) and **not too late** (after the canister is empty). It learns each customer's pantry from one text question, keeps a person in charge of anything risky, proves itself against a fixed-schedule control group, and turns grocery-shelf buyers into subscribers with a QR code on the bag.
 
 **Read this if** you are on the team and a judge might ask you how something works, how to use it, or how it would fit the business. Section 9 has answers to likely questions. The pitch script is in [docs/SAMPLE_PITCH.md](docs/SAMPLE_PITCH.md); the full spec, the panel review and the enhancement plan are in [PROTOTYPE_SPEC.md](PROTOTYPE_SPEC.md) (v4.3).
 
@@ -28,7 +28,7 @@
 - **The clue (Exhibit C).** For the two biggest sign-up sources, in-cafe (2,140 a year) and website (1,860), the top cancel reason is **"too much coffee arriving."** Classic Cup controls the delivery schedule completely, yet cannot see anyone's pantry.
 - **The idea.** Treat the customer's pantry as something to *estimate*. Once per delivery, send one text: "about how many weeks of coffee do you have left?" About 45% reply (an assumption the pilot would measure). Combine the replies with delivery history to estimate when each customer runs out, then propose a better delivery date, with a plain-English reason and a human check where the rules require one.
 - **The second half.** A QR code on retail bags shows the bag's roast date and offers a subscription roasted to order, timed to when the buyer runs out. It also tells Classic Cup something grocery never could: how long bags sit on the shelf.
-- **The ask.** A 12-week pilot with three random groups (today's schedule / check-in texts only / check-in plus paced delivery). **Go** if the reply rate is at least 40% and late deliveries and stockpiles fall; **stop** if a guardrail is breached two weeks running.
+- **The ask (the deck's pilot).** Month 1 build; months 2–4 an **A/B test**: new subscribers are split at random, half get AI timing and half stay on a fixed schedule. We track cancellation rate, revenue per subscriber and freshness complaints, plus scans per bag and scan-to-subscribe for the QR. Month 5 puts the QR on Athens grocery bags; month 6 scale or stop. **Stop rule:** if AI-timed churn isn't below the control group by the end of month 3, turn it off. The console's **Pilot** page runs this test live.
 - **What we do *not* claim.** Our simulation says timing deliveries *alone* does not pay for itself unless stockpiles drive almost all cancellations. We say so, and the pilot decides.
 
 ### At a glance
@@ -38,8 +38,8 @@
 | Stack | One TypeScript package: Node 24, Hono (API), `node:sqlite` (database), React 19, Tailwind 4, Recharts 3, Vite |
 | Model | Our own statistical model (a particle filter, 500 what-if pantries per customer). **No LLM, no outside calls, no GPU.** |
 | Sample data | 8,272 customers (4,059 active), 9 months of orders and texts, 12 grocery stores, deterministic, resets in about 11 s |
-| Pages | Today · Customers (+ profile) · Inbox · Offers · Bag QR (+ public bag page) · Roast outlook · Settings |
-| Tests | 136 automated tests (engine, flows, offers, every API route, simulator, real-data check, web source rules) |
+| Pages | Today · Customers (+ profile) · Inbox · Bag QR (+ public bag page) · Roast outlook · Pilot · Settings |
+| Tests | Automated tests (engine, flows, the A/B pilot, every API route, simulator, real-data check, web source rules) |
 | Real-data check | UCI *Online Retail II*, 1,067,371 orders; the 80% ranges held 78.8% of the time |
 
 ---
@@ -100,7 +100,7 @@ The sandbox clock starts at **Sunday Oct 18, 2026, 9:00 am (America/New_York)**.
 - Click any row to open the profile.
 
 ### 3.3 Customer profile (the centerpiece)
-- **Header:** name, consent chips (Delivery texts / Offers), badges (Via bag QR, Held, Texts stopped, holiday week), next delivery, plan, and actions: **Send check-in now · Move delivery · Hold until · Pause · Add note**. Every action texts the customer where relevant and is written to the audit log.
+- **Header:** name, consent chip (Delivery texts), badges (Pilot group, Via bag QR, Held, Texts stopped, holiday week), next delivery, plan, and actions: **Send check-in now · Move delivery · Hold until · Pause · Add note** (no check-in button for a control-group customer). Every action texts the customer where relevant and is written to the audit log.
 - **Next action banner:** the one thing to do for this account. In order of priority:
   1. *Waiting for your approval* with **Approve / Hold**;
   2. *The customer wrote and needs a person* with an inline reply box and **Mark resolved**;
@@ -117,16 +117,16 @@ The sandbox clock starts at **Sunday Oct 18, 2026, 9:00 am (America/New_York)**.
 - **Activity log** and **notes** for hand-offs.
 
 ### 3.4 Inbox
-Three tabs. **Needs a person:** free-text replies the system won't interpret (Reply, Resolve, and a *More* menu with Hold until, Pause for 4 weeks, Move delivery). **Approvals:** proposed moves and discount offers waiting for a yes, with the plain-English reason they need one ("not pay-as-you-go, or fewer than 2 deliveries"), **Why this move**, **Hold** and **Approve**. **All messages:** a searchable log of every text, in and out, with its reason.
+Three tabs. **Needs a person:** free-text replies the system won't interpret (Reply, Resolve, and a *More* menu with Hold until, Pause for 4 weeks, Move delivery). **Approvals:** proposed moves waiting for a yes, with the plain-English reason they need one ("not pay-as-you-go, or fewer than 2 deliveries"), **Why this move**, **Hold** and **Approve**. **All messages:** a searchable log of every text, in and out, with its reason.
 
-### 3.5 Offers
-*Who uses it:* the subscriptions manager.
-- **List:** name, type, status (Draft · Scheduled · Running · Paused · Ended), audience size, holdout, sends, and a status line such as "Collecting data · 287 of 1,059 per group · first read is more than 2 years away at this audience size".
-- **Four offer types**, each tied to a cancel reason from Exhibit C: **Athens roast rotation** (social/paid: "was only sampling"), **Smaller bag / pause** (in-cafe and website: "too much coffee arriving"), **Seasonal swap** (anyone not stockpiled), **Gift-to-own** (gift recipients near the end: "price"; the only discount, capped at 10%, manager approval required).
-- **Editor** (one page, four sections): type and message preview; **audience chips** (sign-up source, member for N days, likely run-out window, days on hand, last reply, skipped 2 of last 4, gift ending, not stockpiled); timing ("rides with the next reminder; **never adds a text**"); safety (holdout mode, manager approval, budget cap).
-- **Live preview:** eligible count, **excluded counts by reason** (no offer consent, stockpiled, in pacing pilot, no message to ride on, had an offer in 30 days, in another experiment, in the standing holdout), a sample message for a real customer, the **break-even range**, and the sample size needed to read results.
-- **Results** (once live): sends, acceptances, opt-outs within 7 days, next-check-in reply rate vs the holdout. Cancellation effects are shown **only** at the pre-set sample size (about 1,059 per group).
-- **Pause offer** button; offers also pause themselves (see 5.9).
+### 3.5 Pilot (the test from the deck)
+*Who uses it:* the subscriptions manager, and the team in the pitch ("this is how we will know").
+- **Where we are:** "Week 5 of 13", a progress bar, and the four stages from the deck (month 1 build, months 2–4 A/B pilot, month 5 QR in Athens grocery, month 6 scale or stop) with the current one marked.
+- **AI timing against the control group:** enrolled subscribers, **cancellation rate**, **revenue per subscriber**, **freshness complaints per 100 bags** (a customer texting STALE), check-ins answered and deliveries moved (the control group gets none, by design). Every number is read from the database.
+- **The stop rule:** the deck's rule in words and today's reading. Before week 13 it says *too early*, gives the gap so far, and adds the margin chance alone can produce at this sample size (a 95% band for two proportions), so a gap in either direction is not over-read. From week 13 it reads "below control: keep going" or "not below control: turn it off".
+- **Is the check-in working?** The reply rate against the 40% go bar. New subscribers are first asked after their first delivery, so early on the AI group has too few answers and the card shows the rate across everyone being texted (the same count as Today's tile).
+- **How the split works** and a balance table by sign-up source; **the bag QR** measures (scans per bag, scan-to-subscribe) with a link to Bag QR.
+- **Sample data builds in no difference between the groups**, so they read alike; the page says so. In a real pilot those rows decide it. 3,466 customers who joined before the pilot are outside the test.
 
 ### 3.6 Bag QR (grocery buyer to subscriber)
 - **Console page:** bags shipped with a QR code, scans (and scan rate), subscriptions started (and how many are still subscribed), median bag age at scan, a weekly chart, and a **By store** table ranked by the share of scanned bags that were already past 4 weeks old. Stores at **50% or more** are tagged **"Visit first"** and have a **Copy note** button that writes a short note for the rep who covers the store. Below: the **bag label** (SVG with the QR code, downloadable) for any lot, and recent subscriptions from a bag.
@@ -137,10 +137,10 @@ Three tabs. **Needs a person:** free-text replies the system won't interpret (Re
 Six weeks of DTC deliveries and pounds (deliveries × 0.75 lb for one 12-oz bag) with a likely range (P10–P90), a table by week including a two-bag sensitivity, and **Export CSV** for the head roaster. Caption: a planning view; DTC is under 2% of wholesale pounds, so this is a convenience, not the reason to do this.
 
 ### 3.8 Settings (read-only)
-Delivery day, quiet hours (9 pm–8 am ET), text caps, the holiday freeze (Nov 15–Jan 5), cautiousness (Balanced), freshness windows, the next two holiday travel weeks, the standing holdout, and both consent texts word for word.
+Delivery day, quiet hours (9 pm–8 am ET), text caps, the holiday freeze (Nov 15–Jan 5), cautiousness (Balanced), freshness windows, the next two holiday travel weeks, the pilot control-group rule, and the consent text word for word.
 
 ### 3.9 Sandbox drawer and Tour (hidden from judges' view)
-`Ctrl+Alt+D` or the badge menu. **Tour:** eight one-click stops, each with the line to say. Plus: advance to the next scripted event, inject a reply as any customer, switch channel, open the newest bag's QR page, move the clock, **reset**. The scripted story is `scenarios/demo.json`: 10:00 check-ins go out → 10:02 Maya replies "6" → 10:20 Priya writes free text.
+`Ctrl+Alt+D` or the badge menu. **Tour:** eight one-click stops (Today, Maya, Dev, Approvals, Customers, Bag QR, Roast outlook, Pilot), each with the line to say. Plus: advance to the next scripted event, inject a reply as any customer, switch channel, open the newest bag's QR page, move the clock, **reset**. The scripted story is `scenarios/demo.json`: 10:00 check-ins go out → 10:02 Maya replies "6" → 10:20 Priya writes free text.
 
 ---
 
@@ -148,7 +148,7 @@ Delivery day, quiet hours (9 pm–8 am ET), text caps, the holiday freeze (Nov 1
 
 | Person | Typical day | Where they live |
 |---|---|---|
-| **Subscriptions manager** (1) | Scan Today (reply rate, freshness gauge); decide approvals; build and watch offers | Today, Inbox › Approvals, Offers |
+| **Subscriptions manager** (1) | Scan Today (reply rate, freshness gauge); decide approvals; read the pilot | Today, Inbox › Approvals, Pilot |
 | **Customer care** (1–2) | Work the worklist; answer free-text; hold or pause on request | Customers › Needs attention, Inbox, profile banner |
 | **Sales / wholesale rep** | Visit the stores whose bags are sitting; show the QR | Bag QR › Visit first, Copy note |
 | **Head roaster** (read-only) | Check next six weeks of pounds; export | Roast outlook |
@@ -219,13 +219,13 @@ A subscription bag is roasted to order and reaches the door **5 days** later. It
 ### 5.8 Roast outlook (`src/engine/outlook.ts`)
 200 Monte Carlo draws. Each draw first perturbs the cancel hazard (±20%) and the sign-up rate (±15%), then simulates every customer's skips and cancellations (Exhibit C hazards by tenure) and the new sign-ups' first deliveries (Poisson at 8,670 a year × the Exhibit D monthly index). The P10–P90 band therefore includes uncertainty about the rates, not just luck. Pending moves shift their delivery date with the probability they will be approved.
 
-### 5.9 Offers, holdouts and sensor protection
-- **Assignment** to treatment or holdout is a hash of (customer id, offer family), so it is random but reproducible and *sticky*. A **standing 10% holdout** of offer-consented customers never receives offers for six months, so every offer has a baseline.
-- **Experiment mode** adds a per-offer holdout (default 50%); a customer is in only one experiment at a time, and a 60-day outcome window must close before the next.
-- **Break-even** = 1000 × acceptance × cost per acceptance ÷ gross profit per customer kept, where the value of a save = deliveries per year (7–9.2) × order value × 61% margin ÷ 12 × Σ0.92ᵏ over twelve months. Only gift-to-own has a cost (≤ 10% of the order).
-- **Sample size** per group to see a 3-point drop in 30-day cancellation from 8% (two-sided 5%, 80% power) ≈ **1,059**.
-- **Sensor protection:** the replies are the model's sensor, so offers never add a text, are capped at one per 30 days, honour NO OFFERS (which stops offers only; STOP stops everything), and **pause automatically** if STOP/NO OFFERS exceeds 2% of at least 100 sends, or if opt-outs or reply rates move against the holdout (one-sided 95% bounds with at least 200 per arm; reply rate dropping by 5 points).
-- **Discount audiences** may use only sign-up source, gift status and tenure (never city, ZIP or name-derived fields).
+### 5.9 The A/B pilot and its control group (`src/shared/pilot.ts`, `src/server/pilot.ts`)
+- **Assignment.** A new subscriber (from the website, a bag QR, anywhere) gets an arm when they join: `hash(customer id) mod 2`. It is random-looking, about 50/50, **reproducible and sticky** (the same customer always gets the same arm) and cannot be changed by staff.
+- **What "fixed schedule" means in code.** A control customer is never sent a check-in (`queueCheckIn` returns early), so there is nothing to move; if they text a number anyway it is recorded but `handleWeeks` stops before any proposal; staff cannot send them a check-in. They still get delivery reminders, can hold or pause on request, and are counted in every measure. They are kept off the Today and "Running out soon" worklists.
+- **Scope.** The test covers customers who joined after the pilot began (the sandbox puts it at week 5 of 13). Earlier subscribers (`arm` empty) are outside it; the console works them as a daily tool so judges can see the product on accounts with history. In the real plan existing subscribers stay on their current schedule during the test.
+- **The measures** (from the deck): cancellation rate, revenue per subscriber, freshness complaints (a STALE text, per 100 bags), plus the QR's scans per bag and scan-to-subscribe, and the check-in reply rate against the 40% go bar.
+- **The stop rule** compares the two cancellation rates at week 13. Because a point estimate can mislead at small sample sizes, the page shows the 95% chance margin next to the gap. The sample data has the same churn in both arms by construction, so it reads "too early" and "within chance".
+- **Why not run offers too?** An earlier build had an Offers page (rotation, smaller bag, swap, gift-to-own) with holdouts. The team removed it to keep the pitch to one idea; the texting rules that remain (STOP, caps, quiet hours, consent) are unchanged.
 
 ### 5.10 The simulator (`src/sim/`)
 A synthetic world of customers whose true consumption, rhythm choice, life events, reply behaviour and cancellation we control, with four scheduling policies: **Fixed** (today), **RuleText** (a simple rule on the reply alone), **Paced** (our model) and **Ceiling** (perfect pantry knowledge). Cancellation hazards are calibrated by bisection to match Exhibit C's retention by source *exactly*, then a "share of cancellations caused by stockpiles" φ (unknown, so a slider) tilts them. Differences use a **paired bootstrap** (same customers under both policies) and a **model-free break-even bar**: the retention gain a change must add to pay for its program cost ($2 per active subscriber-year, a placeholder) and the deliveries it removes.
@@ -249,9 +249,8 @@ Public UCI *Online Retail II* (Chen 2012; 1,067,371 rows, 2009–2011; CC BY 4.0
 | Notice; reminder; check-in | 7 days; 3 days before; 10 days before | `ENGINE` |
 | Quiet hours; caps | 9 pm–8 am; 3 routine + 1 other | `RULES` |
 | Freeze | Nov 15 – Jan 5 | `RULES` |
-| Standing holdout | 10% for 6 months | `RULES` |
-| Pilot | 12 weeks; reply rate ≥ 40% | `RULES` |
-| Sensor | opt-outs > 2% of ≥ 100 sends | `RULES.sensor` |
+| Pilot | 13 weeks (months 2–4); reply rate ≥ 40%; split 50/50 by customer ID | `RULES`, `PILOT` |
+| QR first bag | 20% off | `QR.firstBagDiscount` |
 | Roast to door; pounds per delivery | 5 days; 0.75 lb | `WORLD` |
 
 Every assumption is also listed with its range and source in `LEDGER` (`src/shared/constants.ts`).
@@ -268,7 +267,7 @@ Every assumption is also listed with its range and source in `LEDGER` (`src/shar
  │ pages · hash router           │ ──────────────────▶ │ Hono API  (src/server/app.ts)           │
  │ useApi() fetch + refetch      │ ◀────────────────── │   flows/   send · schedule · inbound ·  │
  │ SSE listener (coalesced)      │   Server-Sent       │            actions (staff + approvals)  │
- └───────────────────────────────┘   Events stream     │   offers/  eligibility · assign · guard │
+ └───────────────────────────────┘   Events stream     │   pilot.ts the A/B scoreboard           │
                                        (/api/stream)   │   qr.ts    bag QR                       │
                                                        │ engine/ (the model: pure functions)     │
                                                        │ node:sqlite  (data/console.db, WAL)     │
@@ -281,7 +280,7 @@ Every assumption is also listed with its range and source in `LEDGER` (`src/shar
 ### 6.2 Stack choices (and why)
 - **One TypeScript package** (TypeScript 7, Node 24, pnpm): shared types between server and web; no monorepo overhead.
 - **Hono + `@hono/node-server`:** a small, standards-based web framework; serves the API and the built web app on one port.
-- **`node:sqlite` (`DatabaseSync`, WAL):** the database is built into Node: no extra dependency, real persistence (offers, approvals, audit log). The seed and every reset run in one transaction. Every "today" query takes the sandbox clock as a parameter, never SQL `date('now')`.
+- **`node:sqlite` (`DatabaseSync`, WAL):** the database is built into Node: no extra dependency, real persistence (approvals, pilot arms, audit log). The seed and every reset run in one transaction. Every "today" query takes the sandbox clock as a parameter, never SQL `date('now')`.
 - **React 19 + Tailwind 4 + Recharts 3 + Vite 8:** standard, fast to build; hash-based router (about 40 lines, no library); `qrcode-generator` for the bag QR.
 - **Why no LLM:** the job is estimating a number with a range and explaining it; free-text replies go to a person. That removes a vendor, a cost, a privacy question and a source of unpredictable text.
 - All dependencies are **pinned to exact versions**; licenses are in section 11.
@@ -293,11 +292,11 @@ src/shared/   types, constants (every assumption in LEDGER), counter-based RNG, 
 src/engine/   prior · pantryFilter · decision · explain · project (one customer's projection) · freshness · outlook
 src/sim/      world · policies · churn · impact · prior · seed (sample data) · backtest/ (real-data check + PROTOCOL.md)
 src/server/   app (routes) · db (schema) · store (clock, projections, audit) · queries · profile · seedDb · sandbox · sse
-              flows/ (send, schedule, inbound, actions) · offers/ (eligibility, assign, guardrails, lifecycle) · channels/ · qr · copy
+              flows/ (send, schedule, inbound, actions) · pilot · channels/ · qr · copy
 src/web/      main · App · router · api (fetch + SSE hooks) · pages/ · components/ · tour · styles.css
 scenarios/    demo.json (the scripted events)         artifacts/  impact.json, backtest.json (committed outputs)
 data/derived/ online_retail_gaps.csv (derived gap table, committed with attribution)
-test/         11 test files, 136 tests               docs/       SAMPLE_PITCH.md
+test/         11 test files                          docs/       SAMPLE_PITCH.md · PITCH_TIMELINE.md
 ```
 
 ### 6.4 What happens when a customer replies "6" (end to end)
@@ -306,11 +305,11 @@ test/         11 test files, 136 tests               docs/       SAMPLE_PITCH.md
 3. `projectionOf` replays the customer's events through the **particle filter** and writes the new quantiles to `projections` (cached by a hash of the log).
 4. `decide()` turns the quantiles into a target date, confidence and the six checks.
 5. **If a later move passes all six checks:** the delivery is moved, the "we've moved your delivery" text is sent (respecting caps and quiet hours), the reminder is re-queued and a **"why" snapshot** (checks, quantiles, rule codes) is stored with the message. **Otherwise** the message is created as `pending_approval` and appears in Approvals with the failed check named.
-6. The server publishes an **SSE event** (`message`, `projection`, `queue`, `offer`, `clock`).
+6. The server publishes an **SSE event** (`message`, `projection`, `queue`, `clock`).
 7. Open pages receive it, coalesce the burst (one clock advance can emit hundreds of events) into one refresh per type after 350 ms, and **refetch** their JSON (`useApi`). The chart, banner and counts update without a reload.
 
 ### 6.5 Data model (SQLite)
-`customers` · `deliveries` · `events` (replies, moves, holds, skips) · `messages` (every text, with kind, reason code, status, offer id, and a JSON "why" snapshot) · `projections` (cached model output) · `offers` · `offer_assignments` · `experiment_membership` · `global_holdout` · `notes` · `audit_log` (every staff and system action) · `settings` (the clock, cautiousness) · `retail_accounts` · `retail_lots` · `qr_scans` · `qr_signups`.
+`customers` · `deliveries` · `events` (replies, moves, holds, skips) · `messages` (every text, with kind, reason code, status, and a JSON "why" snapshot) · `projections` (cached model output) · `notes` · `audit_log` (every staff and system action) · `settings` (the clock, cautiousness) · `retail_accounts` · `retail_lots` · `qr_scans` · `qr_signups`.
 
 ### 6.6 API (all JSON; `SANDBOX=1` adds the sandbox routes)
 
@@ -320,7 +319,7 @@ test/         11 test files, 136 tests               docs/       SAMPLE_PITCH.md
 | `GET /api/customers` (`?view=&q=&status=&source=&consent=&page=`, `&format=csv`) · `GET /api/customers/views` · `GET /api/customers/:id` | List, saved-view counts, profile |
 | `POST /api/customers/:id/actions` | `send_checkin_now`, `move`, `hold`, `pause`, `add_note`, `reply`, `resolve`, `undo_move` |
 | `GET /api/inbox?tab=` · `GET /api/inbox/counts` · `POST /api/messages/:id/approve` or `/hold` | Queues and approvals |
-| `GET/POST/PUT /api/offers` · `POST /api/offers/:id/preview` `/schedule` `/approve` `/pause` | Offers lifecycle |
+| `GET /api/pilot` | The A/B scoreboard: arms, three measures, stop rule, QR measures |
 | `GET /api/outlook` (`?format=csv`) | Roast outlook |
 | `GET /api/qr` · `GET /api/qr/lots/:code` · `POST /api/qr/scan` `/signup` | Bag QR console and public page |
 | `GET /api/evidence` | Real-data check summary (from `artifacts/backtest.json`) |
@@ -331,10 +330,10 @@ test/         11 test files, 136 tests               docs/       SAMPLE_PITCH.md
 A `Channel` interface with three implementations: **replay** (default; scripted and fully offline), **console** (type replies in the drawer) and **photon** (real iMessage through Photon's Spectrum SDK; lazily imported; falls back to replay after 5 seconds if it can't connect). All texts go through `sendText`, which enforces consent, quiet hours (a text waits for morning) and caps. Copy is a single deck (`src/server/copy.ts`), signed "Classic Cup (Athens)".
 
 ### 6.8 Design system
-Palette inspired by a public coffee brand's site and logo (**colors only; no names, marks or artwork**): orange `#F16A21` (fills, bars, the active-page marker; never body text, and only on white surfaces), orange-ink `#B34A12` (links, focus), espresso `#643A2B` (headings, primary buttons, sent bubbles), plum `#7F2754` on its tint (needs a person, offers), cream `#FBF6F1` page background, warm-grey lines `#E9DFD6`, ink `#1C1C1C`, success `#2E7D5B`, danger `#B42318`. Type scale 12/13/14/16/20/28; tabular numerals for numbers; cards with 16 px corners; focus rings; color is never the only signal. Charts use direct labels and a single y-axis.
+Palette inspired by a public coffee brand's site and logo (**colors only; no names, marks or artwork**): orange `#F16A21` (fills, bars, the active-page marker; never body text, and only on white surfaces), orange-ink `#B34A12` (links, focus), espresso `#643A2B` (headings, primary buttons, sent bubbles), plum `#7F2754` on its tint (needs a person, pilot group), cream `#FBF6F1` page background, warm-grey lines `#E9DFD6`, ink `#1C1C1C`, success `#2E7D5B`, danger `#B42318`. Type scale 12/13/14/16/20/28; tabular numerals for numbers; cards with 16 px corners; focus rings; color is never the only signal. Charts use direct labels and a single y-axis.
 
 ### 6.9 Testing
-136 tests (`pnpm test`): engine (likelihood vs numerical integration, monotone median, idempotent replay, guardrail properties); flows (every keyword, consent, caps, quiet hours, approvals, AWAY/OLD, Undo); offers (eligibility, exclusion reasons, sticky arms, sensor rules); **every HTTP route** through the app without a network; the simulator and backtest artifacts; and **source rules** that fail the build if the web code hard-codes a calendar date, uses `Math.random`, shows demo wording other than the badge, or types the real-data figures instead of reading them from the artifact.
+Automated tests (`pnpm test`): engine (likelihood vs numerical integration, monotone median, idempotent replay, guardrail properties); flows (every keyword, consent, caps, quiet hours, approvals, AWAY/OLD, Undo); the A/B pilot (sticky split, control arm never texted or moved, scoreboard, stop rule, old-database rebuild); **every HTTP route** through the app without a network; the simulator and backtest artifacts; and **source rules** that fail the build if the web code hard-codes a calendar date, uses `Math.random`, shows demo wording other than the badge, or types the real-data figures instead of reading them from the artifact.
 
 ---
 
@@ -353,11 +352,11 @@ Palette inspired by a public coffee brand's site and logo (**colors only; no nam
 
 ### 7.2 Rollout in four steps
 1. **Shadow mode (2 weeks).** Run the model on real history; make no changes. Check that the sample's assumptions (reply rate, consumption) are in the right range; replace the prior with real data.
-2. **Pilot (12 weeks).** The three-arm test on pay-as-you-go cafe and website subscribers with at least 2 deliveries, randomised by customer, stratified by sign-up source; pilot customers get no offers. Freeze moves Nov 15–Jan 5.
-3. **Offers** one at a time, each with its holdout, read only at the pre-set sample size.
-4. **Bag QR** at a handful of grocery accounts, then more.
+2. **A/B pilot (months 2–4, about 13 weeks).** New subscribers are split at random by customer ID: half get AI timing, half stay on a fixed schedule. Freeze moves Nov 15–Jan 5. The Pilot page is the readout.
+3. **Month 5:** put the QR on Athens grocery bags (below).
+4. **Month 6: scale or stop.** The stop rule is read at the end of month 3; scale means rolling AI timing to everyone and extending the QR to more accounts.
 
-**Pilot readouts.** Leading indicators at 12 weeks: late deliveries, stockpiles, skip rate, reply rate. Retention at 90 days after about 6 months. **Go:** reply rate ≥ 40% *and* late deliveries and stockpiles fall. **Stop:** a guardrail (opt-outs, complaints, late deliveries) is breached two weeks running.
+**Pilot readouts.** Cancellation rate, revenue per subscriber and freshness complaints, AI against control; for the QR, scans per bag and scan-to-subscribe. **Go-ahead gate:** the check-in reply rate is at least 40%. **Stop rule:** if AI-timed churn isn't below the control group by the end of month 3, turn it off. We judge on net revenue, because slower pacing can mean fewer bags per person.
 
 ### 7.3 People and process
 2–4 existing staff; a morning routine of about 10 minutes (Today → Inbox → done) that absorbs the subscription inbox the team already answers (**assumption: confirm with mentors**). Humans approve anything risky; free text always goes to a person. Every automatic action is in the audit log and visible to the customer ("reply OLD to undo").
@@ -367,14 +366,14 @@ Palette inspired by a public coffee brand's site and logo (**colors only; no nam
 - **Keep 10% more subscribers** ≈ +$79K a year (10% of DTC gross profit, treating each extra subscriber as average).
 - **Convert 5% of grocery buyers** ≈ +$197K a year: grocery volume from Exhibit B (6 regional chains × 3,900 lb + 84 independents × 210 lb a month ≈ 656,640 twelve-ounce bags a year) at an assumed **12 bags per buyer a year** gives about 54,720 buyers; 5% is about 2,736 new subscribers worth about $72 each in the first year after the grocery margin they would have earned.
 - **Total ≈ $276K a year, with no new stores, no new headcount and no price increase.** The 12 bags per buyer is the soft spot: the pitch's ≈ $140K needs about 40 bags per buyer. Both inputs are what the pilots measure.
-- **Honest counterweight:** timing alone does not pay in our simulation (5.10), so the retention lift has to come from timing *plus* offers, and it is a pilot question.
+- **Honest counterweight:** timing alone does not pay in our simulation (5.10), so the retention lift is a pilot question, and the pilot's control group is what answers it.
 - **Program cost** is a placeholder of $2 per active subscriber-year (texts and care time), unverified.
 
 ### 7.5 Data we would ask the client for
-Orders per subscriber, delivery days, cancel-reason shares, whether offer consent exists today, bags per grocery buyer per year, whether retail bags can carry a printed lot code and QR, and whether the team already uses an inbox or spreadsheet routine.
+Orders per subscriber, delivery days, cancel-reason shares, bags per grocery buyer per year, whether retail bags can carry a printed lot code and QR, and whether the team already uses an inbox or spreadsheet routine.
 
 ### 7.6 Compliance and ethics, concretely
-Two **separate opt-ins** (delivery texts; offers). **NO OFFERS** stops offers only; **STOP** stops everything. No texts 9 pm–8 am. At most 3 routine texts per delivery. **A sooner delivery needs an explicit YES.** Offers never add a text. Discounts only for gift recipients, capped at 10%, manager approval. Every text can show why it was sent. Counsel should review both consent texts and how a STOP sent in reply to an offer-bearing text is scoped (open item).
+One **opt-in** for delivery texts (double opt-in on the QR sign-up); **STOP** stops everything. No marketing texts at all. No texts 9 pm–8 am. At most 3 routine texts per delivery. **A sooner delivery needs an explicit YES.** Every text can show why it was sent. The one price promise is the QR page's 20% off a first bag, shown on the page before sign-up. Counsel should review the consent text (open item).
 
 ---
 
@@ -388,8 +387,8 @@ Full script, timings and recovery steps are in [docs/SAMPLE_PITCH.md](docs/SAMPL
 4. **Maya** (`Ctrl+Alt+2`): chart and "No replies yet" → `Ctrl+Alt+→` (check-ins go out) → `Ctrl+Alt+→` (she replies "6"): range tightens, **move summary**, freshness 35 → 21 days, **Why we sent this**, **Are these ranges honest?**, **Undo move** (show it exists; don't press it).
 5. **Dev** (`Ctrl+Alt+3`): "not yet sure, so it does nothing."
 6. **Customers** (`Ctrl+Alt+5`): Needs attention → open one → banner → Export CSV. **Approvals** (`Ctrl+Alt+4`).
-7. **Bag QR** (`Ctrl+Alt+6`): By store, Visit first, Copy note; drawer → *Open the newest bag's QR page*.
-8. **Roast outlook** (`Ctrl+Alt+8`) if time; **Offers** (`Ctrl+Alt+7`) is the first thing to cut.
+7. **Bag QR** (`Ctrl+Alt+6`): By store, Visit first, Copy note; drawer → *Open the newest bag's QR page* (20% off a first bag).
+8. **Roast outlook** (`Ctrl+Alt+7`) then **Pilot** (`Ctrl+Alt+8`): "this is the test we are asking for"; if time is short, cut Roast outlook first.
 9. Back to the slide for the ask.
 
 **If something breaks:** refresh; or `Ctrl+Alt+D` → Reset sandbox and repeat from Maya; or play the backup recording. Don't debug live.
@@ -407,7 +406,7 @@ Full script, timings and recovery steps are in [docs/SAMPLE_PITCH.md](docs/SAMPL
 
 **What does Classic Cup actually do differently on Monday?** Someone opens Today, answers a few free-text replies, approves a few moves, and the system handles the rest: one question a delivery, a better date, and a reason for every text.
 
-**How is this different from a CRM or an SMS tool?** Those send what you schedule. What's new is a per-customer pantry estimate, the rules for when a move is safe to automate, and a control group on every offer. In production it sits behind their existing platform's API.
+**How is this different from a CRM or an SMS tool?** Those send what you schedule. What's new is a per-customer pantry estimate, the rules for when a move is safe to automate, and a control group built into the pilot. In production it sits behind their existing platform's API.
 
 ### The model
 **What does the AI actually do?** It estimates when each customer runs out, as a range, from delivery dates and one text reply, then proposes a delivery date with a plain-English reason.
@@ -435,24 +434,24 @@ Full script, timings and recovery steps are in [docs/SAMPLE_PITCH.md](docs/SAMPL
 **Why q10 and not the median?** Asymmetric cost: arriving a week early costs a little freshness; arriving after the canister is empty costs a customer. Cautiousness (q05 / q10 / q20) is a setting.
 
 ### Money and evidence
-**Does it pay?** Timing alone does not: in our simulation it never breaks even at any share of stockpile-driven cancellations from 0 to 100 of every 100 (perfect pantry knowledge would, at 52). Reply rate is the biggest lever. That is why the recommendation is a pilot, not a rollout, and why we add offers and the QR.
+**Does it pay?** Timing alone does not: in our simulation it never breaks even at any share of stockpile-driven cancellations from 0 to 100 of every 100 (perfect pantry knowledge would, at 52). Reply rate is the biggest lever. That is why the recommendation is a pilot, not a rollout, and why the QR matters: it brings in new subscribers who join the same test.
 
 **Where does $276K come from?** Arithmetic on Exhibits A–C: 10% of $793K DTC gross profit (+$79K) plus converting 5% of grocery buyers (+$197K, at an assumed 12 bags per buyer a year, net of the grocery margin they replace). It's the size of the prize, not a forecast.
 
-**Why is that number positive when your sim says pacing loses money?** The $276K is what the program must deliver; the sim says one piece of it (timing alone) doesn't get there. The pilot measures whether timing plus offers does.
+**Why is that number positive when your sim says pacing loses money?** The $276K is what the program must deliver; the sim says one piece of it (timing alone) doesn't get there. The pilot measures whether timing keeps enough subscribers, against a control group, to pay for itself.
 
-**Did you prove the coffee is fresher?** Not on average: about 60 days at the cup on a fixed schedule, 58 paced, 54 with perfect knowledge. Timing fixes the *bag that waits a month behind a stockpile*; the profile shows that per customer (35 → 21 days for Maya). Bag size is the other lever, which is why "smaller bag" is an offer.
+**Did you prove the coffee is fresher?** Not on average: about 60 days at the cup on a fixed schedule, 58 paced, 54 with perfect knowledge. Timing fixes the *bag that waits a month behind a stockpile*; the profile shows that per customer (35 → 21 days for Maya). Bag size is the other lever, and a future option.
 
 **What does it cost?** No per-call fees (the model is ours); the placeholder program cost is $2 per active subscriber-year for texts and care time, flagged as unverified.
 
-**Is 45% reply realistic?** It is an assumption and the first number the pilot measures. Below 40% we stop. Our sim says reply rate is the biggest lever, which is why offers never add a text.
+**Is 45% reply realistic?** It is an assumption and the first number the pilot measures. Below 40% we stop. Our sim says reply rate is the biggest lever, which is why we ask only one routine question per delivery.
 
 ### Risk, ethics and law
-**A wrong date makes someone run out.** We aim at the early end plus a 3-day cushion; every reminder says "Running low? Reply SOONER"; sooner moves need a YES; the customer can reply OLD at any time and staff can press Undo move.
+**A wrong date makes someone run out.** We aim at the early end plus a 3-day cushion; every reminder says "Running low? Reply SEND NOW"; sooner moves need a YES; the customer can reply OLD at any time and staff can press Undo move.
 
-**Consent and texting law?** Two separate opt-ins, NO OFFERS vs STOP, quiet hours, a recorded consent text word for word in Settings, double opt-in on the QR sign-up. Counsel should review before any real customer is texted; it's on our open-items list.
+**Consent and texting law?** One opt-in for delivery texts and no marketing texts at all, STOP always works, quiet hours, a recorded consent text word for word in Settings, double opt-in on the QR sign-up. Counsel should review before any real customer is texted; it's on our open-items list.
 
-**Won't more texts annoy people?** One routine question per delivery, at most 3 routine texts, none at night; offers never add a text; offers pause automatically if opt-outs pass 2%.
+**Won't more texts annoy people?** One routine question per delivery, at most 3 routine texts, none at night, STOP always works, and the check-in reply rate and opt-outs are on the Today and Pilot pages. Below a 40% reply rate we stop.
 
 **Who is accountable for an automatic move?** The rules are written down, each move stores the checks that passed, the customer is told and can undo it, and a person approves anything outside the rules.
 
@@ -471,16 +470,24 @@ Full script, timings and recovery steps are in [docs/SAMPLE_PITCH.md](docs/SAMPL
 
 **What about December?** It runs at 141% of an average month, so moves are frozen from Nov 15 to Jan 5, and the check-in for a holiday-week delivery offers "Away? Reply AWAY."
 
-### The QR and offers
+### The QR and the pilot
 **Isn't the QR page a customer portal?** No: one page on the existing website, no login, ending in the same subscription. The case rules out a new customer app; this isn't one.
 
 **Why would a grocery shopper scan?** The page tells them how fresh the bag is and offers a roasted-to-order subscription timed to when they run out. Our scan rate (3% of bags) and sign-up rate (8% of scans) are labelled assumptions until a pilot measures them.
 
 **What's in it for the grocery store?** Sell-through and freshness data by store, and no loss of their sale if the shopper keeps buying on the shelf; we count the grocery margin a conversion would replace.
 
-**Why only four offers?** Each maps to a cancel reason in Exhibit C and each can be measured. More offers would mean more surface to defend and a smaller sample per offer.
+**Why does the QR page offer 20% off a first bag?** It is the deck's hook for a grocery shopper, shown on the page before sign-up and applied to the first delivery only. It is the one price promise in the product; there are no discount texts.
 
-**When would we know an offer worked?** At about 1,059 customers per group, which at this audience size is more than two years away for a narrow audience. Until then we watch acceptances, opt-outs and next-check-in replies, and we don't claim a retention effect.
+**How is the A/B test set up?** Each new subscriber is assigned at sign-up by a hash of their customer ID: half get AI timing, half stay on a fixed schedule. A control customer is never sent a check-in, so nothing can move. The Pilot page compares cancellation rate, revenue per subscriber and freshness complaints, plus the QR's scans per bag and scan-to-subscribe.
+
+**What is the stop rule?** If AI-timed subscribers are not cancelling less than the control group by the end of month 3, we turn it off. The page also shows how much a gap could move by chance at this sample size, so we don't over-read an early gap in either direction.
+
+**Why does the sample data show no difference between the groups?** Because we did not build one in. We will not show judges a made-up win; the page shows how the real result will be read.
+
+**Why only new subscribers?** Randomising at sign-up is clean and cheap, and new subscribers are where "too much coffee arriving" drives early cancellations. Existing subscribers are untouched during the test.
+
+**What if churn falls but revenue per subscriber falls too?** That is the pacing risk the deck names: slower pacing can mean fewer bags per person. We judge on net revenue, not churn alone.
 
 ### Gotchas to know cold
 - The sandbox is **synthetic**: say so once, out loud.

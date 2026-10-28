@@ -17,7 +17,7 @@ const VIEWS: Array<{ id: string; label: string; hint: string }> = [
   { id: "", label: "Everyone", hint: "All active and held subscribers" },
   { id: "attention", label: "Needs attention", hint: "A reply that needs a person, or a move waiting for approval" },
   { id: "running", label: "Running out soon", hint: "Likely to run out within 14 days, with a usable estimate" },
-  { id: "approval", label: "Waiting for approval", hint: "A proposed move or offer that needs a yes from staff" },
+  { id: "approval", label: "Waiting for approval", hint: "A proposed move that needs a yes from staff" },
   { id: "new", label: "New (first 60 days)", hint: "The first deliveries, where pacing is not allowed to act yet" },
 ];
 
@@ -28,12 +28,14 @@ export function Customers() {
   const [status, setStatus] = useState("");
   const [source, setSource] = useState("");
   const [consent, setConsent] = useState("");
+  const [arm, setArm] = useState("");
   const [page, setPage] = useState(1);
   const qs = new URLSearchParams({ page: String(page) });
   if (q.trim()) qs.set("q", q.trim());
   if (status) qs.set("status", status);
   if (source) qs.set("source", source);
   if (consent) qs.set("consent", consent);
+  if (arm) qs.set("arm", arm);
   if (view) qs.set("view", view);
   const csvHref = `/api/customers?${(() => { const c = new URLSearchParams(qs); c.delete("page"); c.set("format", "csv"); return c.toString(); })()}`;
   const { data } = useApi<ListDTO>(`/api/customers?${qs.toString()}`, ["projection"]);
@@ -81,12 +83,16 @@ export function Customers() {
           </select>
           <select aria-label="Consent" value={consent} onChange={(e) => (setConsent(e.target.value), setPage(1))}>
             <option value="">Any consent</option>
-            <option value="offers">Offer consent: yes</option>
-            <option value="no-offers">Offer consent: no</option>
             <option value="no-delivery">No delivery-text consent</option>
           </select>
-          {(q || status || source || consent || view) && (
-            <button className="btn" onClick={reset(() => (setQ(""), setStatus(""), setSource(""), setConsent(""), setView("")))}>
+          <select aria-label="Pilot group" value={arm} onChange={(e) => (setArm(e.target.value), setPage(1))}>
+            <option value="">Any pilot group</option>
+            <option value="ai">Pilot: AI timing</option>
+            <option value="fixed">Pilot: fixed schedule (control)</option>
+            <option value="none">Not in the pilot (joined earlier)</option>
+          </select>
+          {(q || status || source || consent || arm || view) && (
+            <button className="btn" onClick={reset(() => (setQ(""), setStatus(""), setSource(""), setConsent(""), setArm(""), setView("")))}>
               Clear filters
             </button>
           )}
