@@ -36,10 +36,10 @@ Your block starts when P3 says "[P4] will show the grocery side and then the rea
 ### 1. Today (0:00 to 0:40)
 [You are already on **Today**. Don't scroll or click. Just point with the mouse.]
 
-"This is what a subscriptions rep sees when they open the app in the morning. Everything on this screen uses sample customers that we generated to match Classic Cup's numbers, although the model's predictions are being computed live."
+"This is what a subscriptions rep sees when they open the app in the morning. Everything on this screen uses sample customers that we generated to match the numbers in the case exhibits, although the model's predictions are being computed live."
 
 [Point at the **Reply rate** tile (about 42%, with a marker at 40%): shows what share of customers answered the last check-in.]
-"If you remember only one number on this page, make it this one, because our whole approach depends on customers answering a one-question text. We set the bar at forty percent, and the sample data is currently above it."
+"If you remember only one number on this page, make it this one, because our whole approach depends on customers answering a one-question text. We set the bar at forty percent, which is our own proposed go-ahead gate, and the sample data is currently above it."
 
 [Point at the three counts at the top (waiting for a person, waiting for approval, running out soon): the rep's to-do list.]
 "These three counts tell the rep where to spend their morning, because the software handles everything else on its own."
@@ -60,7 +60,7 @@ Your block starts when P3 says "[P4] will show the grocery side and then the rea
 "This is the payoff of the whole system. On the old date, Maya would have opened that bag thirty-five days after it was roasted, which is past its peak. On the new date she opens it twenty-one days after roasting, which is inside the two-to-four-week window, so she gets the same coffee in a fresher cup."
 
 [Click **Why we sent this** under the move text in her thread: expands a plain-English reason the system acted.]
-"None of this is a black box, because every text can explain itself to the rep. The rep can also undo any move with one click, and Maya can undo it herself by replying OLD." *(Optional, if time: click **Are these ranges honest?** under "Why this date". It shows the real-data test. Say: "We also tested the model on a million real retail orders, and its eighty-percent ranges held about seventy-nine percent of the time.")*
+"None of this is a black box, because every text can explain itself to the rep. The rep can also undo any move with one click, and Maya can undo it herself by replying OLD." *(Optional, if time: click **Are these ranges honest?** under "Why this date". It shows the real-data test. Say: "We also tested the model on a million real retail orders from a public data set, and its eighty-percent ranges held about seventy-nine percent of the time. The source is on our last slide.")*
 
 **Bridge:** "The system acts when it is confident, but the harder question is when it should not act at all." [Press `Ctrl+Alt+3`: opens Dev Patel's profile.]
 
@@ -87,7 +87,7 @@ Your block starts when P3 says "[P4] will show the grocery side and then the rea
 "That one click gives the rep a ready-made note to take along on their route."
 
 [Press `Ctrl+Alt+D`, click **Open the newest bag's QR page**: opens, in a new tab, the page a shopper sees after scanning a bag.]
-"This is the shopper's side of the same system. After scanning, they see how fresh that exact bag is, they see the twenty percent off a first fresh bag, and they can finish a short sign-up. We only start texting them after they reply YES to our confirmation message." *(Don't fill in the form.)*
+"This is the shopper's side of the same system. After scanning, they see how fresh that exact bag is, they see the twenty percent off a first fresh bag, which is our proposed launch offer, and they can finish a short sign-up. We only start texting them after they reply YES to our confirmation message." *(Don't fill in the form.)*
 [Close the tab with `Cmd+W`, then close the drawer: returns you to the console.]
 
 **Bridge:** "The same forecast gives us one more benefit for free, and this one is for the roaster." [Press `Ctrl+Alt+7`: opens Roast outlook.]
@@ -121,11 +121,27 @@ Your block starts when P3 says "[P4] will show the grocery side and then the rea
 [Press `Ctrl+Alt+5`: opens Customers. Click **Needs attention**: filters to people with a reply to answer or a move to approve. Open one account and click **Export CSV**: downloads the current list.]
 "This is how a rep works through a day, because the saved lists show live counts, each account is one click away, and the list can be exported to a spreadsheet."
 
+## Sources: where each number on screen comes from
+The backup **Sources** slide (after "Thank you") lists these. If a judge asks "where is that from?", switch to the slides and open it.
+
+| On screen in the demo | Source | How to say it |
+|---|---|---|
+| The sample customers and their numbers (Today, Customers, Bag QR counts) | **Generated by us** to match the case's Exhibits A–C | "Synthetic customers matched to the case exhibits. There is no real client data." |
+| The real-data check (*Are these ranges honest?*) | **Chen, D. (2012), *Online Retail II*, UCI Machine Learning Repository**, doi:10.24432/C5CG6D, CC BY 4.0. 1,067,371 orders; 80% ranges held 78.8% | "A public retail data set. The test plan was committed before we ran it." |
+| Reply rate and its 40% bar; 45% assumed reply rate | **Team assumption / proposed gate** | "That is our proposed go-ahead gate, and the pilot is what measures it." |
+| 20% off a first bag | **Team proposal** | "That's our proposed launch offer." |
+| Shelf scan, sign-up and stale-bag numbers (Bag QR) | **Sample data** using assumed scan and sign-up rates | "Assumed rates until the pilot measures them." |
+| Roast outlook pounds | Computed from the sample customers and **Exhibit D** monthly seasonality | "Built from the case's seasonality." |
+| The $140K on slide 5 | **Team estimate** (not in the demo) | P3 answers; don't defend it from the demo. |
+
+Say "sample data" every time a number could be mistaken for real client data. The badge at the top right says it too.
+
 ## If something breaks
 1. Refresh the page. 2. `Ctrl+Alt+D`, click **Reset sandbox**, and restart from stop 2. 3. Switch to the backup recording and narrate over it. Never debug live.
 
 ## Questions you may get right after the demo
-- **"Is this real data?"** Sample customers matched to the case's numbers; the model's projections are live; the real-data check used a public retail data set (1,067,371 orders).
+- **"Is this real data?"** Sample customers matched to the case's numbers; the model's projections are live; the real-data check used a public retail data set (Chen 2012, *Online Retail II*, UCI, 1,067,371 orders, CC BY 4.0).
+- **"Where do your numbers come from?"** The case exhibits for the business numbers, a public data set for the model check, and clearly labelled team assumptions for the rest. The Sources slide lists them.
 - **"What if the customer doesn't reply?"** The system holds off and changes nothing (Dev).
 - **"Can it send the wrong date?"** Later moves auto-send only after the safety checks; sooner moves always need the customer's YES and staff approval; every move has Undo, and the customer can reply OLD.
 - **"Why is there no difference on the Pilot page?"** We didn't build one in; it shows how the pilot will be read.
