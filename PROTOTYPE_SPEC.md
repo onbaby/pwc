@@ -577,7 +577,10 @@ Offers page and API; offer types, eligibility, guardrails, sensor protection, br
 - The arms are balanced by construction on count, not on outcome; the page shows the split by sign-up source.
 - Customers who joined before the pilot are outside the test; the console works them as a daily tool. In the real plan they stay on their current schedule during the test.
 
-### 19.4 Still open from the deck
+### 19.4 Follow-along for the room
+Judges scan a QR code and follow the demo on their phones. Design choices: (1) mirror the host's **page** (route and live data), not their pixels, so it is crisp and light; (2) **read-only by construction**: the server refuses every change from any address except this computer, except the public bag-page calls; (3) one shared sandbox, so guests see the same live clock and data; (4) a full-screen join code opened from the sandbox drawer. Limits: it mirrors the page, not scrolling, open panels or hover; phones must reach the laptop (same Wi-Fi or hotspot).
+
+### 19.5 Still open from the deck
 - Slide 5's "$140K added profit" is not reproduced by the console (the handbook's arithmetic gives about $276K at 12 bags per buyer); say $140K, keep $276K for questions.
 - Slide 8 contains stray text ("bro") in the extracted deck; check and delete.
 - Ask the mentors whether "revenue per subscriber" should count the QR first-bag discount.

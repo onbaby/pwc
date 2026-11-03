@@ -14,6 +14,7 @@ import type { AppCtx } from "./flows/context.ts";
 import { handleInbound } from "./flows/inbound.ts";
 import { advanceClock } from "./flows/schedule.ts";
 import { toDTO } from "./flows/send.ts";
+import { followBase, isLocalRequest, parseFollow, type FollowState } from "./follow.ts";
 import { pilotSummary } from "./pilot.ts";
 import { buildProfile } from "./profile.ts";
 import { lotPublic, qrSignup, qrSummary, recordScan } from "./qr.ts";
@@ -32,6 +33,8 @@ export interface ServerCtx {
   webDist: string;
   /** switch to the photon channel (sandbox drawer); returns false if it could not connect */
   connectPhoton?: () => Promise<boolean>;
+  /** the port the server listens on, for the join link guests scan */
+  port?: number;
 }
 
 const MIME: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json", ".svg": "image/svg+xml", ".woff2": "font/woff2", ".png": "image/png", ".ico": "image/x-icon", ".txt": "text/plain; charset=utf-8", ".map": "application/json" };
@@ -151,6 +154,29 @@ export function createApp(s: ServerCtx): Hono {
     const b = await c.req.json().catch(() => ({}));
     return isObj(b) ? b : {};
   };
+
+  // ---- guests (follow-along) -------------------------------------------------------------------------------------
+  // Anyone on the network can look; only this computer can change anything. The one exception is the public bag page a
+  // shopper uses (scan and sign-up), so a judge can try that from their own phone.
+  app.use("/api/*", async (c, next) => {
+    const m = c.req.method;
+    if (m !== "GET" && m !== "HEAD" && !isLocalRequest(c.env) && !c.req.path.startsWith("/api/qr/")) return c.json({ ok: false, error: "This screen is read-only for guests." }, 403);
+    await next();
+  });
+  let follow: FollowState = { path: "/today", query: "", at: nowMs(db) };
+  app.get("/api/follow", (c) => c.json(follow));
+  app.get("/api/follow/info", (c) => {
+    const f = followBase(s.port ?? 8787);
+    return c.json({ base: f.base, followUrl: `${f.base}/#/follow`, otherUrls: f.urls.map((u) => `${u}/#/follow`).filter((u) => u !== `${f.base}/#/follow`), onNetwork: f.onNetwork });
+  });
+  app.post("/api/follow", async (c) => {
+    const r = parseFollow(await body(c));
+    if (!r) return c.json({ ok: false, error: "That page can't be followed." }, 400);
+    if (r.path === follow.path && r.query === follow.query) return c.json({ ok: true });
+    follow = { ...r, at: Date.now() };
+    hub.publish({ type: "follow" });
+    return c.json({ ok: true });
+  });
 
   // ---- stream ----------------------------------------------------------------------------------------------------
   app.get("/api/stream", (c) => {

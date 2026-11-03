@@ -13,7 +13,8 @@ Your block starts when P3 says "[P4] will show the grocery side and then the rea
 1. `cd pwc && CHANNEL=replay pnpm demo`. Wait for "Right on Time: http://localhost:8787". Wi-Fi can be off.
 2. Open the app full screen and zoom (Cmd +) until it reads from the back. Notifications off.
 3. `Ctrl+Alt+D`: the drawer must say **clock Sun Oct 18, 9:00 am**, **scripted events 0 of 3**, **channel Replay**. Click **Reset sandbox**, close the drawer.
-4. Land on **Today** (`Ctrl+Alt+1`). Don't scroll. Slides in a second window; backup recording in a third tab.
+4. **Follow-along (optional, 2 minutes).** The server prints a line like `Follow along: http://192.168.x.x:8787/#/follow`. Join the room's Wi-Fi (or start a phone hotspot and join the laptop to it: venue guest Wi-Fi often blocks phones from reaching laptops). Press `Ctrl+Alt+D`, click **Open the join code for the projector**: a new window shows a big QR code. Test it once with your own phone. Judges' phones must be on the same Wi-Fi. If the line says *no Wi-Fi address found*, you are not on a network; skip this and demo normally.
+5. Land on **Today** (`Ctrl+Alt+1`). Don't scroll. Windows: slides, the join-code window, and the app; backup recording in a tab.
 
 ---
 
@@ -27,7 +28,7 @@ Your block starts when P3 says "[P4] will show the grocery side and then the rea
 
 "If the shopper decides to subscribe, they get the same coffee with the details already filled in, and they never have to download an app. Their first bag ships when the one they own runs out, and our timing keeps every later bag fresh, so they have less reason to cancel. The stores benefit as well, because they earn referral credit and get scan data that tells them which bags to pull. Wholesale referrals are already our best group of customers, and fifty-one percent of them are still subscribed after a year."
 
-**Bridge:** "That is the idea on a slide, so let me show you what the Classic Cup team would actually see when they use it." *(Say aloud: "switching to the live product.")* [Switch to the browser window. Today is already open.]
+**Bridge:** "That is the idea on a slide, so let me show you what the Classic Cup team would actually see when they use it." *(Say aloud: "switching to the live product.")* [Switch to the join-code window, which shows a big QR code. Pause five seconds.] "If you would like to follow along on your own phone, scan this code and you will see the same screen I am showing, live. You can look but not change anything." [Switch to the browser window. Today is already open.]
 
 ---
 
@@ -86,7 +87,7 @@ Your block starts when P3 says "[P4] will show the grocery side and then the rea
 [Click **Copy note** on a Visit-first store: copies a short pre-written note about that store to the clipboard.]
 "That one click gives the rep a ready-made note to take along on their route."
 
-[Press `Ctrl+Alt+D`, click **Open the newest bag's QR page**: opens, in a new tab, the page a shopper sees after scanning a bag.]
+[Press `Ctrl+Alt+D`, click **Open the newest bag's QR page**: opens, in a new tab, the page a shopper sees after scanning a bag. Guests following along can also scan the bag label QR on the Bag QR page and open the same shopper page on their own phones.]
 "This is the shopper's side of the same system. After scanning, they see how fresh that exact bag is, they see the twenty percent off a first fresh bag, which is our proposed launch offer, and they can finish a short sign-up. We only start texting them after they reply YES to our confirmation message." *(Don't fill in the form.)*
 [Close the tab with `Cmd+W`, then close the drawer: returns you to the console.]
 
@@ -137,6 +138,7 @@ The backup **Sources** slide (after "Thank you") lists these. If a judge asks "w
 Say "sample data" every time a number could be mistaken for real client data. The badge at the top right says it too.
 
 ## If something breaks
+0. **Guests can't connect or see nothing:** don't fix it live. Say "the live view is optional; I'll share the link afterwards" and keep going. They can only look, so a failure can't affect the demo.
 1. Refresh the page. 2. `Ctrl+Alt+D`, click **Reset sandbox**, and restart from stop 2. 3. Switch to the backup recording and narrate over it. Never debug live.
 
 ## Questions you may get right after the demo

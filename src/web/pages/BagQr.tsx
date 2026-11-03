@@ -24,7 +24,8 @@ const INK = "#643A2B";
 const ACCENT = "#F16A21";
 const TICK = { fontSize: 12, fill: "#6B5A50" };
 
-export const bagUrl = (code: string): string => `${window.location.origin}/#/q/${code}`;
+/** the address a phone should open: this computer's Wi-Fi address (not "localhost", which a phone cannot reach) */
+export const bagUrl = (code: string, base: string): string => `${base}/#/q/${code}`;
 
 function Stat({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
@@ -38,6 +39,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub: string
 
 export function BagQrPage() {
   const { data: d } = useApi<QrDTO>("/api/qr", ["queue", "clock"]);
+  const base = useApi<{ base: string }>("/api/follow/info", []).data?.base ?? window.location.origin;
   const [lot, setLot] = useState<string | null>(null);
   const label = useRef<SVGSVGElement>(null);
   if (!d) return <Empty>Loading…</Empty>;
@@ -160,12 +162,12 @@ export function BagQrPage() {
                   </select>
                 </label>
                 <div className="flex justify-center">
-                  <BagLabel ref={label} url={bagUrl(shown.code)} lot={shown.code} roast={shown.roast} roastDate={shown.roastDate} />
+                  <BagLabel ref={label} url={bagUrl(shown.code, base)} lot={shown.code} roast={shown.roast} roastDate={shown.roastDate} />
                 </div>
                 <div className="mt-3 text-[13px] text-muted">
                   The code links to this bag's own page:{" "}
                   <a className="break-all text-link" href={href(`/q/${shown.code}`)} target="_blank" rel="noreferrer">
-                    {bagUrl(shown.code)}
+                    {bagUrl(shown.code, base)}
                   </a>
                   . One page on the existing website: no app, no login.
                 </div>

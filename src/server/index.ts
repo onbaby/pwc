@@ -4,6 +4,7 @@ import { createApp } from "./app.ts";
 import { consoleChannel, replayChannel } from "./channels/channels.ts";
 import { photonChannel } from "./channels/photon.ts";
 import { openDb, get } from "./db.ts";
+import { followBase } from "./follow.ts";
 import type { AppCtx, Channel } from "./flows/context.ts";
 import { handleInbound } from "./flows/inbound.ts";
 import { loadScenario, Sandbox } from "./sandbox.ts";
@@ -71,10 +72,13 @@ async function connectPhoton(): Promise<boolean> {
   }
 }
 
-const app = createApp({ ctx, hub, sandbox: sandbox, artifactsDir: resolve(root, "artifacts"), webDist: resolve(root, "dist"), connectPhoton });
+const app = createApp({ ctx, hub, sandbox: sandbox, artifactsDir: resolve(root, "artifacts"), webDist: resolve(root, "dist"), connectPhoton, port: Number(process.env.PORT ?? 8787) });
 const port = Number(process.env.PORT ?? 8787);
-serve({ fetch: app.fetch, port }, () => {
+// listen on every network interface so phones on the same Wi-Fi can follow along; HOST=127.0.0.1 keeps it to this computer
+serve({ fetch: app.fetch, port, hostname: process.env.HOST ?? "0.0.0.0" }, () => {
   console.log(`Right on Time: http://localhost:${port}  (channel ${ctx.channel.name}${sandbox ? ", sandbox" : ""}${process.env.NO_NETWORK === "1" ? ", NO_NETWORK" : ""})`);
+  const fb = followBase(port);
+  console.log(`Follow along: ${fb.base}/#/follow  ${fb.onNetwork ? "" : "(no Wi-Fi address found: connect to a network or a phone hotspot)"}`);
   if (wanted === "photon") {
     void connectPhoton().then((ok) => {
       if (!ok) ctx.emit({ type: "toast", message: "Photon did not connect within 5 s: fell back to replay" });

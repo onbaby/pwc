@@ -122,6 +122,15 @@ export function Shell({ route, children }: { route: Route; children: ReactNode }
   const waiting = counts ? counts.needs + counts.approvals : 0;
   const advancing = useRef(false);
 
+  // follow-along: only the computer running the console tells guests which page is up (the server refuses anyone else)
+  const here = route.path.join("/");
+  const hereQuery = route.query.toString();
+  useEffect(() => {
+    if (!["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname)) return;
+    const t = setTimeout(() => void post("/api/follow", { path: `/${here}`, query: hereQuery }).catch(() => undefined), 150);
+    return () => clearTimeout(t);
+  }, [here, hereQuery]);
+
   useEffect(() => {
     api<{ error?: string }>("/api/sandbox").then((r) => setSandbox(!r.error)).catch(() => setSandbox(false));
   }, []);

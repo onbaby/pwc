@@ -118,6 +118,13 @@ export function SandboxDrawer({ onClose }: { onClose: () => void }) {
           <div className="mt-1 text-[12px] text-muted">Replay: scripted replies. Console: type replies above. Live: real iMessage on a team phone (falls back to replay after 5 s).</div>
         </section>
         <section>
+          <div className="mb-1 text-[13px] font-semibold text-muted">Let the room follow along</div>
+          <button className="btn" onClick={() => window.open("#/join", "_blank")}>
+            Open the join code for the projector
+          </button>
+          <div className="mt-1 text-[12px] text-muted">A big QR code. Judges scan it on their phones (same Wi-Fi) and see the page you are showing, live. Guests can look but not change anything.</div>
+        </section>
+        <section>
           <div className="mb-1 text-[13px] font-semibold text-muted">Be a grocery shopper</div>
           <button className="btn" disabled={busy} onClick={() => run(async () => { const r = await api<{ latestLots: Array<{ code: string }> }>("/api/qr"); const code = r.latestLots[0]?.code; if (code) window.open(`#/q/${code}`, "_blank"); })}>
             Open the newest bag's QR page

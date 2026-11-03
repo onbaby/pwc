@@ -38,7 +38,7 @@
 | Stack | One TypeScript package: Node 24, Hono (API), `node:sqlite` (database), React 19, Tailwind 4, Recharts 3, Vite |
 | Model | Our own statistical model (a particle filter, 500 what-if pantries per customer). **No LLM, no outside calls, no GPU.** |
 | Sample data | 8,272 customers (4,059 active), 9 months of orders and texts, 12 grocery stores, deterministic, resets in about 11 s |
-| Pages | Today · Customers (+ profile) · Inbox · Bag QR (+ public bag page) · Roast outlook · Pilot · Settings |
+| Pages | Today · Customers (+ profile) · Inbox · Bag QR (+ public bag page) · Roast outlook · Pilot · Settings · Follow-along (guest view and join code) |
 | Tests | Automated tests (engine, flows, the A/B pilot, every API route, simulator, real-data check, web source rules) |
 | Real-data check | UCI *Online Retail II*, 1,067,371 orders; the 80% ranges held 78.8% of the time |
 
@@ -139,7 +139,15 @@ Six weeks of DTC deliveries and pounds (deliveries × 0.75 lb for one 12-oz bag)
 ### 3.8 Settings (read-only)
 Delivery day, quiet hours (9 pm–8 am ET), text caps, the holiday freeze (Nov 15–Jan 5), cautiousness (Balanced), freshness windows, the next two holiday travel weeks, the pilot control-group rule, and the consent text word for word.
 
-### 3.9 Sandbox drawer and Tour (hidden from judges' view)
+### 3.9 Follow along (for the room)
+Judges scan a QR code and see the page the presenter is showing, live, on their own phones.
+- **Join code:** `Ctrl+Alt+D` → *Open the join code for the projector* (`#/join`): a full-screen QR code and address.
+- **Guest view** (`#/follow`): a header (live dot, sandbox clock), the stop's name with the line to say about it, and a **mirror of the page** shrunk to the phone's width (pinch to zoom, or *Full size*). It updates when the host changes page and when data changes. No console around it, no buttons that do anything.
+- **Read-only:** the server only accepts changes from this computer (it checks the connection's address). A guest can read everything and use the public shopper pages, but cannot approve, reply, move the clock or reset. Tested over a real Wi-Fi address.
+- **Network:** the server listens on every interface by default and prints `Follow along: http://<wifi address>:8787/#/follow`. Phones must be on the same Wi-Fi; venue guest Wi-Fi often blocks that, so use a phone hotspot. `HOST=127.0.0.1` turns sharing off; `FOLLOW_BASE_URL` sets a different public address (for example from a tunnel).
+- The bag label on the Bag QR page now encodes that same address, so a guest can scan the label from the projector and try the shopper page.
+
+### 3.10 Sandbox drawer and Tour (hidden from judges' view)
 `Ctrl+Alt+D` or the badge menu. **Tour:** eight one-click stops (Today, Maya, Dev, Approvals, Customers, Bag QR, Roast outlook, Pilot), each with the line to say. Plus: advance to the next scripted event, inject a reply as any customer, switch channel, open the newest bag's QR page, move the clock, **reset**. The scripted story is `scenarios/demo.json`: 10:00 check-ins go out → 10:02 Maya replies "6" → 10:20 Priya writes free text.
 
 ---
@@ -319,6 +327,7 @@ test/         11 test files                          docs/       SAMPLE_PITCH.md
 | `GET /api/customers` (`?view=&q=&status=&source=&consent=&page=`, `&format=csv`) · `GET /api/customers/views` · `GET /api/customers/:id` | List, saved-view counts, profile |
 | `POST /api/customers/:id/actions` | `send_checkin_now`, `move`, `hold`, `pause`, `add_note`, `reply`, `resolve`, `undo_move` |
 | `GET /api/inbox?tab=` · `GET /api/inbox/counts` · `POST /api/messages/:id/approve` or `/hold` | Queues and approvals |
+| `GET/POST /api/follow` · `GET /api/follow/info` | The page the host is showing (host only writes), and the join address |
 | `GET /api/pilot` | The A/B scoreboard: arms, three measures, stop rule, QR measures |
 | `GET /api/outlook` (`?format=csv`) | Roast outlook |
 | `GET /api/qr` · `GET /api/qr/lots/:code` · `POST /api/qr/scan` `/signup` | Bag QR console and public page |
