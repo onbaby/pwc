@@ -3,9 +3,9 @@ import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis } from "rechar
 import { nf, pct } from "../format.ts";
 
 /** Dashboard building blocks: tile, meter, half gauge and bar trend. Orange is a fill only; numbers and labels stay ink. */
-export const INK = "#141414";
+export const INK = "#643A2B";
 export const ACCENT = "#F16A21";
-export const TRACK = "#E4E2DF";
+export const TRACK = "#EADFD5";
 
 type Icon = ComponentType<{ width?: number; height?: number; strokeWidth?: number; "aria-hidden"?: boolean }>;
 
@@ -29,18 +29,20 @@ export function DeltaBadge({ now, prev, good = "up" }: { now: number; prev: numb
   return (
     <span className={`tnum text-[12px] font-medium ${ok ? "text-success" : "text-muted"}`} title="vs last week">
       {d > 0 ? "+" : "−"}
-      {pct(Math.abs(d), Math.abs(d) < 0.1 ? 1 : 0)}
+      {/* "+200%" on a count of 2 is noise: small counts change by a number, large ones by a share */}
+      {prev < 30 ? Math.abs(now - prev) : pct(Math.abs(d), Math.abs(d) < 0.1 ? 1 : 0)}
     </span>
   );
 }
 
 /** A simple track shows the share; the caption carries the exact comparison. */
-export function Meter({ value, tone = "accent", label }: { value: number; tone?: "accent" | "ink"; label?: string }) {
+export function Meter({ value, tone = "accent", label, mark }: { value: number; tone?: "accent" | "ink"; label?: string; mark?: number }) {
   const v = Math.max(0, Math.min(1, value));
   return (
     <div className="mt-auto">
-      <div className="h-[3px] overflow-hidden rounded-full" style={{ background: TRACK }} role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(v * 100)} aria-label={label}>
+      <div className="relative h-[3px] rounded-full" style={{ background: TRACK }} role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(v * 100)} aria-label={label}>
         <div className="h-full rounded-full" style={{ width: `${v * 100}%`, background: tone === "accent" ? ACCENT : "#777772" }} />
+        {mark !== undefined && <div className="absolute -top-1 h-[11px] w-px bg-strong" style={{ left: `${mark * 100}%` }} title={`Target: ${Math.round(mark * 100)}%`} />}
       </div>
       {label && <div className="mt-2 text-[12px] text-muted">{label}</div>}
     </div>
@@ -126,8 +128,8 @@ export function BarTrend({ data, highlight = 0, height = 170, unit = "" }: { dat
     <div style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 8, right: 0, bottom: 0, left: 0 }} barCategoryGap="30%">
-          <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#6E6E6A" }} axisLine={false} tickLine={false} interval={0} />
-          <Tooltip cursor={{ fill: "rgba(0,0,0,0.04)" }} contentStyle={{ borderRadius: 12, border: "1px solid #ECEAE7", fontSize: 13 }} formatter={(v) => [`${nf(Number(v))}${unit}`, ""]} separator="" />
+          <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#6B5A50" }} axisLine={false} tickLine={false} interval={0} />
+          <Tooltip cursor={{ fill: "rgba(0,0,0,0.04)" }} contentStyle={{ borderRadius: 12, border: "1px solid #E9DFD6", fontSize: 13 }} formatter={(v) => [`${nf(Number(v))}${unit}`, ""]} separator="" />
           <Bar dataKey="value" radius={[6, 6, 6, 6]} maxBarSize={18} isAnimationActive={false}>
             {data.map((d, i) => (
               <Cell key={d.label} fill={i === highlight ? ACCENT : INK} />

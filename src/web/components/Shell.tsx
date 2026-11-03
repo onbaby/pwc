@@ -1,9 +1,10 @@
-import { Bell, ChatLines, Gift, GraphUp, Group, HomeSimple, QrCode, Search as SearchIcon, Settings, StatsUpSquare } from "iconoir-react";
+import { Bell, ChatLines, Flask, Group, HomeSimple, QrCode, Search as SearchIcon, Settings, StatsUpSquare } from "iconoir-react";
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
 import { api, post, toast, useApi, useLive, useProgress, useToasts } from "../api.tsx";
 import { fmtDay, fmtTime, etParts } from "../format.ts";
 import { go, href, type Route } from "../router.ts";
 import type { CustomerListItem } from "../../shared/types.ts";
+import { TOUR } from "../tour.ts";
 import { SandboxDrawer } from "./SandboxDrawer.tsx";
 import { Dialog } from "./ui.tsx";
 
@@ -29,7 +30,6 @@ const NAV: Array<{ group: string; items: NavItem[] }> = [
   {
     group: "Grow",
     items: [
-      { id: "offers", label: "Offers", icon: Gift, hint: "Targeted offers and how they are doing" },
       { id: "qr", label: "Bag QR", icon: QrCode, hint: "Grocery bags that turn buyers into subscribers" },
     ],
   },
@@ -37,8 +37,11 @@ const NAV: Array<{ group: string; items: NavItem[] }> = [
     group: "Plan",
     items: [
       { id: "outlook", label: "Roast outlook", icon: StatsUpSquare, hint: "How much to roast in the coming weeks" },
-      { id: "impact", label: "Impact", icon: GraphUp, hint: "What the program is worth, and the pilot plan" },
     ],
+  },
+  {
+    group: "Prove it",
+    items: [{ id: "pilot", label: "Pilot", icon: Flask, hint: "AI timing against a fixed-schedule control group" }],
   },
 ];
 
@@ -56,7 +59,22 @@ function NavLink({ to, label, icon: I, active, hint, badge }: { to: string; labe
   );
 }
 
+const PAGES = [...NAV.flatMap((g) => g.items.map((i) => ({ to: `/${i.id}`, label: i.label, hint: i.hint }))), { to: "/settings", label: "Settings", hint: "Texting rules and consent wording" }];
+
 function Search() {
+  const inputRef = useRef<HTMLInputElement>(null);
+  // Ctrl+K (or Cmd+K) from anywhere: jump to a page or a customer
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.code === "KeyK") {
+        e.preventDefault();
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   const [q, setQ] = useState("");
   const [items, setItems] = useState<CustomerListItem[]>([]);
   const [open, setOpen] = useState(false);
@@ -67,12 +85,20 @@ function Search() {
     }, 200);
     return () => clearTimeout(t);
   }, [q]);
+  const pages = q.trim() ? PAGES.filter((p) => p.label.toLowerCase().includes(q.trim().toLowerCase())) : [];
+  const first = pages[0] ? `/${pages[0].to.replace(/^\//, "")}` : items[0] ? `/customers/${items[0].id}` : null;
   return (
     <div className="global-search relative min-w-0 w-full">
       <SearchIcon width={17} height={17} strokeWidth={1.6} aria-hidden className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
-      <input aria-label="Search customers" placeholder="Find a customer…" value={q} onChange={(e) => (setQ(e.target.value), setOpen(true))} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)} className="h-10 w-full rounded-xl border-line bg-surface pl-10" />
-      {open && items.length > 0 && (
+      <input ref={inputRef} aria-label="Search customers and pages" placeholder="Find a customer or page (Ctrl+K)" value={q} onKeyDown={(e) => { if (e.key === "Enter" && first) { go(first); setQ(""); setOpen(false); inputRef.current?.blur(); } else if (e.key === "Escape") { setQ(""); inputRef.current?.blur(); } }} onChange={(e) => (setQ(e.target.value), setOpen(true))} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)} className="h-10 w-full rounded-xl border-line bg-surface pl-10" />
+      {open && (items.length > 0 || pages.length > 0) && (
         <div className="card anim-pop absolute left-0 right-0 top-[44px] z-40 overflow-hidden p-1 shadow-lg">
+          {pages.map((p) => (
+            <a key={p.to} href={href(p.to)} onClick={() => (setQ(""), setOpen(false))} className="flex items-center justify-between rounded-md px-3 py-2 text-[14px] text-ink no-underline transition-colors hover:bg-cream">
+              <span className="font-medium">{p.label}</span>
+              <span className="text-[13px] text-muted">Go to page</span>
+            </a>
+          ))}
           {items.map((i) => (
             <a key={i.id} href={href(`/customers/${i.id}`)} onClick={() => (setQ(""), setOpen(false))} className="flex flex-wrap items-center justify-between gap-x-2 rounded-md px-3 py-2 text-[14px] text-ink no-underline transition-colors hover:bg-cream">
               <span className="font-medium">{i.name}</span>
@@ -94,7 +120,7 @@ export function Shell({ route, children }: { route: Route; children: ReactNode }
   const [menu, setMenu] = useState(false);
   const [sandbox, setSandbox] = useState(true);
   const section = route.path[0] ?? "today";
-  const counts = useApi<{ needs: number; approvals: number }>("/api/inbox/counts", ["message", "queue", "offer"]).data;
+  const counts = useApi<{ needs: number; approvals: number }>("/api/inbox/counts", ["message", "queue"]).data;
   const waiting = counts ? counts.needs + counts.approvals : 0;
   const advancing = useRef(false);
   const main = useRef<HTMLElement>(null);
@@ -112,6 +138,15 @@ export function Shell({ route, children }: { route: Route; children: ReactNode }
     return () => desktop.removeEventListener("change", closeOnDesktop);
   }, []);
 
+  // follow-along: only the computer running the console tells guests which page is up (the server refuses anyone else)
+  const here = route.path.join("/");
+  const hereQuery = route.query.toString();
+  useEffect(() => {
+    if (!["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname)) return;
+    const t = setTimeout(() => void post("/api/follow", { path: `/${here}`, query: hereQuery }).catch(() => undefined), 150);
+    return () => clearTimeout(t);
+  }, [here, hereQuery]);
+
   useEffect(() => {
     api<{ error?: string }>("/api/sandbox").then((r) => setSandbox(!r.error)).catch(() => setSandbox(false));
   }, []);
@@ -122,7 +157,11 @@ export function Shell({ route, children }: { route: Route; children: ReactNode }
       if (!(e.ctrlKey && e.altKey)) return;
       const el = e.target as HTMLElement | null;
       const typing = !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
-      if (e.code === "KeyD") {
+      const digit = /^Digit([1-9])$/.exec(e.code);
+      if (digit && TOUR[Number(digit[1]) - 1]) {
+        e.preventDefault();
+        go(TOUR[Number(digit[1]) - 1]!.to);
+      } else if (e.code === "KeyD") {
         e.preventDefault();
         setDrawer((d) => !d);
       } else if (e.code === "ArrowRight" && !typing) {

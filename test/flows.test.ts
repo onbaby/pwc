@@ -106,9 +106,10 @@ describe("inbound handling (spec 11.3)", () => {
     for (const [text, weeks] of [["0", 0], ["6", 6], ["12", 12], ["zero", 0], ["Twelve", 12], [" 4. ", 4]] as const) expect(parseInbound(text)).toEqual({ kind: "weeks", weeks });
     expect(parseInbound("13").kind).toBe("other");
     expect(parseInbound("6 weeks").kind).toBe("other");
-    for (const w of ["YES", "OK", "OLD", "SOONER", "SKIP", "PAUSE", "SWAP", "ROTATE", "SMALLER", "NO OFFERS", "STOP", "START", "HELP", "CANCEL", "BACK", "WHY", "HUMAN"]) {
+    for (const w of ["YES", "OK", "OLD", "SOONER", "SKIP", "PAUSE", "STOP", "START", "HELP", "CANCEL", "BACK", "WHY", "HUMAN", "STALE"]) {
       expect(parseInbound(w.toLowerCase())).toEqual({ kind: "keyword", word: w });
     }
+    expect(parseInbound("Send now!")).toEqual({ kind: "keyword", word: "SOONER" });
     expect(parseInbound("👍")).toEqual({ kind: "keyword", word: "OK" });
     expect(parseInbound("Plenty")).toEqual({ kind: "plenty" });
     expect(parseInbound("lots!")).toEqual({ kind: "plenty" });
@@ -123,7 +124,7 @@ describe("consent, STOP, CANCEL, caps and quiet hours", () => {
     t = freshConsole();
   });
   afterAll(() => t.cleanup());
-  const pickActive = (n: number) => all<{ id: string }>(t.db, "SELECT id FROM customers WHERE status = 'ACTIVE' AND consent_delivery = 1 AND consent_offers = 1 AND id NOT IN ('maya-thompson','dev-patel','priya-shah') ORDER BY id LIMIT ?", n + 40).map((r) => r.id).slice(40, 40 + n);
+  const pickActive = (n: number) => all<{ id: string }>(t.db, "SELECT id FROM customers WHERE status = 'ACTIVE' AND consent_delivery = 1 AND (arm IS NULL OR arm = 'ai') AND id NOT IN ('maya-thompson','dev-patel','priya-shah') ORDER BY id LIMIT ?", n + 40).map((r) => r.id).slice(40, 40 + n);
 
   const states = ["OPT_IN_PENDING", "ACTIVE", "AWAITING_CHECKIN", "AWAITING_PROPOSAL", "HELD", "PAUSED", "CANCELLED", "OPTED_OUT"] as const;
   it.each(states)("STOP in state %s", (st) => {
@@ -149,7 +150,7 @@ describe("consent, STOP, CANCEL, caps and quiet hours", () => {
     expect(customerRow(t.db, id)!.status).toBe("ACTIVE");
   });
 
-  it("exact CANCEL cancels immediately with no offer; text merely containing 'cancel' goes to the Inbox", () => {
+  it("exact CANCEL cancels immediately; text merely containing 'cancel' goes to the Inbox", () => {
     const [a, b] = pickActive(14).slice(12) as [string, string];
     handleInbound(t.ctx, b, "please don't cancel, I love it");
     expect(customerRow(t.db, b)!.status).not.toBe("CANCELLED");
@@ -157,7 +158,6 @@ describe("consent, STOP, CANCEL, caps and quiet hours", () => {
     handleInbound(t.ctx, a, "CANCEL");
     expect(customerRow(t.db, a)!.status).toBe("CANCELLED");
     expect(lastOut(t, a)!.body).toBe(COPY.cancel());
-    expect(lastOut(t, a)!.offer_id).toBeNull();
     expect(all(t.db, "SELECT 1 FROM messages WHERE customer_id = ? AND status = 'queued'", a)).toHaveLength(0);
   });
 
@@ -174,14 +174,13 @@ describe("consent, STOP, CANCEL, caps and quiet hours", () => {
     }
   });
 
-  it("NO OFFERS clears offer consent only; delivery texts continue", () => {
+  it("STALE counts a freshness complaint and sends it to a person; delivery texts continue", () => {
     const id = pickActive(18)[17]!;
-    handleInbound(t.ctx, id, "no offers");
-    const c = customerRow(t.db, id)!;
-    expect(c.consent_offers).toBe(0);
-    expect(c.consent_delivery).toBe(1);
-    expect(c.status).not.toBe("OPTED_OUT");
-    expect(lastOut(t, id)!.body).toBe(COPY.noOffers());
+    const before = get<{ n: number }>(t.db, "SELECT COUNT(*) AS n FROM events WHERE customer_id = ? AND type = 'freshness_complaint'", id)!.n;
+    handleInbound(t.ctx, id, "stale");
+    expect(get<{ n: number }>(t.db, "SELECT COUNT(*) AS n FROM events WHERE customer_id = ? AND type = 'freshness_complaint'", id)!.n).toBe(before + 1);
+    expect(get<MessageRow>(t.db, "SELECT * FROM messages WHERE customer_id = ? AND status = 'needs_person' ORDER BY id DESC", id)!.snapshot).toContain("Freshness complaint");
+    expect(customerRow(t.db, id)!.consent_delivery).toBe(1);
   });
 
   it("caps: at most 3 routine texts per delivery (check-in, proposal, reminder) and one other", () => {

@@ -25,12 +25,12 @@
   --color-accent-tint: #fff1e8;
   --color-accent-ink: #b34a12;
   --color-link: #b34a12;
-  --color-strong: #141414;
+  --color-strong: #643a2b;
   --color-ink: #1c1c1c;
-  --color-muted: #6e6e6a;
-  --color-cream: #fafaf9;
+  --color-muted: #6b5a50;
+  --color-cream: #fbf6f1;
   --color-surface: #ffffff;
-  --color-line: #eceae7;
+  --color-line: #e9dfd6;
   --color-success: #2e7d5b;
   --color-success-tint: #e6f2ec;
   --color-danger: #b42318;
@@ -47,15 +47,15 @@
   --accent: #f16a21;
   --accent-ink: #b34a12;
   --link: #b34a12;
-  --strong: #141414;
+  --strong: #643a2b;
   --ink: #1c1c1c;
-  --muted: #6e6e6a;
-  --cream: #fafaf9;
+  --muted: #6b5a50;
+  --cream: #fbf6f1;
   --surface: #ffffff;
-  --line: #eceae7;
-  --hover: #f7f5f3;
+  --line: #e9dfd6;
+  --hover: #f6efe9;
   --field: #ffffff;
-  --field-line: #d6d6d2;
+  --field-line: #d5c8bd;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -215,12 +215,12 @@
     background: var(--hover);
   }
   .btn.primary {
-    background: linear-gradient(to bottom, rgb(0 0 0 / 0.1), transparent 85%), var(--button-fill, var(--accent-ink));
-    border-color: var(--accent-ink);
+    background: linear-gradient(to bottom, rgb(0 0 0 / 0.1), transparent 85%), var(--button-fill, var(--strong));
+    border-color: var(--strong);
     color: #fff;
   }
   .btn.primary:hover {
-    --button-fill: #9a3f0f;
+    --button-fill: #4f2d21;
   }
   .btn.danger {
     border-color: #b42318;
@@ -259,9 +259,9 @@
     color: var(--strong);
   }
   .chip.plum {
-    background-color: #efeeeb;
-    color: var(--strong);
-    border-color: #efeeeb;
+    background-color: #f5e9ef;
+    color: #7f2754;
+    border-color: #e6cfdb;
   }
   .chip.ok {
     background-color: #e6f2ec;
@@ -446,7 +446,7 @@
   input:hover,
   select:hover,
   textarea:hover {
-    border-color: #bdbdb8;
+    border-color: #b9aa9d;
   }
   input:focus,
   select:focus,
@@ -494,13 +494,13 @@
   }
 }
 
-/* iOS Messages thread (customer profile): dark grey panel, blue sent / grey received bubbles with tails */
+/* Messages thread (customer profile): a Messages-style panel in the coffee palette: espresso sent bubbles on the right, warm grey received on the left, plum for "not sent yet" */
 .imsg {
-  --imsg-bg: #1c1c1e;
-  --imsg-sent: #2563a8;
-  --imsg-received: #3a3a3c;
+  --imsg-bg: #fbf6f1;
+  --imsg-sent: #643a2b;
+  --imsg-received: #eadfd5;
   background: var(--imsg-bg);
-  color: #fff;
+  color: var(--ink);
 }
 .imsg-bubble {
   position: relative;
@@ -515,11 +515,12 @@
 }
 .imsg-bubble.in {
   --bubble: var(--imsg-received);
+  color: var(--ink);
 }
-/* awaiting approval: a dimmer blue so it reads as not sent yet */
+/* awaiting approval: plum on its tint so it reads as not sent yet */
 .imsg-bubble.pending {
-  --bubble: #1f4f80;
-  color: #dbe9ff;
+  --bubble: #f0dde7;
+  color: #7f2754;
 }
 /* tail: a bubble-coloured curve, then a background-coloured curve cut out of it (the panel clips the cut-out with overflow: hidden) */
 .imsg-bubble::before,
@@ -554,22 +555,13 @@
   border-bottom-right-radius: 10px;
 }
 .imsg-meta {
-  color: #8e8e93;
+  color: #6b5a50;
 }
 .imsg-link {
-  color: #409cff;
+  color: #b34a12;
 }
 .imsg-why {
-  background: #2c2c2e;
-  color: #e5e5ea;
-}
-.imsg .chip {
-  background-color: #2c2c2e;
-  border-color: #48484a;
-  color: #e5e5ea;
-}
-.imsg .chip.plum {
-  background-color: #e5e5ea;
-  border-color: #e5e5ea;
-  color: #1c1c1e;
+  background: #fff;
+  border: 1px solid #e9dfd6;
+  color: var(--ink);
 }

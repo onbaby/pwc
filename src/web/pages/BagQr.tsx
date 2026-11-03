@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from "recharts";
-import { useApi } from "../api.tsx";
+import { toast, useApi } from "../api.tsx";
 import { BagLabel, downloadSvg } from "../components/BagLabel.tsx";
 import { Card, Empty, PageTitle, SectionTitle, TableScroll } from "../components/ui.tsx";
 import { fmtDay, fmtMonthDay, nf, pct, relativeTime } from "../format.ts";
@@ -17,11 +17,15 @@ interface QrDTO {
   recentSignups: Array<{ customerId: string; name: string; at: number; lot: string; ageAtScan: number; status: string }>;
 }
 
-const INK = "#141414";
-const ACCENT = "#F16A21";
-const TICK = { fontSize: 12, fill: "#6E6E6A" };
+/** a store where this share of scanned bags was already past 4 weeks old gets a visit first */
+const VISIT_BAR = 0.5;
 
-export const bagUrl = (code: string): string => `${window.location.origin}/#/q/${code}`;
+const INK = "#643A2B";
+const ACCENT = "#F16A21";
+const TICK = { fontSize: 12, fill: "#6B5A50" };
+
+/** the address a phone should open: this computer's Wi-Fi address (not "localhost", which a phone cannot reach) */
+export const bagUrl = (code: string, base: string): string => `${base}/#/q/${code}`;
 
 function Stat({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
@@ -35,11 +39,25 @@ function Stat({ label, value, sub }: { label: string; value: string; sub: string
 
 export function BagQrPage() {
   const { data: d } = useApi<QrDTO>("/api/qr", ["queue", "clock"]);
+  const base = useApi<{ base: string }>("/api/follow/info", []).data?.base ?? window.location.origin;
   const [lot, setLot] = useState<string | null>(null);
   const label = useRef<SVGSVGElement>(null);
   if (!d) return <Empty>Loading…</Empty>;
   const t = d.totals;
   const shown = d.latestLots.find((l) => l.code === lot) ?? d.latestLots[0];
+  const copyNote = async (a: QrDTO["accounts"][number]) => {
+    const text = [
+      `${a.name} (${a.city}): bags are sitting.`,
+      `${nf(a.scans)} scans in the pilot; median bag age at scan ${a.medianShelfAge === null ? "unknown" : `${nf(a.medianShelfAge)} days`}; ${a.pastPeakShare === null ? "–" : pct(a.pastPeakShare)} were scanned after 4 weeks.`,
+      "Suggested: pull bags older than 3 weeks, check the order size against sell-through, and show the QR code to staff.",
+    ].join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      toast(`Note for ${a.name} copied`, { tone: "info" });
+    } catch {
+      toast("Could not copy to the clipboard", { tone: "error" });
+    }
+  };
   const weeks = d.weeks.map((w) => ({ week: fmtMonthDay(w.weekOf), scans: w.scans, signups: w.signups }));
   return (
     <div>
@@ -61,8 +79,8 @@ export function BagQrPage() {
               <div className="h-[220px]" role="img" aria-label="Weekly QR scans and subscriptions started">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={weeks} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-                    <CartesianGrid stroke="#ECEAE7" vertical={false} />
-                    <XAxis dataKey="week" tick={TICK} axisLine={{ stroke: "#ECEAE7" }} tickLine={false} />
+                    <CartesianGrid stroke="#E9DFD6" vertical={false} />
+                    <XAxis dataKey="week" tick={TICK} axisLine={{ stroke: "#E9DFD6" }} tickLine={false} />
                     <YAxis tick={TICK} axisLine={false} tickLine={false} width={40} tickCount={5} />
                     <Bar dataKey="scans" name="Scans" fill={INK} fillOpacity={0.6} isAnimationActive={false} />
                     <Bar dataKey="signups" name="Subscriptions started" fill={ACCENT} isAnimationActive={false} />
@@ -89,10 +107,11 @@ export function BagQrPage() {
                   <th className="text-right">Subscriptions</th>
                   <th className="text-right">Median age at scan</th>
                   <th className="text-right">Scanned past 4 weeks</th>
+                  <th>Next step</th>
                 </tr>
               </thead>
               <tbody>
-                {d.accounts.map((a) => (
+                {[...d.accounts].sort((a, b) => (b.pastPeakShare ?? -1) - (a.pastPeakShare ?? -1)).map((a) => (
                   <tr key={a.id} className="row">
                     <td>
                       <div className="font-medium">{a.name}</div>
@@ -103,6 +122,16 @@ export function BagQrPage() {
                     <td className="tnum text-right">{nf(a.signups)}</td>
                     <td className="tnum text-right">{a.medianShelfAge === null ? "–" : `${nf(a.medianShelfAge)} days`}</td>
                     <td className="tnum text-right">{a.pastPeakShare === null ? "–" : <span className={a.pastPeakShare > 0.25 ? "font-semibold text-danger" : ""}>{pct(a.pastPeakShare)}</span>}</td>
+                    <td className="whitespace-nowrap">
+                      {a.pastPeakShare !== null && a.pastPeakShare >= VISIT_BAR ? (
+                        <span className="flex items-center gap-2">
+                          <span className="chip warn" title={`${pct(VISIT_BAR)} or more of this store's scanned bags were already past 4 weeks old`}>Visit first</span>
+                          <button className="btn" onClick={() => copyNote(a)} title="Copy a short note for the rep who covers this store">Copy note</button>
+                        </span>
+                      ) : (
+                        <span className="text-[13px] text-muted">On track</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -128,12 +157,12 @@ export function BagQrPage() {
                   </select>
                 </label>
                 <div className="bag-label flex justify-center">
-                  <BagLabel ref={label} url={bagUrl(shown.code)} lot={shown.code} roast={shown.roast} roastDate={shown.roastDate} />
+                  <BagLabel ref={label} url={bagUrl(shown.code, base)} lot={shown.code} roast={shown.roast} roastDate={shown.roastDate} />
                 </div>
                 <div className="mt-3 text-[13px] text-muted">
                   The code links to this bag's own page:{" "}
                   <a className="break-all text-link" href={href(`/q/${shown.code}`)} target="_blank" rel="noreferrer">
-                    {bagUrl(shown.code)}
+                    {bagUrl(shown.code, base)}
                   </a>
                   . One page on the existing website: no app, no login.
                 </div>

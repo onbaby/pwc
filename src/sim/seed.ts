@@ -2,6 +2,7 @@ import { priorFor, type PriorModel } from "../engine/prior.ts";
 import { COPY } from "../server/copy.ts";
 import { ENGINE, EXHIBITS, SOURCES, WORLD, type Source } from "../shared/constants.ts";
 import { dayFromISO, etInstant, nextWednesdayOnOrAfter, type Day } from "../shared/dates.ts";
+import { PILOT, armFor, type Arm } from "../shared/pilot.ts";
 import { Stream, hash32 } from "../shared/rng.ts";
 import type { PlanType, SignupAnswers } from "../shared/types.ts";
 import { SIM_SEED, draw, makeCustomer, nearestRhythm, type SimCustomer } from "./world.ts";
@@ -9,10 +10,12 @@ import { SIM_SEED, draw, makeCustomer, nearestRhythm, type SimCustomer } from ".
 /**
  * Sample data for the sandbox (spec 4): about 4,000 active subscribers generated to match Exhibit C's case numbers,
  * with synthetic names from common first/last-name lists (no real people), Georgia cities, nine months of orders and
- * messages and about 60% with offer consent. Deterministic from the seed. Nothing here is client data.
+ * messages. Deterministic from the seed. Nothing here is client data.
  */
 export const TODAY: Day = dayFromISO("2026-10-18");
 const WINDOW_DAYS = 270;
+/** the A/B pilot began this many weeks before the sandbox clock; later sign-ups are split between the two arms */
+export const PILOT_START: Day = TODAY - (PILOT.sandboxWeek * 7 - 1);
 
 export interface SeedDelivery {
   scheduled: Day;
@@ -42,7 +45,8 @@ export interface SeedCustomer {
   planType: PlanType;
   status: "ACTIVE" | "CANCELLED" | "HELD" | "PAUSED";
   consentDelivery: boolean;
-  consentOffers: boolean;
+  /** pilot arm; null for customers who joined before the pilot started */
+  arm: Arm | null;
   answers: SignupAnswers;
   cancelledAt: number | null;
   giftEnds: Day | null;
@@ -154,7 +158,7 @@ function replyWeeks(c: SimCustomer, R: number, k: number): number {
 }
 
 /** Simulate nine months of orders (the Fixed schedule) and, for the last cycles, the check-ins and replies the system collected. */
-function history(c: SimCustomer, p: Planned, consentDelivery: boolean, signupMs: number, rng: Stream, firstName: string): Pick<SeedCustomer, "deliveries" | "replies" | "skips" | "messages"> & { nextArrival: Day } {
+function history(c: SimCustomer, p: Planned, collectReplies: boolean, consentDelivery: boolean, signupMs: number, rng: Stream, firstName: string): Pick<SeedCustomer, "deliveries" | "replies" | "skips" | "messages"> & { nextArrival: Day } {
   const windowStart = Math.max(p.signupDay, TODAY - WINDOW_DAYS);
   const end = p.cancelDay ?? TODAY;
   const deliveries: SeedDelivery[] = [];
@@ -200,7 +204,7 @@ function history(c: SimCustomer, p: Planned, consentDelivery: boolean, signupMs:
       const rem = etInstant(a - ENGINE.reminderDaysBefore, 10, 0);
       if (rem > signupMs + 3_600_000) messages.push({ at: rem, direction: "out", body: COPY.reminder({ new: a }), kind: "reminder", reasonCode: "REMINDER", status: "delivered", snapshot: { reasonChip: "Reminder" } });
       // the last two delivery cycles also had check-ins and some replies
-      if (a >= TODAY - 130 && a !== arrivals[0]) {
+      if (collectReplies && a >= TODAY - 130 && a !== arrivals[0]) {
         const ci = a - ENGINE.checkInDaysBefore;
         const at = etInstant(ci, 9, 0) + (hash32(first, a) % 150) * 60_000;
         if (at > signupMs) {
@@ -242,10 +246,10 @@ export function generateSeed(opts: SeedOptions): SeedData {
     const c = makeCustomer(id, p.source, {}, seed);
     const r = new Stream("seed-cust", seed, id);
     const consentDelivery = r.next() < 0.96;
-    const consentOffers = consentDelivery && r.next() < 0.62;
-    const signupMs = etInstant(p.signupDay, 11, 0);
+    const signupMs = Math.min(etInstant(p.signupDay, 11, 0), etInstant(TODAY, 8, 0)); // nothing is dated after the sandbox clock (9:00 am today)
     const name = pickName(names, usedNames);
-    const h = history(c, p, consentDelivery, signupMs, r, name.split(" ")[0]!);
+    const arm: Arm | null = p.signupDay >= PILOT_START ? armFor(id) : null;
+    const h = history(c, p, consentDelivery && arm !== "fixed", consentDelivery, signupMs, r, name.split(" ")[0]!);
     const planType: PlanType = p.source === "gift" && r.next() < 0.55 ? "gift" : r.next() < 0.07 ? "prepaid" : "payg";
     const giftEnds = planType === "gift" ? TODAY + (r.next() < 0.22 ? r.int(5, 28) : r.int(35, 300)) : null;
     const sug = suggestRhythm(opts.prior, p.source, c.cupsObs, c.peopleObs);
@@ -262,7 +266,7 @@ export function generateSeed(opts: SeedOptions): SeedData {
       planType,
       status,
       consentDelivery,
-      consentOffers,
+      arm,
       answers: { cups: c.cupsObs, people: c.peopleObs, brew: r.pick(BREWS) },
       cancelledAt: p.cancelDay !== null ? etInstant(p.cancelDay, 14, 0) : null,
       giftEnds,
@@ -287,7 +291,7 @@ export function generateSeed(opts: SeedOptions): SeedData {
       planType: "payg",
       status: "ACTIVE",
       consentDelivery: true,
-      consentOffers: true,
+      arm: null,
       answers: { cups: 2, people: 2 },
       cancelledAt: null,
       giftEnds: null,
@@ -319,8 +323,6 @@ export function generateSeed(opts: SeedOptions): SeedData {
       messages: [
         { at: consentAt("2026-10-02"), direction: "out", body: COPY.consentDelivery(), kind: "consent", reasonCode: "CONSENT", status: "delivered", snapshot: { consentFor: "delivery" } },
         { at: consentAt("2026-10-02", 10, 13), direction: "in", body: "YES", kind: "reply", reasonCode: "KEYWORD_YES", status: "received" },
-        { at: consentAt("2026-10-02", 10, 14), direction: "out", body: COPY.consentOffers(), kind: "consent", reasonCode: "CONSENT", status: "delivered", snapshot: { consentFor: "offers" } },
-        { at: consentAt("2026-10-02", 10, 15), direction: "in", body: "YES", kind: "reply", reasonCode: "KEYWORD_YES", status: "received" },
       ],
       checkInAt: etInstant(TODAY, 10, 0),
     }),
@@ -331,6 +333,7 @@ export function generateSeed(opts: SeedOptions): SeedData {
       signupDay: D("2026-09-26"),
       rhythmDays: 28,
       suggestedDays: 42,
+      arm: "ai",
       answers: { cups: 1, people: 1, brew: "drip", note: "1 cup a day, just me" },
       deliveries: [
         { scheduled: D("2026-09-30"), delivered: D("2026-09-30"), status: "delivered" },
@@ -349,7 +352,6 @@ export function generateSeed(opts: SeedOptions): SeedData {
       signupDay: D("2026-06-10"),
       rhythmDays: 28,
       suggestedDays: 56,
-      consentOffers: false,
       answers: { cups: 1, people: 1, brew: "espresso" },
       deliveries: [
         { scheduled: D("2026-08-05"), delivered: D("2026-08-05"), status: "delivered" },

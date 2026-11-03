@@ -4,7 +4,7 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { computeOutlook, type OutlookCustomer } from "../engine/outlook.ts";
 import type { Projection } from "../engine/project.ts";
-import { ENGINE, EXHIBITS, FRESHNESS, LEDGER, QR, RULES, SOURCES, SOURCE_LABEL, WORLD, type Source } from "../shared/constants.ts";
+import { ENGINE, FRESHNESS, QR, RULES, SOURCE_LABEL, WORLD, type Source } from "../shared/constants.ts";
 import { dayFromISO, etInstant, etParts, fmtDay, fmtMonthDay, isoFromDay, MS_DAY, weekday, type Day } from "../shared/dates.ts";
 import type { CustomerRow } from "../shared/types.ts";
 import { COPY } from "./copy.ts";
@@ -14,14 +14,13 @@ import type { AppCtx } from "./flows/context.ts";
 import { handleInbound } from "./flows/inbound.ts";
 import { advanceClock } from "./flows/schedule.ts";
 import { toDTO } from "./flows/send.ts";
-import { approveOffer, createOffer, draftOf, listOffers, offerResults, parseAudience, pauseOffer, previewOffer, runSensorChecks, scheduleOffer, updateOffer } from "./offers/lifecycle.ts";
-import { OFFER_TYPES, type OfferDraft, type OfferRow } from "./offers/types.ts";
+import { followBase, isLocalRequest, parseFollow, type FollowState } from "./follow.ts";
+import { pilotSummary } from "./pilot.ts";
 import { buildProfile } from "./profile.ts";
 import { lotPublic, qrSignup, qrSummary, recordScan } from "./qr.ts";
 import { freshnessFromProjection, type FreshnessStatus } from "../engine/freshness.ts";
 import { upcomingHolidayWindows } from "../shared/holidays.ts";
-import { whyDtc } from "../shared/opportunity.ts";
-import { approvals, goingOutToday, listCustomers, needsPerson, runningOutSoon } from "./queries.ts";
+import { approvals, goingOutToday, listCustomers, needsPerson, runningOutSoon, viewCounts } from "./queries.ts";
 import type { Sandbox } from "./sandbox.ts";
 import type { Hub } from "./sse.ts";
 import { customerRow, nextScheduled, nowMs, todayOf } from "./store.ts";
@@ -34,65 +33,17 @@ export interface ServerCtx {
   webDist: string;
   /** switch to the photon channel (sandbox drawer); returns false if it could not connect */
   connectPhoton?: () => Promise<boolean>;
+  /** the port the server listens on, for the join link guests scan */
+  port?: number;
 }
 
 const MIME: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json", ".svg": "image/svg+xml", ".woff2": "font/woff2", ".png": "image/png", ".ico": "image/x-icon", ".txt": "text/plain; charset=utf-8", ".map": "application/json" };
 
-const readJson = (path: string): unknown => (existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : null);
 
 /** Hand-written guards at the untrusted boundary (spec 12.1): request bodies. */
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const str = (v: unknown, max = 2000): string | undefined => (typeof v === "string" && v.length <= max ? v : undefined);
 const num = (v: unknown): number | undefined => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
-
-function parseDraft(b: unknown): OfferDraft | string {
-  if (!isObj(b)) return "Expected an object.";
-  const type = str(b.type) as OfferDraft["type"] | undefined;
-  if (!type || !(type in OFFER_TYPES)) return "Choose an offer type.";
-  const name = str(b.name, 120)?.trim();
-  if (!name) return "Give the offer a name.";
-  const aud = isObj(b.audience) ? b.audience : {};
-  const sources = Array.isArray(aud.sources) ? (aud.sources.filter((s) => typeof s === "string" && (SOURCES as readonly string[]).includes(s)) as Source[]) : undefined;
-  const audience: OfferDraft["audience"] = {
-    sources: sources?.length ? sources : undefined,
-    memberDaysMin: num(aud.memberDaysMin),
-    memberDaysMax: num(aud.memberDaysMax),
-    runOutMinDays: num(aud.runOutMinDays),
-    runOutMaxDays: num(aud.runOutMaxDays),
-    onHand: aud.onHand === "lt7" || aud.onHand === "lt14" || aud.onHand === "ge14" ? aud.onHand : undefined,
-    lastReplyMaxWeeks: num(aud.lastReplyMaxWeeks),
-    skipped2of4: aud.skipped2of4 === true ? true : undefined,
-    giftEndingWithinDays: num(aud.giftEndingWithinDays),
-    notStockpiled: aud.notStockpiled === true ? true : undefined,
-  };
-  const holdoutMode = b.holdoutMode === "experiment" || b.holdoutMode === "none" ? b.holdoutMode : "global";
-  return { name, type, audience, holdoutMode, holdoutPct: Math.min(Math.max(num(b.holdoutPct) ?? 50, 0), 90), discountPct: Math.min(Math.max(num(b.discountPct) ?? 0, 0), 100), budget: Math.max(num(b.budget) ?? 0, 0), approvalRequired: b.approvalRequired === true };
-}
-
-function offerDTO(db: Db, row: OfferRow, results = offerResults(db, row.id)) {
-  const draft = draftOf(row);
-  const preview = row.status === "Draft" || row.status === "Pending approval" || row.status === "Paused" ? previewOffer(db, draft, row.id) : null;
-  return {
-    id: row.id,
-    name: row.name,
-    type: row.type,
-    typeLabel: OFFER_TYPES[row.type].label,
-    reason: OFFER_TYPES[row.type].reason,
-    status: row.status,
-    audience: parseAudience(row),
-    holdoutMode: row.holdout_mode,
-    holdoutPct: row.holdout_pct,
-    discountPct: row.discount_pct,
-    budget: row.budget,
-    approvalRequired: !!row.approval_required,
-    pausedReason: row.paused_reason,
-    audienceSize: preview ? preview.eligible : results.treatmentAssigned + results.holdoutAssigned,
-    holdout: row.holdout_mode === "experiment" ? `${row.holdout_pct}% experiment holdout` : row.holdout_mode === "global" ? "Standing 10% holdout" : "No holdout",
-    sends: results.sends,
-    statusLine: row.status === "Draft" ? "Not scheduled" : row.status === "Pending approval" ? "Waiting for manager approval" : results.statusLine,
-    results,
-  };
-}
 
 /** Monday-free week: Sunday through Saturday, containing `day`. */
 const weekStart = (day: Day): Day => day - weekday(day);
@@ -113,12 +64,37 @@ function kpis(db: Db, today: Day, now: number, ctx: AppCtx) {
   const personPrev = get<{ n: number }>(db, "SELECT COUNT(*) AS n FROM messages WHERE status IN ('needs_person','resolved') AND at <= ? AND (resolved_at IS NULL OR resolved_at > ?)", prevNow, prevNow)?.n ?? 0;
   const o = outlook(db, ctx);
   return {
+    replyRate: replyRateKpi(db, now),
     freshness: freshnessKpi(db, today),
     active: { value: active, prev: activePrev },
     deliveriesThisWeek: { value: delivThis, prev: delivPrev, sparkline: o.weeks.map((w) => w.deliveries.p50), weeks: o.weeks.map((w) => w.wednesday) },
     checkInsToday: { value: checkToday, prev: checkPrev },
     waitingForPerson: { value: person, prev: personPrev },
   };
+}
+
+/**
+ * The pilot's first test (spec 10): of the customers asked in the last 14 days, how many answered the check-in within
+ * 5 days. Counted from the messages table (never a constant). The go bar is RULES.pilotMinReplyRate. Also the other
+ * pilot inputs that are visible today: opt-outs this week, and replies still waiting for a person.
+ */
+function replyRateKpi(db: Db, now: number) {
+  const since = now - 14 * MS_DAY;
+  // only customers who have had a delivery can describe a pantry, so a first-timer's check-in is not counted against the rate
+  const hasHad = "EXISTS (SELECT 1 FROM deliveries d WHERE d.customer_id = m.customer_id AND d.status = 'delivered')";
+  const reached = get<{ n: number }>(db, `SELECT COUNT(DISTINCT m.customer_id) AS n FROM messages m WHERE m.kind = 'checkin' AND m.direction = 'out' AND m.status IN ('sent','delivered') AND m.at >= ? AND m.at <= ? AND ${hasHad}`, since, now)?.n ?? 0;
+  const replied =
+    get<{ n: number }>(
+      db,
+      `SELECT COUNT(DISTINCT m.customer_id) AS n FROM messages m
+         JOIN messages r ON r.customer_id = m.customer_id AND r.direction = 'in' AND r.reason_code = 'WEEKS_LEFT' AND r.at > m.at AND r.at <= m.at + ?
+        WHERE m.kind = 'checkin' AND m.direction = 'out' AND m.status IN ('sent','delivered') AND m.at >= ? AND m.at <= ? AND ${hasHad}`,
+      5 * MS_DAY,
+      since,
+      now,
+    )?.n ?? 0;
+  const optOuts = get<{ n: number }>(db, "SELECT COUNT(DISTINCT customer_id) AS n FROM messages WHERE direction = 'in' AND reason_code = 'KEYWORD_STOP' AND at >= ? AND at <= ?", now - 7 * MS_DAY, now)?.n ?? 0;
+  return { reached, replied, rate: reached ? replied / reached : null, goBar: RULES.pilotMinReplyRate, optOutsThisWeek: optOuts, windowDays: 14 };
 }
 
 /** How fresh the bags arriving in the next four weeks will be when opened (model median), from stored projections. */
@@ -179,6 +155,29 @@ export function createApp(s: ServerCtx): Hono {
     return isObj(b) ? b : {};
   };
 
+  // ---- guests (follow-along) -------------------------------------------------------------------------------------
+  // Anyone on the network can look; only this computer can change anything. The one exception is the public bag page a
+  // shopper uses (scan and sign-up), so a judge can try that from their own phone.
+  app.use("/api/*", async (c, next) => {
+    const m = c.req.method;
+    if (m !== "GET" && m !== "HEAD" && !isLocalRequest(c.env) && !c.req.path.startsWith("/api/qr/")) return c.json({ ok: false, error: "This screen is read-only for guests." }, 403);
+    await next();
+  });
+  let follow: FollowState = { path: "/today", query: "", at: nowMs(db) };
+  app.get("/api/follow", (c) => c.json(follow));
+  app.get("/api/follow/info", (c) => {
+    const f = followBase(s.port ?? 8787);
+    return c.json({ base: f.base, followUrl: `${f.base}/#/follow`, otherUrls: f.urls.map((u) => `${u}/#/follow`).filter((u) => u !== `${f.base}/#/follow`), onNetwork: f.onNetwork });
+  });
+  app.post("/api/follow", async (c) => {
+    const r = parseFollow(await body(c));
+    if (!r) return c.json({ ok: false, error: "That page can't be followed." }, 400);
+    if (r.path === follow.path && r.query === follow.query) return c.json({ ok: true });
+    follow = { ...r, at: Date.now() };
+    hub.publish({ type: "follow" });
+    return c.json({ ok: true });
+  });
+
   // ---- stream ----------------------------------------------------------------------------------------------------
   app.get("/api/stream", (c) => {
     c.header("Cache-Control", "no-cache");
@@ -231,9 +230,24 @@ export function createApp(s: ServerCtx): Hono {
   });
 
   // ---- Customers -------------------------------------------------------------------------------------------------
+  app.get("/api/customers/views", (c) => c.json(viewCounts(db)));
   app.get("/api/customers", (c) => {
     const q = c.req.query();
-    return c.json(listCustomers(db, { q: q.q, status: q.status, source: q.source, consent: q.consent, page: q.page ? Number(q.page) : 1, pageSize: q.pageSize ? Number(q.pageSize) : 50 }));
+    const filter = { q: q.q, status: q.status, source: q.source, consent: q.consent, arm: q.arm, view: q.view };
+    if (q.format === "csv") {
+      const r = listCustomers(db, { ...filter, all: true });
+      const cell = (v: string | number | null): string => {
+        const t = v === null ? "" : String(v);
+        // a leading = + - @ would be run as a formula by a spreadsheet
+        const safe = /^[=+\-@]/.test(t) ? `'${t}` : t;
+        return /[",\n]/.test(safe) ? `"${safe.replaceAll('"', '""')}"` : safe;
+      };
+      const day = (d: number | null) => (d === null ? "" : isoFromDay(d));
+      const rows = r.items.map((i) => [i.id, i.name, i.city, SOURCE_LABEL[i.source], i.plan, day(i.nextDelivery), day(i.runOut?.lo ?? null), day(i.runOut?.mid ?? null), day(i.runOut?.hi ?? null), i.confidence, i.lastReply?.weeks ?? null, day(i.lastReply?.day ?? null), i.status, i.consentDelivery ? "yes" : "no"].map(cell).join(","));
+      const head = "id,name,city,sign_up_source,plan,next_delivery,runs_out_early,runs_out_likely,runs_out_late,how_sure,last_reply_weeks,last_reply_date,status,delivery_texts";
+      return c.body([head, ...rows].join("\n") + "\n", 200, { "content-type": "text/csv; charset=utf-8", "content-disposition": 'attachment; filename="customers.csv"' });
+    }
+    return c.json(listCustomers(db, { ...filter, page: q.page ? Number(q.page) : 1, pageSize: q.pageSize ? Number(q.pageSize) : 50 }));
   });
   app.get("/api/customers/:id", (c) => {
     const p = buildProfile(db, c.req.param("id"));
@@ -266,6 +280,9 @@ export function createApp(s: ServerCtx): Hono {
       case "resolve":
         a = num(b.messageId) !== undefined ? { action, messageId: num(b.messageId)! } : undefined;
         break;
+      case "undo_move":
+        a = { action };
+        break;
     }
     if (!a) return c.json({ ok: false, error: "Unknown or incomplete action." }, 400);
     const r = staffAction(ctx, id, a);
@@ -275,16 +292,13 @@ export function createApp(s: ServerCtx): Hono {
   // ---- Inbox -----------------------------------------------------------------------------------------------------
   // the sidebar badge and inbox tabs: totals only
   app.get("/api/inbox/counts", (c) => {
-    const pendingOffers = get<{ n: number }>(db, "SELECT COUNT(*) AS n FROM offers WHERE status = 'Pending approval'")?.n ?? 0;
-    return c.json({ needs: needsPerson(db).total, approvals: approvals(db).total + pendingOffers });
+    return c.json({ needs: needsPerson(db).total, approvals: approvals(db).total });
   });
   app.get("/api/inbox", (c) => {
     const tab = c.req.query("tab") ?? "needs";
     if (tab === "needs") return c.json(needsPerson(db));
     if (tab === "approvals") {
-      const m = approvals(db);
-      const offers = all<OfferRow>(db, "SELECT * FROM offers WHERE status = 'Pending approval'").map((o) => offerDTO(db, o));
-      return c.json({ items: m.items, total: m.total + offers.length, offers });
+      return c.json(approvals(db));
     }
     const q = c.req.query("q")?.trim();
     const page = Math.max(Number(c.req.query("page") ?? 1), 1);
@@ -303,43 +317,8 @@ export function createApp(s: ServerCtx): Hono {
     return c.json(r, r.ok ? 200 : 400);
   });
 
-  // ---- Offers ----------------------------------------------------------------------------------------------------
-  app.get("/api/offers", (c) => c.json({ offers: listOffers(db).map(({ row, results }) => offerDTO(db, row, results)), types: OFFER_TYPES }));
-  app.get("/api/offers/:id", (c) => {
-    const row = get<OfferRow>(db, "SELECT * FROM offers WHERE id = ?", Number(c.req.param("id")));
-    return row ? c.json(offerDTO(db, row)) : c.json({ error: "not found" }, 404);
-  });
-  app.post("/api/offers", async (c) => {
-    const d = parseDraft(await body(c));
-    if (typeof d === "string") return c.json({ ok: false, error: d }, 400);
-    return c.json({ ok: true, id: createOffer(ctx, d) });
-  });
-  app.put("/api/offers/:id", async (c) => {
-    const d = parseDraft(await body(c));
-    if (typeof d === "string") return c.json({ ok: false, error: d }, 400);
-    const r = updateOffer(ctx, Number(c.req.param("id")), d);
-    return c.json(r, r.ok ? 200 : 400);
-  });
-  app.post("/api/offers/:id/preview", async (c) => {
-    const id = c.req.param("id");
-    const d = parseDraft(await body(c));
-    if (typeof d === "string") return c.json({ ok: false, error: d }, 400);
-    return c.json({ ok: true, preview: previewOffer(db, d, id === "new" ? undefined : Number(id)) });
-  });
-  app.post("/api/offers/:id/schedule", (c) => {
-    const r = scheduleOffer(ctx, Number(c.req.param("id")));
-    return c.json(r, r.ok ? 200 : 400);
-  });
-  app.post("/api/offers/:id/approve", (c) => {
-    const r = approveOffer(ctx, Number(c.req.param("id")));
-    return c.json(r, r.ok ? 200 : 400);
-  });
-  app.post("/api/offers/:id/pause", async (c) => {
-    const b = await body(c);
-    const r = pauseOffer(ctx, Number(c.req.param("id")), str(b.reason) ?? "Paused by staff");
-    return c.json(r, r.ok ? 200 : 400);
-  });
-  app.post("/api/offers/check", (c) => c.json({ paused: runSensorChecks(ctx) }));
+  // ---- Pilot -----------------------------------------------------------------------------------------------------
+  app.get("/api/pilot", (c) => c.json(pilotSummary(db)));
 
   // ---- Roast outlook ---------------------------------------------------------------------------------------------
   app.get("/api/outlook", (c) => {
@@ -355,22 +334,6 @@ export function createApp(s: ServerCtx): Hono {
       return c.body(lines.join("\n") + "\n", 200, { "content-type": "text/csv; charset=utf-8", "content-disposition": 'attachment; filename="roast-outlook.csv"' });
     }
     return c.json(o);
-  });
-
-  // ---- Impact ----------------------------------------------------------------------------------------------------
-  app.get("/api/impact", (c) => {
-    const offers = listOffers(db).filter((o) => o.row.status === "Running" || o.row.status === "Scheduled").map(({ row, results }) => ({ id: row.id, name: row.name, status: row.status, statusLine: results.statusLine, sends: results.sends }));
-    return c.json({
-      impact: readJson(join(s.artifactsDir, "impact.json")),
-      backtest: readJson(join(s.artifactsDir, "backtest.json")),
-      ledger: LEDGER,
-      exhibits: { sources: EXHIBITS.sources, labels: SOURCE_LABEL, newSubsPerYear: EXHIBITS.dtc.newSubsPerYear },
-      pilot: { status: "Not started", weeks: RULES.pilotWeeks, minReplyRate: RULES.pilotMinReplyRate, freezeFrom: dayFromISO(RULES.freezeFromISO), freezeTo: dayFromISO(RULES.freezeToISO), decemberIndex: EXHIBITS.monthlyIndex[11] },
-      offerExperiments: offers,
-      whyDtc: whyDtc(),
-      opportunityDefaults: { retentionLift: 0.1, groceryConversion: 0.05, bagsPerBuyerPerYear: QR.bagsPerBuyerPerYear },
-      freshness: { bestByDays: FRESHNESS.bestByDays, peakEndDays: FRESHNESS.peakEndDays, roastToDoorDays: WORLD.roastToDoorDays },
-    });
   });
 
   // ---- Bag QR: the console page, and the public page a grocery buyer opens from the bag ---------------------------
@@ -391,22 +354,28 @@ export function createApp(s: ServerCtx): Hono {
     const name = str(b.name, 120);
     const phone = str(b.phone, 40);
     if (scanId === undefined || !code || name === undefined || phone === undefined) return c.json({ ok: false, error: "Please fill in every field." }, 400);
-    const r = qrSignup(ctx, { scanId, code, name, phone, cups: num(b.cups) ?? 0, people: num(b.people) ?? 0, rhythmDays: num(b.rhythmDays) ?? 0, consentDelivery: b.consentDelivery === true, consentOffers: b.consentOffers === true });
+    const r = qrSignup(ctx, { scanId, code, name, phone, cups: num(b.cups) ?? 0, people: num(b.people) ?? 0, rhythmDays: num(b.rhythmDays) ?? 0, consentDelivery: b.consentDelivery === true });
     return c.json(r, r.ok ? 200 : 400);
   });
 
   // ---- Settings (static, read-only) ----------------------------------------------------------------------------
+  // The real-data check, summarised for the profile's "Why this date" card. Numbers come from the committed artifact.
+  app.get("/api/evidence", (c) => {
+    const path = join(s.artifactsDir, "backtest.json");
+    if (!existsSync(path)) return c.json({ available: false });
+    const b = JSON.parse(readFileSync(path, "utf8")) as { protocol: { commit: string; committedBeforeRun: boolean }; dataset: { name: string; license: string; counts: { rows: number } }; pooledCoverage80: number; success: { passed: boolean; line: string }; rows: Array<{ k: string; n: number }> };
+    return c.json({ available: true, dataset: b.dataset.name, license: b.dataset.license, orders: b.dataset.counts.rows, predictions: b.rows.reduce((n, r) => n + r.n, 0), pooledCoverage80: b.pooledCoverage80, protocolCommit: b.protocol.commit.slice(0, 10), committedBeforeRun: b.protocol.committedBeforeRun, passed: b.success.passed, line: b.success.line });
+  });
   app.get("/api/settings", (c) =>
     c.json({
       deliveryDay: RULES.deliveryWeekday,
       quietHours: { from: RULES.quietHours.from, to: RULES.quietHours.to },
-      caps: { routine: RULES.routineTextsPerDelivery, other: RULES.otherTextsPerDelivery, offerEveryDays: RULES.offerCapDays },
+      caps: { routine: RULES.routineTextsPerDelivery, other: RULES.otherTextsPerDelivery },
       freeze: { from: dayFromISO(RULES.freezeFromISO), to: dayFromISO(RULES.freezeToISO) },
       cautiousness: getSetting(db, "cautiousness", ENGINE.defaultCautiousness),
-      consentTexts: { delivery: COPY.consentDelivery(), offers: COPY.consentOffers() },
-      standingHoldout: { share: RULES.globalHoldoutShare, months: RULES.globalHoldoutMonths, members: get<{ n: number }>(db, "SELECT COUNT(*) AS n FROM global_holdout")?.n ?? 0 },
+      consentTexts: { delivery: COPY.consentDelivery() },
       engineVersion: ENGINE.version,
-      holidays: upcomingHolidayWindows(todayOf(db)),
+      holidays: upcomingHolidayWindows(todayOf(db), 2),
       freshness: { bestByDays: FRESHNESS.bestByDays, peakEndDays: FRESHNESS.peakEndDays, roastToDoorDays: WORLD.roastToDoorDays },
       environment: "Sandbox · sample data",
     }),

@@ -76,7 +76,7 @@ export function LiveProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<LiveState>({ versions: {}, now: null, connected: false });
   useEffect(() => {
     const es = new EventSource("/api/stream");
-    const types = ["message", "projection", "queue", "offer", "clock"];
+    const types = ["message", "projection", "queue", "clock", "follow"];
     const timers: Record<string, ReturnType<typeof setTimeout> | undefined> = {};
     es.onopen = () => setState((s) => ({ ...s, connected: true }));
     es.onerror = () => setState((s) => ({ ...s, connected: false }));

@@ -21,7 +21,9 @@ interface LotDTO {
   firstDelivery: number;
   rhythmMenu: number[];
   rhythms: Record<string, number>;
-  consentTexts: { delivery: string; offers: string };
+  consentTexts: { delivery: string };
+  firstBagPrice: number;
+  firstBagDiscountPct: number;
   error?: string;
 }
 
@@ -68,7 +70,6 @@ export function QrLanding({ code }: { code: string }) {
   const [people, setPeople] = useState(2);
   const [rhythm, setRhythm] = useState<number | null>(null);
   const [consentDelivery, setConsentDelivery] = useState(false);
-  const [consentOffers, setConsentOffers] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [done, setDone] = useState<{ firstDelivery: number; rhythmDays: number } | null>(null);
@@ -86,7 +87,7 @@ export function QrLanding({ code }: { code: string }) {
   const submit = async () => {
     setBusy(true);
     setError(undefined);
-    const r = await post<{ ok: boolean; error?: string; firstDelivery?: number; rhythmDays?: number }>("/api/qr/signup", { scanId, code, name, phone, cups, people, rhythmDays: chosen, consentDelivery, consentOffers });
+    const r = await post<{ ok: boolean; error?: string; firstDelivery?: number; rhythmDays?: number }>("/api/qr/signup", { scanId, code, name, phone, cups, people, rhythmDays: chosen, consentDelivery });
     setBusy(false);
     if (r.ok && r.firstDelivery !== undefined) setDone({ firstDelivery: r.firstDelivery, rhythmDays: r.rhythmDays ?? chosen });
     else setError(r.error ?? "Something went wrong. Please try again.");
@@ -114,7 +115,7 @@ export function QrLanding({ code }: { code: string }) {
           <div className="space-y-3 text-[14px]">
             <h2 className="m-0 text-[20px] font-semibold text-espresso">Get it roasted to order instead</h2>
             <p className="m-0 text-muted">
-              At your door {lot.roastToDoorDays} days after roasting, and timed to when you actually run out: we check in by text and move a delivery if you're not ready. ${lot.price} a bag, skip or cancel anytime.
+              At your door {lot.roastToDoorDays} days after roasting, and timed to when you actually run out: we check in by text and move a delivery if you're not ready. ${lot.firstBagPrice} for your first bag ({lot.firstBagDiscountPct}% off), then ${lot.price} a bag. Skip or cancel anytime.
             </p>
             <div className="grid grid-cols-2 gap-3">
               <label className="block">
@@ -151,10 +152,6 @@ export function QrLanding({ code }: { code: string }) {
             <label className="flex items-start gap-2">
               <input type="checkbox" className="mt-1" checked={consentDelivery} onChange={(e) => setConsentDelivery(e.target.checked)} />
               <span className="text-[13px]">Text me to time my deliveries. We'll send this to confirm: “{lot.consentTexts.delivery}”</span>
-            </label>
-            <label className="flex items-start gap-2">
-              <input type="checkbox" className="mt-1" checked={consentOffers} onChange={(e) => setConsentOffers(e.target.checked)} />
-              <span className="text-[13px]">Also send occasional offers (optional, not required to buy): “{lot.consentTexts.offers}”</span>
             </label>
             {error && <div className="text-[14px] text-danger" role="alert">{error}</div>}
             <button className="btn primary w-full justify-center py-2.5 text-[16px]" disabled={busy || scanId === undefined} onClick={submit}>

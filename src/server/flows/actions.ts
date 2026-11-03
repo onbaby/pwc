@@ -17,7 +17,9 @@ export type StaffAction =
   | { action: "pause"; days: number }
   | { action: "add_note"; body: string }
   | { action: "reply"; body: string; messageId?: number }
-  | { action: "resolve"; messageId: number };
+  | { action: "resolve"; messageId: number }
+  /** put a moved delivery back on its original date (the same as the customer replying OLD) */
+  | { action: "undo_move" };
 
 const ACTOR = "Jordan · Subscriptions";
 
@@ -35,6 +37,7 @@ export function staffAction(ctx: AppCtx, customerId: string, a: StaffAction): { 
   switch (a.action) {
     case "send_checkin_now": {
       if (c.status === "OPTED_OUT" || c.status === "CANCELLED") return { ok: false, error: "This customer has stopped texts or cancelled." };
+      if (c.arm === "fixed") return { ok: false, error: "This customer is in the control group of the pilot, so they are not sent check-ins. A customer who asks to hold or pause still can." };
       const id = insertMessage(ctx, { customerId, at: nowMs(db), direction: "out", body: "", kind: "checkin", reasonCode: "CHECKIN_DUE", status: "queued", snapshot: { reasonChip: "Check-in sent by staff" } });
       const row = get<MessageRow>(db, "SELECT * FROM messages WHERE id = ?", id)!;
       sendQueuedCheckIn(ctx, row);
@@ -92,6 +95,18 @@ export function staffAction(ctx: AppCtx, customerId: string, a: StaffAction): { 
       resolveOpen(ctx, customerId, a.messageId);
       audit(db, ACTOR, "reply", customerId);
       return { ok: true };
+    }
+    case "undo_move": {
+      const next = nextScheduled(db, customerId);
+      const base = c.base_arrival ? dayFromISO(c.base_arrival) : undefined;
+      if (!next || base === undefined || base === next.day) return { ok: false, error: "This delivery has not been moved." };
+      if (base < today + 3) return { ok: false, error: "The original date is too close to restore: at least 3 days." };
+      moveDelivery(ctx, customerId, base, ACTOR);
+      if (c.status === "HELD" || c.status === "PAUSED") run(db, "UPDATE customers SET status = 'ACTIVE', held_until = NULL WHERE id = ?", customerId);
+      sendText(ctx, { customerId, body: COPY.oldRestored({ old: base }), kind: "proposal", reasonCode: "STAFF_UNDO", response: true, snapshot: { reasonChip: "Move undone by staff", from: next.day, to: base } });
+      audit(db, ACTOR, "undo_move", customerId, { from: next.day, to: base });
+      ctx.emit({ type: "projection", customerId });
+      return { ok: true, detail: `Back on ${isoFromDay(base)}` };
     }
     case "resolve":
       resolveOpen(ctx, customerId, a.messageId);

@@ -128,6 +128,143 @@ function FreshnessCard({ p }: { p: Profile }) {
   );
 }
 
+interface EvidenceDTO {
+  available: boolean;
+  dataset?: string;
+  orders?: number;
+  predictions?: number;
+  pooledCoverage80?: number;
+  protocolCommit?: string;
+  committedBeforeRun?: boolean;
+  line?: string;
+}
+
+/** Why the range can be trusted: the real-data check, in one line with the detail one click away. */
+function Evidence() {
+  const { data } = useApi<EvidenceDTO>("/api/evidence", []);
+  if (!data?.available || data.pooledCoverage80 === undefined) return null;
+  return (
+    <details className="rounded-lg bg-cream p-2.5 text-[13px]">
+      <summary className="cursor-pointer font-medium text-strong">Are these ranges honest? Checked on real orders</summary>
+      <div className="mt-1.5 space-y-1 text-muted">
+        <div>
+          We tested the method on <b className="tnum text-ink">{nf(data.orders ?? 0)}</b> real orders ({data.dataset}). Its “80% range” held the next order <b className="tnum text-ink">{Math.round(data.pooledCoverage80 * 100)}%</b> of the time.
+        </div>
+        <div>{data.line}</div>
+        <div>
+          The test plan was committed (<code>{data.protocolCommit}</code>) before it was run{data.committedBeforeRun ? "" : " (not verified)"}. These are wholesale buyers, with no text replies, so it tests the math, not the whole idea; the pilot tests the rest.
+        </div>
+      </div>
+    </details>
+  );
+}
+
+/** What a rep should do next for this account, in one place: the first thing that needs a person, else the status. */
+function NextAction({ p }: { p: Profile }) {
+  const [reply, setReply] = useState("");
+  const [busy, setBusy] = useState(false);
+  const c = p.customer;
+  const first = c.name.split(" ")[0]!;
+  const pending = [...p.messages].reverse().find((m) => m.direction === "out" && m.status === "pending_approval");
+  const asked = [...p.messages].reverse().find((m) => m.direction === "in" && m.status === "needs_person");
+  const act = async (fn: () => Promise<{ ok: boolean; error?: string }>, done: string) => {
+    setBusy(true);
+    const r = await fn();
+    setBusy(false);
+    toast(r.ok ? done : (r.error ?? "That didn't work"), { tone: r.ok ? "info" : "error" });
+    if (r.ok) setReply("");
+  };
+  const checkin = [...p.messages].reverse().find((m) => m.direction === "out" && m.kind === "checkin" && (m.status === "sent" || m.status === "delivered" || m.status === "queued"));
+  let tone = "ok";
+  let title = "";
+  let body: React.ReactNode = null;
+  let actions: React.ReactNode = null;
+  if (pending) {
+    tone = "plum";
+    title = "Waiting for your approval";
+    body = (
+      <>
+        <b>{pending.reasonChip ?? "A proposed message"}</b>: “{pending.body}”
+        {pending.whySentence && <div className="mt-0.5 text-[13px] text-muted">{pending.whySentence}</div>}
+      </>
+    );
+    actions = (
+      <>
+        <button className="btn primary" disabled={busy} onClick={() => act(() => post(`/api/messages/${pending.id}/approve`), "Approved")}>Approve</button>
+        <button className="btn" disabled={busy} onClick={() => act(() => post(`/api/messages/${pending.id}/hold`), "Held")}>Hold</button>
+      </>
+    );
+  } else if (asked) {
+    tone = "plum";
+    title = `${first} wrote and needs a person`;
+    body = (
+      <>
+        “{asked.body}”
+        <div className="mt-2 flex gap-2">
+          <input aria-label={`Reply to ${first}`} className="min-w-0 flex-1" value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Type a reply (sent as Classic Cup)" />
+          <button className="btn primary" disabled={busy || !reply.trim()} onClick={() => act(() => post(`/api/customers/${c.id}/actions`, { action: "reply", body: reply, messageId: asked.id }), "Reply sent")}>Send</button>
+        </div>
+      </>
+    );
+    actions = <button className="btn" disabled={busy} onClick={() => act(() => post(`/api/customers/${c.id}/actions`, { action: "resolve", messageId: asked.id }), "Marked resolved")}>Mark resolved</button>;
+  } else if (c.state === "CANCELLED" || c.state === "OPTED_OUT") {
+    tone = "bad";
+    title = c.state === "CANCELLED" ? "Cancelled: nothing to do" : "Texts are off: nothing will be sent";
+    body = c.state === "OPTED_OUT" ? "They replied STOP. Only they can turn texts back on (by replying START)." : "No further deliveries are scheduled.";
+  } else if (c.arm === "fixed") {
+    tone = "warn";
+    title = "Control group: nothing to do";
+    body = (
+      <>
+        {first} is on a fixed schedule for the pilot, so there are no check-ins and no moves. {first}'s cancellations, spend and complaints are compared with the AI group on the <a className="text-link" href={href("/pilot")}>Pilot page</a>.
+      </>
+    );
+  } else if (c.baseArrival && c.nextDelivery && c.baseArrival !== c.nextDelivery) {
+    const f = p.freshness;
+    const by = [...p.messages].reverse().find((m) => m.direction === "out" && m.kind === "proposal" && (m.status === "sent" || m.status === "delivered") && m.why?.to === c.nextDelivery);
+    const who = by?.reasonCode === "MOVE_LATER_AUTO" ? "automatically" : by?.reasonCode?.startsWith("STAFF") ? "by staff" : "";
+    title = `Moved ${who ? who + ": " : ""}${fmtDay(c.baseArrival)} → ${fmtDay(c.nextDelivery)}`;
+    body = (
+      <>
+        {f.original && f.next && f.next.status !== "late" && f.original.status !== "late" ? (
+          <>The next bag now opens about <b>{f.next.openedAtAge} days</b> after roasting instead of {f.original.openedAtAge} ({f.next.openedAtAge < f.original.openedAtAge ? `${f.original.openedAtAge - f.next.openedAtAge} days fresher` : "a little later"}).</>
+        ) : (
+          <>The delivery now lands {fmtDay(c.nextDelivery)}.</>
+        )}{" "}
+        {first} was told, and can undo it by replying OLD.
+      </>
+    );
+    actions = (
+      <button className="btn" disabled={busy} title={`Put it back on ${fmtDay(c.baseArrival)} and text ${first}`} onClick={() => act(() => post(`/api/customers/${c.id}/actions`, { action: "undo_move" }), "Move undone: the customer has been told")}>
+        Undo move
+      </button>
+    );
+  } else if (c.holiday && c.nextDelivery) {
+    tone = "warn";
+    title = `Delivery lands over ${c.holiday}`;
+    body = "The check-in asks if they're away; if they reply AWAY the delivery is held until the Wednesday after they're back.";
+  } else if (p.projection && !p.projection.freshReply) {
+    tone = "warn";
+    title = checkin ? "Waiting for a reply to the check-in" : "No check-in yet this cycle";
+    body = checkin ? `The check-in went out ${relativeTime(checkin.at, p.now)}. Until ${first} replies the system holds off and changes nothing.` : "Without a reply the system holds off and changes nothing. You can ask now.";
+    if (!checkin) actions = <button className="btn primary" disabled={busy} onClick={() => act(() => post(`/api/customers/${c.id}/actions`, { action: "send_checkin_now" }), "Check-in sent")}>Send check-in now</button>;
+  } else {
+    title = "On track: nothing needed";
+    body = c.nextDelivery ? `Next delivery ${fmtDay(c.nextDelivery)}. The reminder goes out three days before.` : "No delivery is scheduled.";
+  }
+  const border = tone === "plum" ? "border-plum bg-plum-tint" : tone === "warn" ? "border-line bg-cream" : tone === "bad" ? "border-danger" : "border-[#cfe5da] bg-[#f3faf6]";
+  return (
+    <section aria-label="Next action" className={`mb-5 flex items-start justify-between gap-4 rounded-xl border p-4 ${border}`}>
+      <div className="min-w-0 flex-1">
+        <div className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">Next action</div>
+        <div className="text-[18px] font-medium text-strong">{title}</div>
+        <div className="mt-0.5 text-[14px]">{body}</div>
+      </div>
+      {actions && <div className="flex shrink-0 gap-2">{actions}</div>}
+    </section>
+  );
+}
+
 export function CustomerProfile({ id }: { id: string }) {
   const { data: p } = useApi<Profile & { error?: string }>(`/api/customers/${id}`);
   const [modal, setModal] = useState<ActionKind>(null);
@@ -150,7 +287,11 @@ export function CustomerProfile({ id }: { id: string }) {
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="m-0 text-[32px] font-normal leading-tight tracking-tight text-strong">{c.name}</h1>
               <ConsentChip label="Delivery texts" yes={c.consentDelivery} />
-              <ConsentChip label="Offers" yes={c.consentOffers} />
+              {c.arm && (
+                <span className={`chip ${c.arm === "fixed" ? "warn" : "plum"}`} title="New subscribers are split at random: half get AI timing, half stay on a fixed schedule so the two can be compared">
+                  Pilot · {c.arm === "fixed" ? "fixed schedule (control)" : "AI timing"}
+                </span>
+              )}
               {c.state === "OPTED_OUT" && <span className="chip bad">Texts stopped</span>}
               {c.state === "CANCELLED" && <span className="chip bad">Cancelled</span>}
               {c.state === "HELD" && <span className="chip warn">Held until {c.heldUntil ? fmtMonthDay(c.heldUntil) : ""}</span>}
@@ -167,10 +308,12 @@ export function CustomerProfile({ id }: { id: string }) {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button className="btn primary" title="Text them now to ask how much coffee is left" onClick={async () => { const r = await post<{ ok: boolean; error?: string }>(`/api/customers/${id}/actions`, { action: "send_checkin_now" }); toast(r.ok ? "Check-in sent" : (r.error ?? "Could not send"), { tone: r.ok ? "info" : "error" }); }}>
-              <SendDiagonal width={16} height={16} strokeWidth={1.6} className="shrink-0" aria-hidden />
-              Send check-in now
-            </button>
+            {c.arm !== "fixed" && (
+              <button className="btn primary" title="Text them now to ask how much coffee is left" onClick={async () => { const r = await post<{ ok: boolean; error?: string }>(`/api/customers/${id}/actions`, { action: "send_checkin_now" }); toast(r.ok ? "Check-in sent" : (r.error ?? "Could not send"), { tone: r.ok ? "info" : "error" }); }}>
+                <SendDiagonal width={16} height={16} strokeWidth={1.6} className="shrink-0" aria-hidden />
+                Send check-in now
+              </button>
+            )}
             <button className="btn" title="Pick a new date for the next delivery" onClick={() => setModal("move")}>
               <CalendarRotate width={16} height={16} strokeWidth={1.6} className="shrink-0" aria-hidden />
               Move delivery…
@@ -191,6 +334,7 @@ export function CustomerProfile({ id }: { id: string }) {
         </div>
       </div>
 
+      <NextAction p={p} />
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         <div className="min-w-0 lg:col-span-8 space-y-5">
           <Card>
@@ -278,6 +422,7 @@ export function CustomerProfile({ id }: { id: string }) {
                       </ul>
                     )}
                   </div>
+                  <Evidence />
                   <div className="text-[12px] text-muted" title="Estimated from 500 what-if pantries">Estimated from 500 what-if versions of this pantry, updated {relativeTime(pr.computedAt, p.now)}.</div>
                 </div>
               ) : (

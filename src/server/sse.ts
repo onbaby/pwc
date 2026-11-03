@@ -2,7 +2,7 @@ import type { ConsoleEvent } from "./flows/context.ts";
 
 type Listener = (ev: ConsoleEvent & { id: number }) => void;
 
-/** Event hub for the SSE stream (spec 12.4): message, projection, queue, offer, clock (+ toast). */
+/** Event hub for the SSE stream (spec 12.4): message, projection, queue, clock, follow (+ toast). */
 export class Hub {
   private id = 0;
   private listeners = new Set<Listener>();

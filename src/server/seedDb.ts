@@ -1,7 +1,8 @@
 import { ENGINE, RULES } from "../shared/constants.ts";
-import { dayFromISO, etInstant, etParts, isoFromDay, MS_DAY, type Day } from "../shared/dates.ts";
+import { dayFromISO, etInstant, etParts, isoFromDay, type Day } from "../shared/dates.ts";
 import { hash32, Stream } from "../shared/rng.ts";
-import { generateSeed, TODAY, type SeedData } from "../sim/seed.ts";
+import { generateSeed, PILOT_START, TODAY, type SeedData } from "../sim/seed.ts";
+import { PILOT } from "../shared/pilot.ts";
 import { trainPrior } from "../sim/prior.ts";
 import { createHash } from "node:crypto";
 import { all, get, resetTables, run, setSetting, tx, type Db } from "./db.ts";
@@ -11,7 +12,6 @@ import { noopChannel, type AppCtx } from "./flows/context.ts";
 import { handleInbound, handleWeeks } from "./flows/inbound.ts";
 import { expireStaleApprovals, queueCycle } from "./flows/schedule.ts";
 import { insertMessage } from "./flows/send.ts";
-import { seedOffers } from "./offers/seedOffers.ts";
 import { seedQr } from "./qr.ts";
 import { audit, customerRow, GLOBAL_SEED, projectionOf, recomputeAll, SANDBOX_START, setNow } from "./store.ts";
 
@@ -51,13 +51,14 @@ export function seedDatabase(db: Db, data?: SeedData): SeedReport {
     resetTables(db);
     setSetting(db, "prior", seed.prior);
     setSetting(db, "cautiousness", ENGINE.defaultCautiousness);
+    setSetting(db, "pilotStart", isoFromDay(PILOT_START));
     setSetting(db, "freeze", { from: RULES.freezeFromISO, to: RULES.freezeToISO });
     setSetting(db, "globalSeed", GLOBAL_SEED);
     setNow(db, SANDBOX_START());
 
     const insCustomer = db.prepare(
-      `INSERT INTO customers(id, name, city, source, signup_date, plan_cadence_days, suggested_cadence_days, size, plan_type, status, consent_delivery, consent_delivery_at, consent_offers, consent_offers_at, signup_answers, cancelled_at, gift_ends, in_pilot, base_arrival, proposal_count, cancel_prev_status)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,0,?)`,
+      `INSERT INTO customers(id, name, city, source, signup_date, plan_cadence_days, suggested_cadence_days, size, plan_type, status, consent_delivery, consent_delivery_at, signup_answers, cancelled_at, gift_ends, arm, base_arrival, proposal_count, cancel_prev_status)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?)`,
     );
     const insDelivery = db.prepare("INSERT INTO deliveries(customer_id, scheduled_date, delivered_date, status, size, price, items) VALUES (?,?,?,?,?,?,?)");
     const insEvent = db.prepare("INSERT INTO events(customer_id, at, type, data) VALUES (?,?,?,?)");
@@ -80,11 +81,10 @@ export function seedDatabase(db: Db, data?: SeedData): SeedReport {
         c.status,
         c.consentDelivery ? 1 : 0,
         c.consentDelivery ? signupIso : null,
-        c.consentOffers ? 1 : 0,
-        c.consentOffers ? signupIso : null,
         JSON.stringify(c.answers),
         c.cancelledAt,
         c.giftEnds !== null ? isoFromDay(c.giftEnds) : null,
+        c.arm,
         sched ? isoFromDay(sched.scheduled) : null,
         c.status === "CANCELLED" ? "ACTIVE" : null,
       );
@@ -94,10 +94,9 @@ export function seedDatabase(db: Db, data?: SeedData): SeedReport {
       for (const m of c.messages) insMessage.run(c.id, m.at, m.direction, m.body, m.kind, m.reasonCode, m.status, JSON.stringify(m.snapshot ?? {}));
     }
 
-    // standing global holdout: 10% of offer-consented customers receive no offers for six months (sticky, hash-assigned)
-    const until = SANDBOX_START() + RULES.globalHoldoutMonths * 30 * MS_DAY;
-    for (const r of all<{ id: string }>(db, "SELECT id FROM customers WHERE consent_offers = 1")) {
-      if (hash32("global-holdout", r.id) % 100 < RULES.globalHoldoutShare * 100) run(db, "INSERT INTO global_holdout(customer_id, assigned_at, until_at) VALUES (?,?,?)", r.id, SANDBOX_START(), until);
+    // a few freshness complaints (a customer texting STALE), at the same rate in both arms: no effect is built into the sample data
+    for (const r of all<{ id: string; delivered_date: string }>(db, "SELECT c.id AS id, MAX(d.delivered_date) AS delivered_date FROM customers c JOIN deliveries d ON d.customer_id = c.id AND d.status = 'delivered' WHERE c.arm IS NOT NULL GROUP BY c.id")) {
+      if (hash32("complaint", r.id) % 1000 < PILOT.seedComplaintShare * 1000) insEvent.run(r.id, etInstant(dayFromISO(r.delivered_date), 15, 0), "freshness_complaint", "{}");
     }
 
     // the bag QR pilot: lots shipped to twelve grocery accounts, scans, and the website sign-ups that came through a bag
@@ -111,7 +110,7 @@ export function seedDatabase(db: Db, data?: SeedData): SeedReport {
     for (const r of nextRows) queueCycle(ctx, r.id, dayFromISO(r.scheduled_date), { checkInAt: overrides.get(r.id) });
 
     // the check-ins for deliveries landing Wed Oct 21 went out last Sunday; about 45% replied, through the real flow
-    const cohort = all<{ id: string; scheduled_date: string }>(db, "SELECT c.id AS id, d.scheduled_date AS scheduled_date FROM customers c JOIN deliveries d ON d.customer_id = c.id AND d.status = 'scheduled' WHERE c.status = 'ACTIVE' AND c.consent_delivery = 1 AND d.scheduled_date = ? ORDER BY c.id", isoFromDay(TODAY + 3));
+    const cohort = all<{ id: string; scheduled_date: string }>(db, "SELECT c.id AS id, d.scheduled_date AS scheduled_date FROM customers c JOIN deliveries d ON d.customer_id = c.id AND d.status = 'scheduled' WHERE c.status = 'ACTIVE' AND c.consent_delivery = 1 AND (c.arm IS NULL OR c.arm = 'ai') AND d.scheduled_date = ? ORDER BY c.id", isoFromDay(TODAY + 3));
     for (const r of cohort) {
       const sentDay = dayFromISO(r.scheduled_date) - ENGINE.checkInDaysBefore;
       const at = etInstant(sentDay, 9, 0) + (hash32(r.id, "ci") % 150) * 60_000;
@@ -156,7 +155,6 @@ export function seedDatabase(db: Db, data?: SeedData): SeedReport {
     setNow(db, SANDBOX_START());
     // proposals made last week for dates that have now passed are no longer actionable
     expireStaleApprovals(ctx);
-    seedOffers(ctx);
     recomputeAll(db);
     audit(db, "sandbox", "seed", null, { customers: seed.customers.length });
   });
@@ -171,7 +169,7 @@ export function seedDatabase(db: Db, data?: SeedData): SeedReport {
 /** A sorted checksum of every table's content, so two seeds can be compared (spec 14). */
 export function databaseChecksum(db: Db): string {
   const h = createHash("sha256");
-  for (const t of ["customers", "deliveries", "events", "messages", "projections", "offers", "offer_assignments", "global_holdout", "settings", "retail_accounts", "retail_lots", "qr_scans", "qr_signups"]) {
+  for (const t of ["customers", "deliveries", "events", "messages", "projections", "settings", "retail_accounts", "retail_lots", "qr_scans", "qr_signups"]) {
     h.update(t);
     const n = all(db, `PRAGMA table_info(${t})`).length;
     const order = Array.from({ length: n }, (_, i) => i + 1).join(", ");

@@ -81,22 +81,8 @@ export const RULES = {
   otherTextsPerDelivery: 1,
   freezeFromISO: "2026-11-15",
   freezeToISO: "2027-01-05",
-  offerCapDays: 30,
-  /** standing global holdout: share of offer-consented customers who receive no offers for six months */
-  globalHoldoutShare: 0.1,
-  globalHoldoutMonths: 6,
   pilotWeeks: 12,
   pilotMinReplyRate: 0.4,
-  /** experiment: the 60-day outcome window must close before another experiment */
-  experimentOutcomeDays: 60,
-  sensor: {
-    optOutShareMax: 0.02,
-    minSends: 100,
-    minPerArm: 200,
-    replyDropPoints: 5,
-  },
-  /** Customers do not get an offer on the same delivery they asked to stop offers for; discount offers: manager approval */
-  discountMaxPercent: 10,
 } as const;
 
 /** The simulator world (spec 7.5). All ASSUMPTIONS unless noted. */
@@ -187,6 +173,8 @@ export const QR = {
   bagsPerBuyerPerYear: 12,
   /** a QR sign-up behaves like a website sign-up (Exhibit C website retention and AOV) */
   cohortLike: "website" as Source,
+  /** the deck: "20% off a first fresh bag" on the page a grocery buyer reaches by scanning the bag */
+  firstBagDiscount: 0.2,
   /** the pilot: QR labels on bags shipped to these many grocery accounts */
   pilotAccounts: 12,
 } as const;
@@ -212,7 +200,7 @@ export const LEDGER: LedgerEntry[] = [
   { parameter: "Program cost", value: "$2 per active subscriber-year (texts and care time)", range: "$0.5–6", source: "PLACEHOLDER, unverified: first client question" },
   { parameter: "Deliveries per active subscriber-year", value: "about 7", range: "7–9.2 (9.2 = $1.3m ÷ about 4,000 actives ÷ $35.5)", source: "Exhibits give no figure; 7 is a labelled assumption" },
   { parameter: "Pounds per delivery", value: "0.75 lb (one 12-oz bag)", range: "1.5 lb (two bags) shown as a sensitivity", source: "ASSUMPTION" },
-  { parameter: "Monthly cancel rate of a saved customer (offers value)", value: "8% a month (≈ 7.9 expected months)", range: "n/a", source: "ASSUMPTION" },
+  { parameter: "Monthly cancel rate of a saved customer", value: "8% a month (≈ 7.9 expected months)", range: "n/a", source: "ASSUMPTION" },
   { parameter: "Simulated cancellation reasons", value: "stockpile-driven share φ for in-cafe and website only; 0 for the other sources by default", range: "n/a", source: "Exhibit C names different top reasons for the other sources" },
   { parameter: "Freshness window", value: "best within 14 days of roasting, past peak after 28", range: "n/a", source: "Case Key Terms: “most is at its best within two to four weeks”" },
   { parameter: "Roast to door (subscription)", value: "5 days", range: "3–7", source: "ASSUMPTION: roasted to order, shipped ground" },

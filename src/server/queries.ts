@@ -1,5 +1,5 @@
 import { ENGINE } from "../shared/constants.ts";
-import { dayFromISO, etInstant, etParts, MS_DAY, type Day } from "../shared/dates.ts";
+import { dayFromISO, etInstant, etParts, isoFromDay, MS_DAY, type Day } from "../shared/dates.ts";
 import type { Projection } from "../engine/project.ts";
 import type { CustomerListItem, CustomerRow, MessageRow, StatusChip } from "../shared/types.ts";
 import { COPY } from "./copy.ts";
@@ -64,7 +64,7 @@ export function toListItem(r: ListRow, now: number): CustomerListItem {
     status: statusChipOf(r, now),
     state: r.status,
     consentDelivery: !!r.consent_delivery,
-    consentOffers: !!r.consent_offers,
+    arm: r.arm,
   };
 }
 
@@ -73,8 +73,45 @@ export interface CustomerFilter {
   status?: string;
   source?: string;
   consent?: string;
+  /** pilot arm: ai, fixed, or none (joined before the pilot) */
+  arm?: string;
+  /** a saved worklist: attention, running, approval or new */
+  view?: string;
   page?: number;
   pageSize?: number;
+  /** return every matching row (CSV export) */
+  all?: boolean;
+}
+
+export const CUSTOMER_VIEWS = ["attention", "running", "approval", "new"] as const;
+export type CustomerView = (typeof CUSTOMER_VIEWS)[number];
+
+/** The SQL condition (and its parameters) for a saved worklist. */
+function viewCondition(view: string | undefined, today: Day): { sql: string; params: number[] | string[] } | null {
+  switch (view) {
+    case "attention":
+      return { sql: "EXISTS (SELECT 1 FROM messages m WHERE m.customer_id = c.id AND m.status IN ('pending_approval','needs_person'))", params: [] };
+    case "approval":
+      return { sql: "EXISTS (SELECT 1 FROM messages m WHERE m.customer_id = c.id AND m.status = 'pending_approval')", params: [] };
+    case "running":
+      return { sql: "json_extract(p.json, '$.runOutDates.lo') <= ? AND json_extract(p.json, '$.confidence') IN ('High','Medium') AND (c.arm IS NULL OR c.arm = 'ai')", params: [today + 14] };
+    case "new":
+      return { sql: "c.signup_date >= ?", params: [isoFromDay(today - 60)] };
+    default:
+      return null;
+  }
+}
+
+/** How many customers are in each saved worklist (shown on its chip). */
+export function viewCounts(db: Db): Record<CustomerView | "all", number> {
+  const today = etParts(nowMs(db)).day;
+  const out = {} as Record<CustomerView | "all", number>;
+  out.all = get<{ n: number }>(db, "SELECT COUNT(*) AS n FROM customers WHERE status != 'CANCELLED'")?.n ?? 0;
+  for (const v of CUSTOMER_VIEWS) {
+    const c = viewCondition(v, today)!;
+    out[v] = get<{ n: number }>(db, `SELECT COUNT(*) AS n FROM customers c LEFT JOIN projections p ON p.customer_id = c.id WHERE c.status NOT IN ('CANCELLED','OPTED_OUT') AND ${c.sql}`, ...c.params)?.n ?? 0;
+  }
+  return out;
 }
 
 export function listCustomers(db: Db, f: CustomerFilter): { items: CustomerListItem[]; total: number; page: number; pageSize: number } {
@@ -87,18 +124,20 @@ export function listCustomers(db: Db, f: CustomerFilter): { items: CustomerListI
     params.push(q, q, q);
   }
   if (f.source) (where.push("c.source = ?"), params.push(f.source));
-  if (f.consent === "offers") where.push("c.consent_offers = 1");
-  if (f.consent === "no-offers") where.push("c.consent_offers = 0");
+  if (f.arm === "ai" || f.arm === "fixed") (where.push("c.arm = ?"), params.push(f.arm));
+  if (f.arm === "none") where.push("c.arm IS NULL");
   if (f.consent === "no-delivery") where.push("c.consent_delivery = 0");
   if (f.status === "active") where.push("c.status NOT IN ('CANCELLED','OPTED_OUT')");
   else if (f.status === "cancelled") where.push("c.status = 'CANCELLED'");
   else if (f.status === "texts-off") where.push("c.status = 'OPTED_OUT'");
   else if (f.status === "held") where.push("c.status IN ('HELD','PAUSED')");
   else if (!f.status) where.push("c.status != 'CANCELLED'");
+  const vc = viewCondition(f.view, etParts(now).day);
+  if (vc) (where.push(vc.sql), params.push(...vc.params));
   const w = where.length ? `WHERE ${where.join(" AND ")}` : "";
-  const pageSize = Math.min(f.pageSize ?? 50, 200);
-  const page = Math.max(f.page ?? 1, 1);
-  const total = get<{ n: number }>(db, `SELECT COUNT(*) AS n FROM customers c ${w}`, ...params)?.n ?? 0;
+  const pageSize = f.all ? 50_000 : Math.min(f.pageSize ?? 50, 200);
+  const page = f.all ? 1 : Math.max(f.page ?? 1, 1);
+  const total = get<{ n: number }>(db, `SELECT COUNT(*) AS n FROM customers c LEFT JOIN projections p ON p.customer_id = c.id ${w}`, ...params)?.n ?? 0;
   const rows = all<ListRow>(db, `${LIST_SQL} ${w} ORDER BY COALESCE(json_extract(p.json, '$.runOutDates.mid'), 999999), c.name LIMIT ? OFFSET ?`, ...params, pageSize, (page - 1) * pageSize);
   return { items: rows.map((r) => toListItem(r, now)), total, page, pageSize };
 }
@@ -106,7 +145,8 @@ export function listCustomers(db: Db, f: CustomerFilter): { items: CustomerListI
 /** Customers whose likely run-out starts within `days`, soonest first. */
 export function runningOutSoon(db: Db, today: Day, days = 14, limit = 40): { items: CustomerListItem[]; total: number } {
   const now = nowMs(db);
-  const where = `WHERE c.status NOT IN ('CANCELLED','OPTED_OUT') AND json_extract(p.json, '$.runOutDates.lo') <= ?`;
+  // the control arm is never acted on, so it is not on a worklist
+  const where = `WHERE c.status NOT IN ('CANCELLED','OPTED_OUT') AND (c.arm IS NULL OR c.arm = 'ai') AND json_extract(p.json, '$.runOutDates.lo') <= ?`;
   const total = get<{ n: number }>(db, `SELECT COUNT(*) AS n FROM customers c JOIN projections p ON p.customer_id = c.id ${where}`, today + days)?.n ?? 0;
   const rows = all<ListRow>(db, `${LIST_SQL} ${where} ORDER BY CASE WHEN json_extract(p.json, '$.confidence') IN ('High','Medium') THEN 0 ELSE 1 END, json_extract(p.json, '$.runOutDates.lo'), c.name LIMIT ?`, today + days, limit);
   return { items: rows.map((r) => toListItem(r, now)), total };

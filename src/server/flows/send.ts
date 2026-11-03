@@ -12,7 +12,6 @@ export interface OutText {
   kind: MessageKind;
   reasonCode: string;
   snapshot?: WhySnapshot;
-  offerId?: number | null;
   /** a response to something the customer just texted, or a legally required text: not capped, not held for quiet hours */
   response?: boolean;
   at?: number;
@@ -20,8 +19,8 @@ export interface OutText {
   reuseMessageId?: number;
 }
 
-export function insertMessage(ctx: AppCtx, m: { customerId: string; at: number; direction: "out" | "in"; body: string; kind: MessageKind; reasonCode?: string | null; status: MessageStatus; offerId?: number | null; snapshot?: WhySnapshot }): number {
-  const r = run(ctx.db, "INSERT INTO messages(customer_id, at, direction, body, kind, reason_code, status, offer_id, snapshot) VALUES(?,?,?,?,?,?,?,?,?)", m.customerId, m.at, m.direction, m.body, m.kind, m.reasonCode ?? null, m.status, m.offerId ?? null, JSON.stringify(m.snapshot ?? {}));
+export function insertMessage(ctx: AppCtx, m: { customerId: string; at: number; direction: "out" | "in"; body: string; kind: MessageKind; reasonCode?: string | null; status: MessageStatus; snapshot?: WhySnapshot }): number {
+  const r = run(ctx.db, "INSERT INTO messages(customer_id, at, direction, body, kind, reason_code, status, snapshot) VALUES(?,?,?,?,?,?,?,?)", m.customerId, m.at, m.direction, m.body, m.kind, m.reasonCode ?? null, m.status, JSON.stringify(m.snapshot ?? {}));
   ctx.emit({ type: "message", customerId: m.customerId, messageId: r.lastInsertRowid });
   return r.lastInsertRowid;
 }
@@ -69,7 +68,6 @@ export function sendText(ctx: AppCtx, t: OutText): SendResult {
     if (c.status === "OPTED_OUT") return { blocked: "STOP: no more texts" };
     if (c.status === "CANCELLED") return { blocked: "cancelled" };
     if (!c.consent_delivery) return { blocked: "no delivery-text consent" };
-    if (t.kind === "offer" && !c.consent_offers) return { blocked: "no offer consent" };
     if (ROUTINE_KINDS.includes(t.kind) && routineCount(db, t.customerId) >= RULES.routineTextsPerDelivery) return { blocked: "3 routine texts already sent for this delivery" };
     if (t.kind === "clarify" && otherCount(db, t.customerId) >= RULES.otherTextsPerDelivery) return { blocked: "the one other text for this delivery is used" };
     if (inQuietHours(now)) {
@@ -78,7 +76,7 @@ export function sendText(ctx: AppCtx, t: OutText): SendResult {
         updateMessage(ctx, t.reuseMessageId, { body: t.body, status: "queued", snapshot: t.snapshot ?? {}, at });
         return { id: t.reuseMessageId, status: "queued" };
       }
-      const id = insertMessage(ctx, { customerId: t.customerId, at, direction: "out", body: t.body, kind: t.kind, reasonCode: t.reasonCode, status: "queued", offerId: t.offerId, snapshot: t.snapshot });
+      const id = insertMessage(ctx, { customerId: t.customerId, at, direction: "out", body: t.body, kind: t.kind, reasonCode: t.reasonCode, status: "queued", snapshot: t.snapshot });
       return { id, status: "queued" };
     }
   }
@@ -87,7 +85,7 @@ export function sendText(ctx: AppCtx, t: OutText): SendResult {
     id = t.reuseMessageId;
     updateMessage(ctx, id, { body: t.body, status: "sent", snapshot: t.snapshot ?? {}, at: now });
   } else {
-    id = insertMessage(ctx, { customerId: t.customerId, at: now, direction: "out", body: t.body, kind: t.kind, reasonCode: t.reasonCode, status: "sent", offerId: t.offerId, snapshot: t.snapshot });
+    id = insertMessage(ctx, { customerId: t.customerId, at: now, direction: "out", body: t.body, kind: t.kind, reasonCode: t.reasonCode, status: "sent", snapshot: t.snapshot });
   }
   dispatch(ctx, id, t.customerId, t.body);
   return { id, status: "sent" };
@@ -122,9 +120,7 @@ export function reasonChip(code: string | null, s: WhySnapshot): string | null {
     case "SOONER_PROPOSED":
       return s.weeks !== undefined ? `Sooner offer: replied ${s.weeks} week${s.weeks === 1 ? "" : "s"}` : "Sooner delivery requested";
     case "REMINDER":
-      return s.offerType ? `Reminder + offer: ${s.offerType}` : "Reminder";
-    case "OFFER_RIDE":
-      return `Offer: ${s.offerType ?? "offer"}`;
+      return "Reminder";
     case "STAFF_HOLD":
       return "Staff hold";
     case "STAFF_REPLY":
@@ -162,7 +158,6 @@ export function toDTO(row: MessageRow, name?: string): MessageDTO {
     reasonCode: row.reason_code,
     reasonChip: reasonChip(row.reason_code, why),
     status: row.status,
-    offerId: row.offer_id,
     why: hasWhy ? why : null,
     whySentence: sentence,
   };

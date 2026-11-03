@@ -36,10 +36,9 @@ describe("HTTP: every route answers (spec 14)", () => {
     expect(all50.total).toBeGreaterThan(3500);
     const maya = await getJson(t, "/api/customers?q=Maya%20Thompson");
     expect(maya.items.map((i: { id: string }) => i.id)).toContain("maya-thompson");
-    const cafe = await getJson(t, "/api/customers?source=in_cafe&consent=offers&pageSize=20");
+    const cafe = await getJson(t, "/api/customers?source=in_cafe&pageSize=20");
     for (const i of cafe.items) {
       expect(i.source).toBe("in_cafe");
-      expect(i.consentOffers).toBe(true);
     }
     const p2 = await getJson(t, "/api/customers?page=2");
     expect(p2.items[0].id).not.toBe(all50.items[0].id);
@@ -51,7 +50,6 @@ describe("HTTP: every route answers (spec 14)", () => {
     const p = await getJson(t, "/api/customers/maya-thompson");
     expect(p.customer.name).toBe("Maya Thompson");
     expect(p.customer.consentDelivery).toBe(true);
-    expect(p.customer.consentOffers).toBe(true);
     expect(p.customer.suggestedRhythmDays).toBe(42);
     expect(p.pantry.title).toBe("No replies yet: projection based on similar customers");
     expect(p.pantry.deliveries).toHaveLength(3);
@@ -95,27 +93,7 @@ describe("HTTP: every route answers (spec 14)", () => {
     for (const m of log.items) expect(`${m.customerName} ${m.body} ${m.customerId}`).toMatch(/Maya|maya/);
   });
 
-  it("offers: list, create, preview (new and existing), schedule, pause", async () => {
-    const list = await getJson(t, "/api/offers");
-    expect(list.offers.length).toBeGreaterThanOrEqual(3);
-    const running = list.offers.find((o: { status: string }) => o.status === "Running");
-    expect(running.statusLine).toMatch(/^Collecting data/);
-    const draft = { name: "Athens roast rotation", type: "rotation", audience: { sources: ["social"], memberDaysMin: 30, memberDaysMax: 90, notStockpiled: true }, holdoutMode: "experiment", holdoutPct: 50 };
-    const prev = await postJson(t, "/api/offers/new/preview", draft);
-    expect(prev.json.preview.eligible).toBeGreaterThan(0);
-    expect((await postJson(t, "/api/offers", { ...draft, type: "bogus" })).status).toBe(400);
-    const created = await postJson(t, "/api/offers", draft);
-    expect(created.json.ok).toBe(true);
-    const id = created.json.id;
-    expect((await getJson(t, `/api/offers/${id}`)).status).toBe("Draft");
-    const prev2 = await postJson(t, `/api/offers/${id}/preview`, draft);
-    expect(prev2.json.preview.sample.body).toContain("ROTATE");
-    expect((await postJson(t, `/api/offers/${id}/schedule`)).json.status).toBe("Scheduled");
-    expect((await postJson(t, `/api/offers/${id}/pause`, { reason: "test" })).json.ok).toBe(true);
-    expect((await getJson(t, `/api/offers/${id}`)).status).toBe("Paused");
-  });
-
-  it("GET /api/outlook (JSON and CSV), /api/impact, /api/settings", async () => {
+  it("GET /api/outlook (JSON and CSV), /api/settings", async () => {
     const o = await getJson(t, "/api/outlook");
     expect(o.weeks).toHaveLength(6);
     expect(o.note).toContain("small share of roaster volume");
@@ -125,11 +103,6 @@ describe("HTTP: every route answers (spec 14)", () => {
     expect(text).toContain("0.75 lb");
     expect(text).toContain("1.5 lb");
     expect(text.trim().split("\n").filter((l) => !l.startsWith("#"))).toHaveLength(7);
-    const imp = await getJson(t, "/api/impact");
-    expect(imp.impact.paced.gainPP.length).toBe(21);
-    expect(imp.backtest.success).toBeTruthy();
-    expect(imp.pilot.status).toBe("Not started");
-    expect(imp.ledger.length).toBeGreaterThan(5);
     const s = await getJson(t, "/api/settings");
     expect(s.deliveryDay).toBe("Wednesday");
     expect(s.quietHours).toEqual({ from: 21, to: 8 });

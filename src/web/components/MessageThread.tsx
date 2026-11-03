@@ -18,7 +18,7 @@ function Why({ m }: { m: MessageDTO }) {
           <button className="imsg-meta mt-2 border-0 bg-transparent p-0 text-[12px] underline" onClick={() => setTech((t) => !t)} aria-expanded={tech}>
             Technical details
           </button>
-          {tech && <pre className="mt-1 overflow-x-auto rounded-lg bg-black/40 p-2 text-[12px]">{JSON.stringify({ reason: m.reasonCode, ...(m.why?.technical ?? {}), runOut: m.why?.runOutDates, confidence: m.why?.confidence }, null, 2)}</pre>}
+          {tech && <pre className="mt-1 overflow-x-auto rounded-lg bg-cream p-2 text-[12px]">{JSON.stringify({ reason: m.reasonCode, ...(m.why?.technical ?? {}), runOut: m.why?.runOutDates, confidence: m.why?.confidence }, null, 2)}</pre>}
         </div>
       )}
     </div>
@@ -27,7 +27,7 @@ function Why({ m }: { m: MessageDTO }) {
 
 const statusText: Record<string, string> = { delivered: "Delivered", sent: "Sent", failed: "Failed", held: "On hold", pending_approval: "Waiting for approval", queued: "Queued", skipped: "Not sent", cancelled: "Cancelled", received: "", needs_person: "Needs a person", resolved: "Resolved" };
 
-// iOS Messages look: our texts are blue on the right, the customer's replies grey on the left
+// Messages look in the coffee palette: our texts are espresso on the right, the customer's replies warm grey on the left
 export function MessageThread({ messages }: { messages: MessageDTO[] }) {
   if (!messages.length) return <div className="imsg rounded-2xl py-8 text-center text-[14px]"><span className="imsg-meta">No messages yet.</span></div>;
   return (
