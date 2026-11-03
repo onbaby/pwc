@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, post } from "../api.tsx";
 import { fmtDay } from "../format.ts";
+import "./qr-landing.css";
 
 /**
  * The page a grocery buyer opens by scanning a bag (one page on the existing website: no app, no login). It shows how
@@ -9,9 +10,7 @@ import { fmtDay } from "../format.ts";
  */
 interface LotDTO {
   code: string;
-  roast: string;
   roastDate: number;
-  store: string;
   ageDays: number;
   band: "best" | "peak" | "past_peak";
   bestByDays: number;
@@ -61,6 +60,34 @@ function FreshnessMeter({ age, best, peak }: { age: number; best: number; peak: 
   );
 }
 
+const PHOTO_COLUMNS = [
+  ["1307698", "1695052", "1813466", "2159065", "1207918"],
+  ["302899", "athens", "1855214", "324028"],
+  ["2079438", "312418", "373888", "230477"],
+  ["city-hall", "2668498", "1581384", "2878713"],
+  ["coffee", "683039", "894695", "1002740", "2067628"],
+];
+
+function PhotoWall() {
+  return (
+    <div className="qr-photo-wall">
+      <div className="qr-photo-grid" aria-hidden="true">
+        {PHOTO_COLUMNS.map((column) => (
+          <div className="qr-photo-track" key={column[0]}>
+            {[0, 1, 2].map((copy) => (
+              <div className="qr-photo-set" key={copy}>
+                {column.map((photo) => (
+                  <img key={photo} src={`/qr-landing/${photo}.webp`} alt="" decoding="async" />
+                ))}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function QrLanding({ code }: { code: string }) {
   const [lot, setLot] = useState<LotDTO>();
   const [scanId, setScanId] = useState<number>();
@@ -95,72 +122,97 @@ export function QrLanding({ code }: { code: string }) {
 
   return (
     <Page>
-      <div className="text-[13px] font-medium uppercase tracking-wide text-muted">{lot.roast} · bought in {lot.store}</div>
-      <h1 className="m-0 mt-1 text-[28px] font-semibold leading-tight text-espresso">{HEADLINE[lot.band]}</h1>
-      <p className="mb-4 mt-2 text-[16px]">
-        It was roasted in Athens on <b>{fmtDay(lot.roastDate)}</b>, <b>{lot.ageDays} day{lot.ageDays === 1 ? "" : "s"} ago</b>. Coffee is at its best within two to four weeks of roasting, then the flavor fades.
-      </p>
-      <FreshnessMeter age={lot.ageDays} best={lot.bestByDays} peak={lot.peakEndDays} />
+      <section className="qr-hero" aria-labelledby="qr-hero-title">
+        <div className="qr-hero-copy">
+          <p className="qr-kicker">Roasted in Athens, Georgia</p>
+          <h1 id="qr-hero-title">Good coffee.<br />Right on time.</h1>
+          <p>Find out how fresh your bag is and get your next one roasted to order.</p>
+          <button type="button" className="btn qr-hero-cta" onClick={() => document.getElementById("qr-subscribe-title")?.focus()}>
+            {done ? "See your subscription" : "Explore the subscription"} <span aria-hidden>↓</span>
+          </button>
+        </div>
+        <PhotoWall />
+      </section>
 
-      <div className="card mt-6 p-4">
-        {done ? (
-          <div>
-            <h2 className="m-0 text-[20px] font-semibold text-espresso">You're in.</h2>
-            <p className="mb-0 mt-2 text-[15px]">
-              Your first bag is roasted to order and arrives <b>{fmtDay(done.firstDelivery)}</b>, then about every {Math.round(done.rhythmDays / 7)} weeks.
-              {consentDelivery ? " We just texted you to confirm delivery texts: reply YES and we'll time each bag to when you're running low." : " You can turn on delivery-timing texts any time."}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3 text-[14px]">
-            <h2 className="m-0 text-[20px] font-semibold text-espresso">Get it roasted to order instead</h2>
-            <p className="m-0 text-muted">
-              At your door {lot.roastToDoorDays} days after roasting, and timed to when you actually run out: we check in by text and move a delivery if you're not ready. ${lot.firstBagPrice} for your first bag ({lot.firstBagDiscountPct}% off), then ${lot.price} a bag. Skip or cancel anytime.
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block">
-                <span className="mb-1 block text-muted">Cups a day at home</span>
-                <select className="w-full" value={cups} onChange={(e) => (setCups(Number(e.target.value)), setRhythm(null))}>
-                  {[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n === 4 ? "4 or more" : n}</option>)}
-                </select>
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-muted">People drinking it</span>
-                <select className="w-full" value={people} onChange={(e) => (setPeople(Number(e.target.value)), setRhythm(null))}>
-                  {[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n === 4 ? "4 or more" : n}</option>)}
-                </select>
-              </label>
+      <div className="qr-details">
+        <section className="card qr-freshness" aria-labelledby="qr-freshness-title">
+          <p className="qr-kicker">Your bag · {lot.code}</p>
+          <h2 id="qr-freshness-title">{HEADLINE[lot.band]}</h2>
+          <p className="mb-5 mt-2 text-[15px]">
+            Roasted in Athens on <b>{fmtDay(lot.roastDate)}</b>, <b>{lot.ageDays} day{lot.ageDays === 1 ? "" : "s"} ago</b>. Coffee is at its best within two to four weeks of roasting.
+          </p>
+          <FreshnessMeter age={lot.ageDays} best={lot.bestByDays} peak={lot.peakEndDays} />
+        </section>
+
+        <section className="card qr-subscribe" aria-labelledby="qr-subscribe-title">
+          {done ? (
+            <div>
+              <h2 id="qr-subscribe-title" tabIndex={-1}>You're in.</h2>
+              <p className="mb-0 mt-2 text-[15px]">
+                Your first bag is roasted to order and arrives <b>{fmtDay(done.firstDelivery)}</b>, then about every {Math.round(done.rhythmDays / 7)} weeks.
+                {consentDelivery ? " We just texted you to confirm delivery texts: reply YES and we'll time each bag to when you're running low." : " You can turn on delivery-timing texts any time."}
+              </p>
             </div>
-            <fieldset className="m-0 border-0 p-0">
-              <legend className="mb-1 text-muted">How often? Most homes like yours choose every {Math.round(suggested / 7)} weeks.</legend>
-              <div className="flex flex-wrap gap-2">
-                {lot.rhythmMenu.map((d) => (
-                  <button key={d} type="button" className={`btn ${chosen === d ? "primary" : ""}`} aria-pressed={chosen === d} onClick={() => setRhythm(d)}>
-                    Every {d / 7} weeks{d === suggested ? " · suggested" : ""}
-                  </button>
-                ))}
+          ) : (
+            <div className="space-y-3 text-[14px]">
+              <h2 id="qr-subscribe-title" tabIndex={-1}>Roasted to order</h2>
+              <p className="m-0 text-muted">
+                At your door {lot.roastToDoorDays} days after roasting, and timed to when you actually run out: we check in by text and move a delivery if you're not ready. ${lot.firstBagPrice} for your first bag ({lot.firstBagDiscountPct}% off), then ${lot.price} a bag. Skip or cancel anytime.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="mb-1 block text-muted">Cups a day at home</span>
+                  <select className="w-full" value={cups} onChange={(e) => (setCups(Number(e.target.value)), setRhythm(null))}>
+                    {[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n === 4 ? "4 or more" : n}</option>)}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-muted">People drinking it</span>
+                  <select className="w-full" value={people} onChange={(e) => (setPeople(Number(e.target.value)), setRhythm(null))}>
+                    {[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n === 4 ? "4 or more" : n}</option>)}
+                  </select>
+                </label>
               </div>
-            </fieldset>
-            <label className="block">
-              <span className="mb-1 block text-muted">Name</span>
-              <input className="w-full" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-muted">Mobile number</span>
-              <input type="tel" className="w-full" value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" autoComplete="tel" placeholder="(706) 555-0100" />
-            </label>
-            <label className="flex items-start gap-2">
-              <input type="checkbox" className="mt-1" checked={consentDelivery} onChange={(e) => setConsentDelivery(e.target.checked)} />
-              <span className="text-[13px]">Text me to time my deliveries. We'll send this to confirm: “{lot.consentTexts.delivery}”</span>
-            </label>
-            {error && <div className="text-[14px] text-danger" role="alert">{error}</div>}
-            <button className="btn primary w-full justify-center py-2.5 text-[16px]" disabled={busy || scanId === undefined} onClick={submit}>
-              Start my subscription · first bag {fmtDay(lot.firstDelivery)}
-            </button>
-          </div>
-        )}
+              <fieldset className="m-0 border-0 p-0">
+                <legend className="mb-1 text-muted">How often? Most homes like yours choose every {Math.round(suggested / 7)} weeks.</legend>
+                <div className="flex flex-wrap gap-2">
+                  {lot.rhythmMenu.map((d) => (
+                    <button key={d} type="button" className={`btn ${chosen === d ? "primary" : ""}`} aria-pressed={chosen === d} onClick={() => setRhythm(d)}>
+                      Every {d / 7} weeks{d === suggested ? " · suggested" : ""}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+              <label className="block">
+                <span className="mb-1 block text-muted">Name</span>
+                <input className="w-full" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-muted">Mobile number</span>
+                <input type="tel" className="w-full" value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" autoComplete="tel" placeholder="(706) 555-0100" />
+              </label>
+              <label className="flex items-start gap-2">
+                <input type="checkbox" className="mt-1" checked={consentDelivery} onChange={(e) => setConsentDelivery(e.target.checked)} />
+                <span className="text-[13px]">Text me to time my deliveries. We'll send this to confirm: “{lot.consentTexts.delivery}”</span>
+              </label>
+              {error && <div className="text-[14px] text-danger" role="alert">{error}</div>}
+              <button className="btn primary w-full justify-center py-2.5 text-[16px]" disabled={busy || scanId === undefined} onClick={submit}>
+                Start my subscription · first bag {fmtDay(lot.firstDelivery)}
+              </button>
+            </div>
+          )}
+        </section>
       </div>
-      <p className="mt-4 text-[12px] text-muted">Lot {lot.code} · Classic Cup Coffee, Athens GA · Sandbox · sample data</p>
+      <footer className="qr-footer">
+        <p>Classic Cup Coffee · Athens, Georgia · Sandbox sample data</p>
+        <p>
+          Café lifestyle photos from <a href="https://www.pexels.com/license/">Pexels</a>. Coffee photo by <a href="https://unsplash.com/photos/a-cup-of-coffee-on-a-black-table-Jxm4yEJuEYU">engin akyurt</a>.
+          {" "}<a href="https://commons.wikimedia.org/wiki/File:The_Arch,_UGA.jpg">The Arch, UGA</a> by JJonahJackalope,
+          {" "}<a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+          {" "}<a href="https://commons.wikimedia.org/wiki/File:Athens_Georgia_City_Hall_1.jpg">Athens City Hall</a> by Jud McCranie,
+          {" "}<a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>. Both Athens photos were resized and cropped in layout.
+        </p>
+      </footer>
     </Page>
   );
 }
@@ -169,9 +221,9 @@ function Page({ children }: { children: React.ReactNode }) {
   return (
     <div className="brand min-h-full">
       <header className="brand-header bg-espresso px-5 py-3 text-[#FBF6F1]">
-        <div className="mx-auto max-w-[520px] text-[18px] font-semibold">Classic Cup</div>
+        <div className="mx-auto max-w-[1120px] text-[18px] font-semibold">Classic Cup</div>
       </header>
-      <main className="brand-main mx-auto max-w-[520px] px-5 py-6">{children}</main>
+      <main className="brand-main mx-auto max-w-[1160px] px-5 py-6">{children}</main>
     </div>
   );
 }
