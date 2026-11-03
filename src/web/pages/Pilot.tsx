@@ -1,6 +1,6 @@
 import { useApi } from "../api.tsx";
 import { Meter } from "../components/analytics.tsx";
-import { Card, Empty, PageTitle, SectionTitle } from "../components/ui.tsx";
+import { Card, Empty, PageTitle, SectionTitle, TableScroll } from "../components/ui.tsx";
 import { fmtDay, nf, pct, usd } from "../format.ts";
 import { href } from "../router.ts";
 
@@ -75,12 +75,12 @@ function PilotBody({ d }: { d: PilotDTO }) {
   return (
     <div className="space-y-5">
       <Card>
-        <div className="mb-3 flex items-end justify-between gap-4">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-4">
           <SectionTitle>{`Week ${d.week} of ${d.totalWeeks}`}</SectionTitle>
           <div className="mb-3 text-[13px] text-muted">Pilot began {fmtDay(d.start)}</div>
         </div>
         <Meter value={d.week / d.totalWeeks} tone="ink" label={`${s.weeksLeft} weeks until the month-3 stop rule is read`} />
-        <ol className="m-0 mt-4 grid list-none grid-cols-4 gap-3 p-0">
+        <ol className="m-0 mt-4 grid list-none grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-0">
           {STAGES.map((st) => {
             const month = Math.ceil(d.week / 4.33);
             const now = month - 1 >= st.from && month - 1 <= st.to;
@@ -98,7 +98,7 @@ function PilotBody({ d }: { d: PilotDTO }) {
         <div className="px-4 pt-4">
           <SectionTitle>AI timing against the control group</SectionTitle>
         </div>
-        <table>
+        <TableScroll label="Pilot results"><table>
           <thead>
             <tr>
               <th>What we measure</th>
@@ -118,13 +118,13 @@ function PilotBody({ d }: { d: PilotDTO }) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></TableScroll>
         <div className="border-t border-line px-4 py-3 text-[13px] text-muted">
           Sample data: no difference between the two groups is built in, so they should read alike. In the real pilot these rows are what decide it. {nf(d.outsideTest)} customers who joined before the pilot are outside the test.
         </div>
       </Card>
 
-      <div className="grid grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <Card>
           <SectionTitle>The stop rule</SectionTitle>
           <p className="m-0 text-[14px]">{s.text}</p>
@@ -153,13 +153,13 @@ function PilotBody({ d }: { d: PilotDTO }) {
         </Card>
       </div>
 
-      <div className="grid grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <Card>
           <SectionTitle>How the split works</SectionTitle>
           <p className="m-0 text-[14px]">
             Each new subscriber is assigned when they join, by a fixed function of their customer ID: about half land in each group, it cannot be changed by staff, and the same customer always gets the same group. Their profile says which one.
           </p>
-          <table className="mt-3">
+          <TableScroll label="Model validation"><table className="mt-3">
             <thead>
               <tr>
                 <th>Sign-up source</th>
@@ -176,7 +176,7 @@ function PilotBody({ d }: { d: PilotDTO }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></TableScroll>
           <p className="mb-0 mt-3 text-[13px]">
             <a className="text-link" href={href("/customers")}>Open Customers</a> and use the pilot-group filter to see who is in each group.
           </p>

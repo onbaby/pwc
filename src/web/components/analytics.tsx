@@ -21,13 +21,13 @@ export function Eyebrow({ icon: I, children, right }: { icon?: Icon; children: R
   );
 }
 
-/** "+8%" next to a figure: green tint when the move is good, red tint when it is bad. */
+/** Compact comparison text keeps the main figure in focus. */
 export function DeltaBadge({ now, prev, good = "up" }: { now: number; prev: number; good?: "up" | "down" }) {
   if (prev === 0 || now === prev) return <span className="text-[12px] text-muted">flat</span>;
   const d = (now - prev) / prev;
   const ok = (d > 0) === (good === "up");
   return (
-    <span className={`tnum rounded-md px-1.5 py-0.5 text-[12px] font-medium ${ok ? "bg-success-tint text-success" : "bg-danger-tint text-danger"}`} title="vs last week">
+    <span className={`tnum text-[12px] font-medium ${ok ? "text-success" : "text-muted"}`} title="vs last week">
       {d > 0 ? "+" : "−"}
       {/* "+200%" on a count of 2 is noise: small counts change by a number, large ones by a share */}
       {prev < 30 ? Math.abs(now - prev) : pct(Math.abs(d), Math.abs(d) < 0.1 ? 1 : 0)}
@@ -35,19 +35,16 @@ export function DeltaBadge({ now, prev, good = "up" }: { now: number; prev: numb
   );
 }
 
-/** A track with a filled share and a tick marker at its end. */
-export function Meter({ value, tone = "accent", label, mark }: { value: number; tone?: "accent" | "ink"; label?: string; /** a target to beat, 0 to 1, drawn as a labelled line */ mark?: number }) {
+/** A simple track shows the share; the caption carries the exact comparison. */
+export function Meter({ value, tone = "accent", label, mark }: { value: number; tone?: "accent" | "ink"; label?: string; mark?: number }) {
   const v = Math.max(0, Math.min(1, value));
   return (
     <div className="mt-auto">
-      <div className="relative h-4" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(v * 100)} aria-label={label}>
-        <div className="absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full" style={{ background: TRACK }} />
-        <div className="absolute left-0 top-1/2 h-[5px] -translate-y-1/2 rounded-full" style={{ width: `${v * 100}%`, background: tone === "accent" ? ACCENT : INK }} />
-        <div className="absolute top-0 h-4 w-px bg-muted" style={{ left: `min(${v * 100}%, calc(100% - 1px))` }} />
-        {v < 0.94 && <div className="absolute top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-muted" style={{ left: `calc(${v * 100}% + 4px)` }} />}
-        {mark !== undefined && <div className="absolute -top-0.5 h-5 w-[2px] rounded bg-strong" style={{ left: `${mark * 100}%` }} title={`Target: ${Math.round(mark * 100)}%`} />}
+      <div className="relative h-[3px] rounded-full" style={{ background: TRACK }} role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(v * 100)} aria-label={label}>
+        <div className="h-full rounded-full" style={{ width: `${v * 100}%`, background: tone === "accent" ? ACCENT : "#777772" }} />
+        {mark !== undefined && <div className="absolute -top-1 h-[11px] w-px bg-strong" style={{ left: `${mark * 100}%` }} title={`Target: ${Math.round(mark * 100)}%`} />}
       </div>
-      {label && <div className="mt-1 text-[12px] text-muted">{label}</div>}
+      {label && <div className="mt-2 text-[12px] text-muted">{label}</div>}
     </div>
   );
 }

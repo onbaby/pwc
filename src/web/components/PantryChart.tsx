@@ -1,6 +1,7 @@
 import { Area, CartesianGrid, ComposedChart, LabelList, Line, ReferenceDot, ReferenceLine, ResponsiveContainer, Scatter, XAxis, YAxis } from "recharts";
 import type { CustomerProfile } from "../../shared/types.ts";
 import { fmtMonthDay } from "../format.ts";
+import { ScrollRegion } from "./ui.tsx";
 
 const INK = "#643A2B";
 const ACCENT = "#F16A21";
@@ -41,7 +42,8 @@ export function PantryChart({ pantry }: { pantry: CustomerProfile["pantry"] }) {
   const replyDots = replies.map((r) => ({ day: r.day, y: r.weeks * 7, label: `${r.weeks} wks` }));
   const lastEst = estimate[estimate.length - 1]!;
   return (
-    <div className="h-[320px] w-full" role="img" aria-label={pantry.title}>
+    <ScrollRegion className="chart-scroll" label="Pantry chart" hint="Scroll horizontally to see the full timeline">
+    <div className="h-[320px] min-w-[640px] w-full" role="img" aria-label={pantry.title}>
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={rows} margin={{ top: 22, right: 28, bottom: 6, left: 0 }}>
           <CartesianGrid stroke="#E9DFD6" vertical={false} />
@@ -64,5 +66,6 @@ export function PantryChart({ pantry }: { pantry: CustomerProfile["pantry"] }) {
         </ComposedChart>
       </ResponsiveContainer>
     </div>
+    </ScrollRegion>
   );
 }

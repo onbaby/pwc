@@ -1,7 +1,7 @@
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import type { Day } from "../../shared/dates.ts";
 import { useApi } from "../api.tsx";
-import { Card, Empty, PageTitle, SectionTitle } from "../components/ui.tsx";
+import { Card, Empty, PageTitle, SectionTitle, TableScroll } from "../components/ui.tsx";
 import { fmtMonthDay, nf } from "../format.ts";
 
 interface Band {
@@ -24,7 +24,7 @@ export function OutlookPage() {
   return (
     <div>
       <PageTitle
-        sub="How much subscription coffee to roast in the coming weeks. Online subscriptions only, a small share of total roasting."
+        sub="Subscription coffee to roast over the coming weeks."
         right={
           <a className="btn no-underline" href="/api/outlook?format=csv" download="roast-outlook.csv">
             Export CSV
@@ -43,7 +43,7 @@ export function OutlookPage() {
             <SectionTitle>{`About ${nf(total)} lb of subscription coffee over the next ${data.weeks.length} weeks, between ${nf(Math.min(...data.weeks.map((w) => w.pounds.p10)))} and ${nf(top)} lb in any one week`}</SectionTitle>
             <div className="h-[300px] w-full" role="img" aria-label="Weekly pounds, P10 to P90 band with median line">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={rows} margin={{ top: 16, right: 56, bottom: 6, left: 0 }}>
+                <ComposedChart data={rows} margin={{ top: 16, right: 16, bottom: 6, left: 0 }}>
                   <CartesianGrid stroke="#E9DFD6" vertical={false} />
                   <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#6B5A50" }} axisLine={{ stroke: "#E9DFD6" }} tickLine={false} />
                   <YAxis domain={[0, Math.ceil((top * 1.1) / 100) * 100]} tickCount={5} tick={{ fontSize: 12, fill: "#6B5A50" }} axisLine={false} tickLine={false} width={48} tickFormatter={(v: number) => nf(v)} />
@@ -59,7 +59,7 @@ export function OutlookPage() {
 
       {data && data.weeks.length > 0 && (
         <Card pad={false} className="mt-5">
-          <table>
+          <TableScroll label="Roast outlook"><table>
             <thead>
               <tr>
                 <th>Week of (Wed)</th>
@@ -88,7 +88,7 @@ export function OutlookPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></TableScroll>
         </Card>
       )}
       {data && (

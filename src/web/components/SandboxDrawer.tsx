@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, post, toast, useLive } from "../api.tsx";
 import { fmtDay, fmtTime, etParts } from "../format.ts";
 import type { CustomerListItem } from "../../shared/types.ts";
+import { Dialog } from "./ui.tsx";
 import { go } from "../router.ts";
 import { TOUR } from "../tour.ts";
 
@@ -46,7 +47,7 @@ export function SandboxDrawer({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <aside className="anim-drawer fixed right-0 top-0 z-50 flex h-full w-[360px] flex-col border-l border-line bg-surface shadow-xl" aria-label="Sandbox controls">
+    <Dialog title="Sandbox controls" onClose={onClose} className="sandbox-drawer anim-drawer fixed inset-y-0 right-0 left-auto m-0 flex h-dvh max-h-none w-full max-w-[360px] flex-col border-0 border-l border-line bg-surface p-0 shadow-xl">
       <div className="flex items-center justify-between border-b border-line px-4 py-3">
         <div>
           <div className="text-[16px] font-medium tracking-tight text-strong">Sandbox controls</div>
@@ -56,7 +57,7 @@ export function SandboxDrawer({ onClose }: { onClose: () => void }) {
           ✕
         </button>
       </div>
-      <div className="flex-1 space-y-5 overflow-y-auto p-4 text-[14px]">
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain p-4 text-[14px]">
         <section>
           <div className="mb-1 text-[13px] font-semibold text-muted">Tour (Ctrl+Alt+1 to {TOUR.length})</div>
           <ol className="m-0 list-none space-y-1 p-0">
@@ -148,6 +149,6 @@ export function SandboxDrawer({ onClose }: { onClose: () => void }) {
           </button>
         </section>
       </div>
-    </aside>
+    </Dialog>
   );
 }

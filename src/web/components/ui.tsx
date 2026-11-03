@@ -1,10 +1,11 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import type { Confidence } from "../../engine/decision.ts";
 import type { StatusChip } from "../../shared/types.ts";
 
 export function Card({ children, className = "", pad = true, id }: { children: ReactNode; className?: string; pad?: boolean; id?: string }) {
   return (
-    <div id={id} className={`card ${pad ? "p-4" : ""} ${className}`}>
+    <div id={id} className={`card ${pad ? "p-4 sm:p-5" : ""} ${className}`}>
       {children}
     </div>
   );
@@ -12,8 +13,8 @@ export function Card({ children, className = "", pad = true, id }: { children: R
 
 export function SectionTitle({ children, right }: { children: ReactNode; right?: ReactNode }) {
   return (
-    <div className="mb-3 flex items-center justify-between gap-3">
-      <h2 className="m-0 text-[20px] font-medium leading-tight tracking-tight text-strong">{children}</h2>
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+      <h2 className="m-0 text-[18px] font-medium leading-snug tracking-tight text-strong">{children}</h2>
       {right}
     </div>
   );
@@ -21,10 +22,10 @@ export function SectionTitle({ children, right }: { children: ReactNode; right?:
 
 export function PageTitle({ children, sub, right }: { children: ReactNode; sub?: ReactNode; right?: ReactNode }) {
   return (
-    <div className="mb-6 flex items-end justify-between gap-4">
-      <div>
-        <h1 className="m-0 text-[40px] font-normal leading-[1.1] tracking-tight text-strong">{children}</h1>
-        {sub && <div className="mt-2 text-[15px] text-muted">{sub}</div>}
+    <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
+      <div className="min-w-0">
+        <h1 className="m-0 text-[28px] font-normal leading-tight tracking-tight text-strong sm:text-[32px] lg:text-[36px]">{children}</h1>
+        {sub && <div className="mt-2 max-w-[72ch] text-[15px] leading-relaxed text-muted">{sub}</div>}
       </div>
       {right}
     </div>
@@ -48,14 +49,14 @@ export function Status({ value }: { value: StatusChip }) {
 
 export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: Array<{ id: T; label: ReactNode }>; value: T; onChange: (v: T) => void }) {
   return (
-    <div role="tablist" className="flex gap-1.5 py-2">
+    <div role="tablist" className="flex max-w-full gap-1.5 overflow-x-auto border-b border-line py-2">
       {tabs.map((t) => (
         <button
           key={t.id}
           role="tab"
           aria-selected={value === t.id}
           onClick={() => onChange(t.id)}
-          className={`rounded-xl border px-4 py-2 text-[14px] ${value === t.id ? "border-accent-tint bg-accent-tint font-medium text-accent-ink" : "border-line bg-surface text-muted hover:bg-[var(--hover)] hover:text-strong"}`}
+          className={`shrink-0 whitespace-nowrap rounded-lg border px-4 py-2 text-[14px] ${value === t.id ? "border-accent-tint bg-accent-tint font-medium text-accent-ink" : "border-transparent bg-transparent text-muted hover:bg-[var(--hover)] hover:text-strong"}`}
         >
           {t.label}
         </button>
@@ -76,19 +77,80 @@ export function Delta({ now, prev, good = "up" }: { now: number; prev: number; g
   );
 }
 
+/** Native dialogs keep focus inside the overlay, make the background inert and support Escape on iPad keyboards. */
+export function Dialog({ title, onClose, children, className = "" }: { title: string; onClose: () => void; children: ReactNode; className?: string }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = ref.current!;
+    const previous = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow;
+    dialog.showModal();
+    document.body.style.overflow = "hidden";
+    return () => {
+      dialog.close();
+      document.body.style.overflow = overflow;
+      previous?.focus({ preventScroll: true });
+    };
+  }, []);
+  return createPortal(
+    <dialog ref={ref} aria-label={title} className={`app-dialog ${className}`} onKeyDown={(e) => {
+      if (e.key !== "Tab") return;
+      const controls = [...e.currentTarget.querySelectorAll<HTMLElement>('a[href], button, input, select, textarea, [tabindex]')]
+        .filter((el) => !el.matches(':disabled, [tabindex="-1"]') && el.getClientRects().length > 0);
+      const first = controls[0];
+      const last = controls.at(-1);
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === e.currentTarget)) {
+        e.preventDefault();
+        last?.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first?.focus();
+      }
+    }} onCancel={(e) => { e.preventDefault(); onClose(); }} onClick={(e) => {
+      if (e.target !== e.currentTarget) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) onClose();
+    }}>
+      {children}
+    </dialog>, document.body,
+  );
+}
+
+export function ScrollRegion({ children, label, hint, className }: { children: ReactNode; label: string; hint: string; className: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [overflow, setOverflow] = useState(false);
+  useEffect(() => {
+    const el = ref.current!;
+    const measure = () => setOverflow(el.scrollWidth > el.clientWidth + 1);
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    if (el.firstElementChild) observer.observe(el.firstElementChild);
+    measure();
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <div className="min-w-0">
+      {overflow && <div className="px-3 py-2 text-[12px] text-muted">{hint} →</div>}
+      <div ref={ref} className={className} role="region" aria-label={label} tabIndex={overflow ? 0 : undefined}>{children}</div>
+    </div>
+  );
+}
+
+export function TableScroll({ children, label = "Data table" }: { children: ReactNode; label?: string }) {
+  return <ScrollRegion label={label} hint="Scroll horizontally to see all columns" className="table-scroll">{children}</ScrollRegion>;
+}
+
 export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   return (
-    <div className="anim-backdrop fixed inset-0 z-50 grid place-items-center bg-black/30 p-4" onClick={onClose} role="dialog" aria-modal="true" aria-label={title}>
-      <div className="card anim-modal w-full max-w-md p-5 shadow-lg" onClick={(e) => e.stopPropagation()}>
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="m-0 text-[20px] font-medium tracking-tight text-strong">{title}</h3>
-          <button className="btn" onClick={onClose} aria-label="Close">
-            ✕
-          </button>
-        </div>
-        {children}
+    <Dialog title={title} onClose={onClose} className="card anim-modal m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md overflow-y-auto p-5 shadow-lg">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h3 className="m-0 text-[20px] font-medium tracking-tight text-strong">{title}</h3>
+        <button className="btn shrink-0" onClick={onClose} aria-label="Close">
+          ✕
+        </button>
       </div>
-    </div>
+      {children}
+    </Dialog>
   );
 }
 
