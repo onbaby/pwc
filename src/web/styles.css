@@ -57,8 +57,6 @@
   --field: #ffffff;
   --field-line: #d5c8bd;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --shadow-hover: 0 6px 20px -8px rgb(100 58 43 / 0.18), 0 2px 6px -2px rgb(100 58 43 / 0.08);
 }
 
 /* customer-facing pages (QR landing) keep the coffee brand palette */
@@ -78,7 +76,7 @@
   background: var(--cream);
 }
 .brand .btn.primary {
-  background: var(--strong);
+  --button-fill: var(--strong);
   border-color: var(--strong);
   color: #fff;
 }
@@ -89,6 +87,28 @@
   body,
   #root {
     height: 100%;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  summary {
+    touch-action: manipulation;
+  }
+  input,
+  select,
+  textarea {
+    min-width: 0;
+    max-width: 100%;
+  }
+  input[type="checkbox"],
+  input[type="radio"] {
+    flex-shrink: 0;
   }
   body {
     margin: 0;
@@ -119,8 +139,7 @@
     text-align: left;
     font-weight: 500;
     font-size: 12px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    letter-spacing: normal;
     color: var(--muted);
     padding: 10px 12px;
     border-bottom: 1px solid var(--line);
@@ -131,7 +150,7 @@
     text-align: right;
   }
   td {
-    padding: 8px 12px;
+    padding: 10px 12px;
     border-bottom: 1px solid var(--line);
     font-size: 14px;
     vertical-align: middle;
@@ -157,21 +176,21 @@
 
 @layer components {
   .card {
+    min-width: 0;
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 16px;
   }
-  /* small uppercase card heading with an icon, as on the dashboard tiles */
+  /* Quiet, sentence-case labels keep section headings easy to scan. */
   .eyebrow {
     display: flex;
     align-items: center;
     gap: 8px;
     margin: 0;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 500;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--strong);
+    letter-spacing: normal;
+    color: var(--muted);
   }
   .eyebrow svg {
     width: 15px;
@@ -179,6 +198,8 @@
     stroke-width: 1.6;
   }
   .btn {
+    min-height: 44px;
+    justify-content: center;
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -194,12 +215,12 @@
     background: var(--hover);
   }
   .btn.primary {
-    background: var(--strong);
+    background: linear-gradient(to bottom, rgb(0 0 0 / 0.1), transparent 85%), var(--button-fill, var(--strong));
     border-color: var(--strong);
     color: #fff;
   }
   .btn.primary:hover {
-    background: #4f2d21;
+    --button-fill: #4f2d21;
   }
   .btn.danger {
     border-color: #b42318;
@@ -212,8 +233,8 @@
   .icon-btn {
     display: grid;
     place-items: center;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     border-radius: 12px;
     border: 1px solid var(--line);
     background: var(--surface);
@@ -223,6 +244,7 @@
     background: var(--hover);
   }
   .chip {
+    max-width: 100%;
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -230,33 +252,35 @@
     padding: 2px 10px;
     font-size: 13px;
     font-weight: 500;
-    white-space: nowrap;
-    border: 1px solid var(--line);
-    background: var(--hover);
+    white-space: normal;
+    border: 1px solid transparent;
+    background-color: var(--hover);
+    background-image: linear-gradient(to bottom, rgb(0 0 0 / 0.06), transparent 85%);
     color: var(--strong);
   }
   .chip.plum {
-    background: #f5e9ef;
+    background-color: #f5e9ef;
     color: #7f2754;
     border-color: #e6cfdb;
   }
   .chip.ok {
-    background: #e6f2ec;
+    background-color: #e6f2ec;
     color: #2e7d5b;
-    border-color: #cfe5da;
+    border-color: #e6f2ec;
   }
   .chip.warn {
-    background: #fdeee4;
+    background-color: #fdeee4;
     color: #b34a12;
-    border-color: #f7d8c3;
+    border-color: #fdeee4;
   }
   .chip.bad {
-    background: #fbe9e7;
+    background-color: #fbe9e7;
     color: #b42318;
-    border-color: #f3cbc6;
+    border-color: #fbe9e7;
   }
   /* status pill with a leading dot, as in "14 Hot Opportunities" */
   .pill {
+    min-height: 44px;
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -275,6 +299,104 @@
     width: 10px;
     height: 10px;
     border-radius: 999px;
+  }
+}
+
+/* Each table scrolls independently, so navigation, filters and actions stay in reach. */
+.table-scroll,
+.chart-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.table-scroll table {
+  min-width: 600px;
+}
+.table-scroll .chip {
+  white-space: nowrap;
+}
+.brand-main {
+  padding-left: max(20px, env(safe-area-inset-left));
+  padding-right: max(20px, env(safe-area-inset-right));
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+}
+.brand-header {
+  padding-top: max(12px, env(safe-area-inset-top));
+  padding-left: max(20px, env(safe-area-inset-left));
+  padding-right: max(20px, env(safe-area-inset-right));
+}
+.app-dialog {
+  color: var(--ink);
+  overscroll-behavior: contain;
+}
+.app-dialog::backdrop {
+  background: rgb(0 0 0 / 0.3);
+}
+.app-shell {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+.app-header {
+  padding-top: max(12px, env(safe-area-inset-top));
+}
+.app-main,
+.sandbox-drawer > :last-child,
+.navigation-drawer {
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+}
+.navigation-drawer {
+  padding-top: max(16px, env(safe-area-inset-top));
+  padding-left: max(16px, env(safe-area-inset-left));
+}
+.sandbox-drawer > :first-child {
+  padding-top: max(12px, env(safe-area-inset-top));
+}
+.sandbox-drawer {
+  padding-right: env(safe-area-inset-right);
+}
+.toast-stack {
+  bottom: max(16px, env(safe-area-inset-bottom));
+  right: max(12px, env(safe-area-inset-right));
+}
+.bag-label > svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* 16px fields prevent Safari from zooming the page while typing on iPhone. */
+@media (max-width: 1279px), (pointer: coarse) {
+  button {
+    min-width: 44px;
+  }
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px;
+    min-height: 44px;
+  }
+  button,
+  [role="tab"],
+  [role="menuitem"],
+  summary,
+  .nav-link {
+    min-height: 44px;
+  }
+  input[type="checkbox"],
+  input[type="radio"] {
+    width: 20px;
+    height: 20px;
+  }
+  label:has(> input[type="checkbox"]),
+  label:has(> input[type="radio"]) {
+    min-height: 44px;
+  }
+}
+@media (max-width: 639px) {
+  .customer-filters > input,
+  .customer-filters > select {
+    width: 100%;
   }
 }
 
@@ -297,109 +419,29 @@
   z-index: 60;
 }
 
-/* motion: hover states and enter animations. Everything here is switched off under prefers-reduced-motion at the end. */
+/* Feedback stays visible through color and borders, without lifting or moving the interface. */
 @layer components {
-  .card {
-    transition:
-      box-shadow 0.25s var(--ease-out),
-      border-color 0.25s var(--ease-out),
-      transform 0.25s var(--ease-out);
-  }
-  .card:hover {
-    border-color: #d9ccc0;
-    box-shadow: var(--shadow-hover);
-  }
-  /* cards that are links or buttons also lift */
-  a.card:hover,
-  button.card:hover {
-    transform: translateY(-2px);
-  }
   .btn,
   .icon-btn,
   .pill,
-  .chip {
-    transition:
-      background-color 0.18s var(--ease-out),
-      border-color 0.18s var(--ease-out),
-      color 0.18s var(--ease-out),
-      box-shadow 0.18s var(--ease-out),
-      transform 0.18s var(--ease-out);
-  }
-  .btn:not(:disabled):hover,
-  .icon-btn:hover,
-  .pill:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px -6px rgb(20 20 20 / 0.18);
-  }
-  .btn.primary:not(:disabled):hover {
-    box-shadow: 0 6px 16px -6px rgb(179 74 18 / 0.5);
-  }
-  .btn:not(:disabled):active,
-  .icon-btn:active,
-  .pill:active,
-  button.chip:active {
-    transform: translateY(0) scale(0.97);
-    box-shadow: none;
-    transition-duration: 0.08s;
-  }
-  .btn svg,
-  .icon-btn svg {
-    transition: transform 0.25s var(--ease-spring);
-  }
-  .icon-btn:hover svg {
-    transform: rotate(-12deg) scale(1.08);
-  }
-  .pill .dot {
-    transition: transform 0.25s var(--ease-spring);
-  }
-  .pill:hover .dot {
-    transform: scale(1.3);
-  }
-  button.chip:hover {
-    filter: brightness(0.97);
-  }
-  /* sidebar links: icon nudges right on hover */
-  .nav-link {
-    transition:
-      background-color 0.18s var(--ease-out),
-      color 0.18s var(--ease-out);
-  }
-  .nav-link {
-    position: relative;
-  }
-  /* a 4 px orange bar marks the current page (colour is never the only signal: the row is also tinted and bold) */
-  .nav-link[aria-current="page"]::before {
-    content: "";
-    position: absolute;
-    left: -16px;
-    top: 8px;
-    bottom: 8px;
-    width: 4px;
-    border-radius: 0 4px 4px 0;
-    background: var(--accent);
-  }
-  .nav-link svg {
-    transition: transform 0.25s var(--ease-spring);
-  }
-  .nav-link:hover svg {
-    transform: translateX(2px) scale(1.06);
-  }
-  [role="tab"] {
-    transition:
-      background-color 0.18s var(--ease-out),
-      border-color 0.18s var(--ease-out),
-      color 0.18s var(--ease-out),
-      transform 0.18s var(--ease-out);
-  }
-  [role="tab"]:active {
-    transform: scale(0.97);
-  }
+  button.chip,
+  .nav-link,
+  [role="tab"],
   input,
   select,
   textarea {
-    transition:
-      border-color 0.18s var(--ease-out),
-      box-shadow 0.18s var(--ease-out);
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+  a.card:hover,
+  button.card:hover {
+    border-color: var(--field-line);
+    background: var(--hover);
+  }
+  button.chip {
+    border-color: var(--field-line);
+  }
+  button.chip:hover {
+    filter: brightness(0.97);
   }
   input:hover,
   select:hover,
@@ -413,92 +455,32 @@
     box-shadow: 0 0 0 3px rgb(241 106 33 / 0.15);
     outline: none;
   }
-  td {
-    transition: background-color 0.15s var(--ease-out);
+  .quick-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 4px 0;
+    color: var(--muted);
+    font-size: 14px;
+    text-decoration: none;
   }
-  a {
-    transition: color 0.15s var(--ease-out);
+  .quick-link:hover {
+    color: var(--accent-ink);
+    text-decoration: underline;
+    text-underline-offset: 4px;
   }
 }
 
-@keyframes fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
 @keyframes fade-in {
-  from {
-    opacity: 0;
-  }
+  from { opacity: 0; }
 }
-@keyframes pop-in {
-  from {
-    opacity: 0;
-    transform: translateY(-4px) scale(0.97);
-  }
-}
-@keyframes scale-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.96);
-  }
-}
-@keyframes slide-in-right {
-  from {
-    transform: translateX(100%);
-  }
-}
-@keyframes toast-in {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.96);
-  }
-}
-@keyframes ping {
-  75%,
-  100% {
-    transform: scale(2.2);
-    opacity: 0;
-  }
-}
-
-/* page enter: the page fades up and its top-level blocks follow in a short stagger */
-.page-enter > * > * {
-  animation: fade-up 0.45s var(--ease-out) both;
-}
-.page-enter > * > :nth-child(2) { animation-delay: 0.04s; }
-.page-enter > * > :nth-child(3) { animation-delay: 0.08s; }
-.page-enter > * > :nth-child(4) { animation-delay: 0.12s; }
-.page-enter > * > :nth-child(5) { animation-delay: 0.16s; }
-.page-enter > * > :nth-child(n + 6) { animation-delay: 0.2s; }
-
-.anim-pop {
-  animation: pop-in 0.18s var(--ease-out) both;
-  transform-origin: top;
-}
-.anim-backdrop {
-  animation: fade-in 0.2s var(--ease-out) both;
-}
-.anim-modal {
-  animation: scale-in 0.28s var(--ease-spring) both;
-}
-.anim-drawer {
-  animation: slide-in-right 0.32s var(--ease-out) both;
-}
+.anim-pop,
+.anim-backdrop,
+.anim-modal,
+.anim-drawer,
 .anim-toast {
-  animation: toast-in 0.3s var(--ease-spring) both;
-}
-.anim-ping {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: inherit;
-  animation: ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+  animation: fade-in 0.15s ease-out both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -527,7 +509,6 @@
   color: #fff;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  animation: toast-in 0.3s var(--ease-spring) both;
 }
 .imsg-bubble.out {
   --bubble: var(--imsg-sent);

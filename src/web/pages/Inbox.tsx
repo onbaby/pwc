@@ -5,7 +5,7 @@ import type { MessageDTO } from "../../shared/types.ts";
 import type { TraceCode } from "../../engine/decision.ts";
 import { checkSentence } from "../../engine/explain.ts";
 import { post, toast, useApi, useLive } from "../api.tsx";
-import { Card, Empty, PageTitle, Tabs } from "../components/ui.tsx";
+import { Card, Empty, PageTitle, Tabs, TableScroll } from "../components/ui.tsx";
 import { fmtDateTime, nf, relativeTime } from "../format.ts";
 import { go, href } from "../router.ts";
 
@@ -30,8 +30,7 @@ const act = async (customerId: string, payload: Record<string, unknown>, ok: str
   toast(r.ok ? ok : (r.error ?? "That didn't work"), { tone: r.ok ? "info" : "error" });
 };
 
-const HELP: Record<Tab, string> = {
-  needs: "Customers wrote something the texts can't handle on their own. Reply, or take an action, then mark it resolved.",
+const HELP: Partial<Record<Tab, string>> = {
   approvals: "Changes the system wants to make that need a yes from you first. Approve to send, or hold to keep things as they are.",
   all: "Every text sent and received, newest first.",
 };
@@ -43,9 +42,9 @@ function NeedsRow({ n, now }: { n: Needs["items"][number]; now: number }) {
   const [more, setMore] = useState(false);
   return (
     <li className="border-b border-line px-4 py-3">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col items-start justify-between gap-3 md:flex-row md:gap-4">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <a className="text-[15px] font-semibold text-link" href={href(`/customers/${n.customerId}`)}>
               {n.name}
             </a>
@@ -54,7 +53,7 @@ function NeedsRow({ n, now }: { n: Needs["items"][number]; now: number }) {
           </div>
           <div className="mt-1 text-[15px]">“{n.text}”</div>
         </div>
-        <div className="flex shrink-0 items-start gap-2">
+        <div className="flex shrink-0 flex-wrap items-start gap-2">
           <button className="btn primary" onClick={() => setOpen(open === "reply" ? null : "reply")}>Reply</button>
           <button className="btn" onClick={() => act(n.customerId, { action: "resolve", messageId: n.messageId }, "Marked resolved")} title="Nothing more to do: take it off the list">
             Resolve
@@ -88,7 +87,7 @@ function NeedsRow({ n, now }: { n: Needs["items"][number]; now: number }) {
         </div>
       )}
       {open === "hold" && (
-        <div className="mt-2 flex items-center gap-2">
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           <span className="text-[14px] text-muted">Hold the delivery until</span>
           <input type="date" aria-label="Hold until" value={holdUntil} onChange={(e) => setHoldUntil(e.target.value)} />
           <button className="btn primary" disabled={!holdUntil} onClick={async () => { await act(n.customerId, { action: "hold", until: dayFromISO(holdUntil), messageId: n.messageId }, "Held, and the customer has been told"); setOpen(null); }}>
@@ -123,7 +122,7 @@ export function Inbox({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
               { id: "all", label: "All messages" },
             ]}
           />
-          <p className="mb-2 mt-0 text-[13px] text-muted">{HELP[tab]}</p>
+          {HELP[tab] && <p className="mb-2 mt-0 text-[13px] text-muted">{HELP[tab]}</p>}
         </div>
 
         {tab === "needs" &&
@@ -147,9 +146,9 @@ export function Inbox({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
           ) : (
             <ul className="m-0 list-none p-0">
               {approvals.data.items.map((m) => (
-                <li key={m.id} className="flex items-start justify-between gap-4 border-b border-line px-4 py-3">
+                <li key={m.id} className="flex flex-col items-start justify-between gap-3 md:flex-row md:gap-4 border-b border-line px-4 py-3">
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <a className="text-[15px] font-semibold text-link" href={href(`/customers/${m.customerId}`)}>
                         {m.customerName}
                       </a>
@@ -176,14 +175,14 @@ export function Inbox({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
         {tab === "all" && (
           <>
             <div className="border-b border-line p-3">
-              <input aria-label="Search messages" placeholder="Search every text by customer or words" value={q} onChange={(e) => (setQ(e.target.value), setPage(1))} className="w-[360px]" />
+              <input aria-label="Search messages" placeholder="Search every text by customer or words" value={q} onChange={(e) => (setQ(e.target.value), setPage(1))} className="w-full sm:max-w-[360px]" />
             </div>
             {!all.data ? (
               <Empty>Loading…</Empty>
             ) : all.data.items.length === 0 ? (
               <Empty>No messages match.</Empty>
             ) : (
-              <table>
+              <TableScroll label="Messages"><table>
                 <thead>
                   <tr>
                     <th>When</th>
@@ -210,10 +209,10 @@ export function Inbox({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></TableScroll>
             )}
             {all.data && all.data.total > 50 && (
-              <div className="flex items-center justify-between border-t border-line px-4 py-2 text-[14px]">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-4 py-2 text-[14px]">
                 <span className="text-muted">{nf(all.data.total)} messages</span>
                 <span className="flex gap-2">
                   <button className="btn" disabled={page <= 1} onClick={() => setPage(page - 1)}>← Newer</button>
