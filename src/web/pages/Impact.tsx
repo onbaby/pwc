@@ -5,7 +5,7 @@ import { opportunity, type whyDtc } from "../../shared/opportunity.ts";
 import type { Day } from "../../shared/dates.ts";
 import type { ImpactArtifact } from "../../sim/impact.ts";
 import { useApi } from "../api.tsx";
-import { Card, Empty, PageTitle, SectionTitle } from "../components/ui.tsx";
+import { Card, Empty, PageTitle, ScrollRegion, SectionTitle, TableScroll } from "../components/ui.tsx";
 import { fmtDay, nf, pct, usd } from "../format.ts";
 import { href } from "../router.ts";
 
@@ -70,7 +70,8 @@ function PacingCard({ d, cohort }: { d: ImpactArtifact; cohort: number }) {
     <Card>
       <SectionTitle>Is pacing paying for itself?</SectionTitle>
       <p className="m-0 mb-3 max-w-[820px] text-[16px] font-medium">{headline(d)}</p>
-      <div className="h-[320px] w-full" role="img" aria-label="Retention gain against the retention gain needed, by how many cancellations are caused by too much coffee">
+      <ScrollRegion className="chart-scroll" label="Retention comparison chart" hint="Scroll horizontally to see the full chart">
+      <div className="h-[320px] min-w-[680px] w-full" role="img" aria-label="Retention gain against the retention gain needed, by how many cancellations are caused by too much coffee">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={rows} margin={{ top: 14, right: 150, bottom: 22, left: 0 }}>
             <CartesianGrid stroke="#ECEAE7" vertical={false} />
@@ -84,15 +85,16 @@ function PacingCard({ d, cohort }: { d: ImpactArtifact; cohort: number }) {
           </ComposedChart>
         </ResponsiveContainer>
       </div>
-      <div className="mt-1 grid grid-cols-12 items-center gap-5">
-        <label className="col-span-7 block text-[14px]">
+      </ScrollRegion>
+      <div className="mt-1 grid grid-cols-1 lg:grid-cols-12 items-center gap-5">
+        <label className="min-w-0 lg:col-span-7 block text-[14px]">
           <span className="mb-1 block text-muted">
             Of every 100 cancellations among cafe and website sign-ups, how many are caused by too much coffee? <b className="tnum text-ink">{cur.phi}</b>
           </span>
           <input type="range" min={0} max={grid.length - 1} step={1} value={i} onChange={(e) => setI(Number(e.target.value))} className="w-full accent-[#141414]" aria-label="Cancellations caused by too much coffee, out of 100" aria-valuetext={`${cur.phi} of every 100`} />
           <span className="text-[13px] text-muted">In this simulation, {pct(d.fixed.stockpileShare[i]!)} of customers on a fixed schedule are holding a stockpile at this setting. Exhibit C does not say what the real number is; the pilot would measure it.</span>
         </label>
-        <div className="col-span-5 grid grid-cols-2 gap-3 text-[14px]">
+        <div className="min-w-0 lg:col-span-5 grid grid-cols-1 sm:grid-cols-2 gap-3 text-[14px]">
           <div className="rounded-lg bg-cream p-3">
             <div className="text-[13px] text-muted">Pacing keeps</div>
             <div className="tnum text-[20px] font-medium tracking-tight text-strong">{cur.paced.toFixed(1)} pts more</div>
@@ -103,7 +105,7 @@ function PacingCard({ d, cohort }: { d: ImpactArtifact; cohort: number }) {
             <div className="tnum text-[20px] font-medium tracking-tight text-strong">{cur.ceiling.toFixed(1)} pts more</div>
             <div className="text-[13px] text-muted">needs {cur.requiredCeil.toFixed(1)} pts</div>
           </div>
-          <div className="col-span-2 rounded-lg bg-cream p-3">
+          <div className="sm:col-span-2 rounded-lg bg-cream p-3">
             <div className="text-[13px] text-muted">Profit per sign-up vs a fixed schedule</div>
             <div className="tnum text-[20px] font-medium tracking-tight text-strong">
               {usd(profit, 2)} <span className="text-[13px] font-normal text-muted">(95% range {usd(pLo, 2)} to {usd(pHi, 2)})</span>
@@ -116,7 +118,7 @@ function PacingCard({ d, cohort }: { d: ImpactArtifact; cohort: number }) {
       </div>
 
       <h3 className="mb-2 mt-6 text-[16px] font-medium tracking-tight text-strong">What would make it better</h3>
-      <table>
+      <TableScroll label="Impact data"><table>
         <thead>
           <tr>
             <th>If the program had…</th>
@@ -144,7 +146,7 @@ function PacingCard({ d, cohort }: { d: ImpactArtifact; cohort: number }) {
             <td className="tnum text-right">{d.rule.breakEvenPhi === null ? "never" : `${Math.round(d.rule.breakEvenPhi * 100)} of 100`}</td>
           </tr>
         </tbody>
-      </table>
+      </table></TableScroll>
       <div className="mt-3 text-[13px] text-muted">
         {d.meta.note} The “needs” bar is model-free: how much 12-month retention the change must add to cover its program cost and the deliveries it removes. Table rows are read at the setting of {Math.round(d.meta.defaultPhi * 100)} of every 100.
       </div>
@@ -167,7 +169,7 @@ function PilotCard({ p }: { p: ImpactDTO["pilot"] }) {
   return (
     <Card>
       <SectionTitle right={<span className="chip">{p.status}</span>}>Pilot plan</SectionTitle>
-      <div className="grid grid-cols-3 gap-4 text-[14px]">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-[14px]">
         {[
           ["Control", "Today's fixed schedule, no check-in texts."],
           ["Check-in only", "The reminder and reply texts, no schedule changes: separates the effect of asking from the effect of moving."],
@@ -199,7 +201,7 @@ function BacktestCard({ b }: { b: Backtest | null }) {
         <>
           <p className="m-0 mb-1 text-[14px] text-muted">Real data, not coffee, no text replies: checks that our ranges mean what they say.</p>
           <p className="m-0 mb-3 text-[16px] font-medium">{b.success.line}</p>
-          <table>
+          <TableScroll label="Impact data"><table>
             <thead>
               <tr>
                 <th>Reorder</th>
@@ -224,7 +226,7 @@ function BacktestCard({ b }: { b: Backtest | null }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></TableScroll>
           <div className="mt-3 space-y-1 text-[13px] text-muted">
             <div>Error is the pinball loss at the 10th, 50th and 90th percentiles, in days; lower is better. “Held” means the share of actual next orders that landed inside the model's 80% range (the target is 80%; pooled {pct(b.pooledCoverage80, 1)}).</div>
             <div>
@@ -245,9 +247,9 @@ function WhyDtcCard({ w, sources }: { w: ImpactDTO["whyDtc"]; sources: ImpactDTO
       <p className="m-0 mb-3 max-w-[900px] text-[16px] font-medium">
         The smallest channel ({pct(w.dtc.share)} of revenue) has the best margin ({pct(w.dtc.grossMargin)}) and grows fastest: +{pct(w.dtc.growth)}, {nf(w.growthMultiple.vsWholesaleCafes, 1)}× wholesale to cafes and {nf(w.growthMultiple.vsCompany, 1)}× the company. Classic Cup sees every DTC transaction and controls the schedule completely.
       </p>
-      <div className="grid grid-cols-12 gap-5">
-        <div className="col-span-7 min-w-0 overflow-x-auto">
-          <table>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <div className="min-w-0 lg:col-span-7">
+          <TableScroll label="Impact data"><table>
             <thead>
               <tr>
                 <th>Channel (Exhibit A, FY25)</th>
@@ -268,15 +270,15 @@ function WhyDtcCard({ w, sources }: { w: ImpactDTO["whyDtc"]; sources: ImpactDTO
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></TableScroll>
         </div>
-        <div className="col-span-5">
+        <div className="min-w-0 lg:col-span-5">
           <div className="rounded-lg bg-cream p-3 text-[14px]">
             <div className="text-[13px] text-muted">The catch: growth is first-time subscribers who don't stay</div>
             <div className="tnum mt-1 text-[20px] font-medium tracking-tight text-strong">{nf(w.lostWithinYear)} of {nf(w.newSubs)}</div>
             <div className="text-muted">new subscribers a year are gone within twelve months ({pct(w.ret90)} kept at 90 days, {pct(w.ret12, 1)} at a year).</div>
           </div>
-          <table className="mt-2">
+          <TableScroll label="Impact data"><table className="mt-2">
             <thead>
               <tr>
                 <th>Sign-up source (Exhibit C)</th>
@@ -293,7 +295,7 @@ function WhyDtcCard({ w, sources }: { w: ImpactDTO["whyDtc"]; sources: ImpactDTO
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></TableScroll>
         </div>
       </div>
       <div className="mt-3 text-[13px] text-muted">The fix has two halves: keep the first-timers (deliveries timed to when they run out, so coffee isn't piling up or going stale) and bring in more of them from the grocery shelf (the bag QR code).</div>
@@ -323,13 +325,13 @@ function OpportunityCard({ defaults, pacingNeverPays }: { defaults: ImpactDTO["o
       <p className="m-0 mb-3 max-w-[900px] text-[16px] font-medium">
         The size of the prize: if Classic Cup keeps {pct(lift)} more subscribers and {pct(conv, 1)} of grocery buyers subscribe, that is about {usd(o.totalGP)} in gross profit a year, with no new stores, no extra sales headcount and no price increase. It is what the program has to deliver, not what we claim it will.
       </p>
-      <div className="grid grid-cols-12 gap-5">
-        <div className="col-span-5 space-y-3">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <div className="min-w-0 lg:col-span-5 space-y-3">
           {slider("Subscribers kept: more than today", pct(lift), <input type="range" min={0} max={0.3} step={0.01} value={lift} onChange={(e) => setLift(Number(e.target.value))} className="w-full accent-[#141414]" aria-label="Relative increase in subscribers kept" />, pacingNeverPays ? "Our simulation says timing deliveries alone does not reach this (next cards), so it has to come from timing plus offers, and the pilot measures it." : "What pacing and offers must deliver; the pilot measures it.")}
           {slider("Grocery buyers who subscribe in a year", pct(conv, 1), <input type="range" min={0} max={0.1} step={0.005} value={conv} onChange={(e) => setConv(Number(e.target.value))} className="w-full accent-[#141414]" aria-label="Share of grocery buyers who subscribe" />, "What the bag QR funnel must deliver.")}
           {slider("Grocery bags per buyer per year", nf(bags), <input type="range" min={6} max={48} step={1} value={bags} onChange={(e) => setBags(Number(e.target.value))} className="w-full accent-[#141414]" aria-label="Grocery bags per buyer per year" />, "Assumption: turns Exhibit B pounds into buyers. Fewer bags each means more buyers.")}
         </div>
-        <div className="col-span-7 grid grid-cols-2 gap-3 text-[14px]">
+        <div className="min-w-0 lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-3 text-[14px]">
           <div className="rounded-lg bg-cream p-3">
             <div className="text-[13px] text-muted">Keeping more subscribers</div>
             <div className="tnum text-[20px] font-medium tracking-tight text-strong">{usd(o.retentionGP)}</div>
@@ -342,7 +344,7 @@ function OpportunityCard({ defaults, pacingNeverPays }: { defaults: ImpactDTO["o
               {nf(d.converts)} new subscribers × {usd(d.netPerConvert)} each in their first year.
             </div>
           </div>
-          <div className="col-span-2 rounded-lg border border-line p-3 text-[13px] text-muted">
+          <div className="sm:col-span-2 rounded-lg border border-line p-3 text-[13px] text-muted">
             <div>
               Grocery volume (Exhibit B): {GROCERY.regionalChains.accounts} regional chains × {nf(GROCERY.regionalChains.lbsPerMonth)} lb + {GROCERY.independents.accounts} independents × {GROCERY.independents.lbsPerMonth} lb a month = {nf(d.groceryLbsPerYear)} lb a year ≈ {nf(d.groceryBags)} 12-oz bags ≈ {nf(d.buyers)} buyers at {nf(d.bagsPerBuyer)} bags each.
             </div>
@@ -369,7 +371,7 @@ function FreshnessSimCard({ d, f }: { d: ImpactArtifact; f: ImpactDTO["freshness
       <p className="m-0 mb-3 max-w-[900px] text-[16px] font-medium">
         Average age of the coffee in the cup: {nf(fixed)} days on a fixed schedule, {nf(paced)} with pacing, {nf(ceil)} with perfect pantry knowledge. Timing alone buys a few days on average.
       </p>
-      <div className="grid grid-cols-3 gap-3 text-[14px]">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[14px]">
         {[
           ["Fixed schedule", fixed],
           ["Paced", paced],
@@ -408,15 +410,15 @@ export function ImpactPage() {
   };
   return (
     <div>
-      <PageTitle sub="Why subscriptions matter, what this could be worth, and whether each part pays for itself, with every assumption shown.">Impact</PageTitle>
+      <PageTitle sub="Subscription performance, the opportunity, and the pilot plan.">Impact</PageTitle>
       {!data ? (
         <Empty>Loading…</Empty>
       ) : (
         <div className="space-y-5">
           {/* the page is long: jump to a section (buttons, since the hash holds the route) */}
-          <nav aria-label="Sections on this page" className="sticky top-0 z-10 -mx-1 flex flex-wrap gap-1.5 bg-cream/90 px-1 py-2 backdrop-blur">
+          <nav aria-label="Sections on this page" className="sticky top-0 z-10 -mx-1 flex overflow-x-auto gap-1.5 bg-cream/90 px-1 py-2 backdrop-blur">
             {SECTIONS.filter((x) => x.id !== "freshness" || data.impact).map((x) => (
-              <button key={x.id} className="pill py-1.5 text-[13px]" onClick={() => jump(x.id)}>
+              <button key={x.id} className="shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-[13px] text-muted hover:bg-[var(--hover)] hover:text-strong" onClick={() => jump(x.id)}>
                 {x.label}
               </button>
             ))}
@@ -434,7 +436,7 @@ export function ImpactPage() {
             ) : (
               <ul className="m-0 list-none p-0">
                 {data.offerExperiments.map((o) => (
-                  <li key={o.id} className="flex items-center justify-between border-b border-line py-2 text-[14px] last:border-0">
+                  <li key={o.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-line py-2 text-[14px] last:border-0">
                     <a className="font-medium text-link" href={href(`/offers/${o.id}`)}>{o.name}</a>
                     <span className="text-muted">{o.statusLine}</span>
                   </li>
@@ -445,7 +447,7 @@ export function ImpactPage() {
           </Card>
           <details id="impact-assumptions" className="card scroll-mt-14 p-4">
             <summary className="cursor-pointer text-[16px] font-medium tracking-tight text-strong">Every assumption behind the simulation ({data.ledger.length})</summary>
-            <table className="mt-3">
+            <TableScroll label="Impact data"><table className="mt-3">
               <thead>
                 <tr>
                   <th>Parameter</th>
@@ -464,7 +466,7 @@ export function ImpactPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></TableScroll>
           </details>
         </div>
       )}

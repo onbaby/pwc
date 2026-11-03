@@ -1,3 +1,4 @@
+import { CalendarRotate, Clock, Notes, Pause, SendDiagonal } from "iconoir-react";
 import { useState } from "react";
 import { WEDNESDAY, dayFromISO, isoFromDay, weekday } from "../../shared/dates.ts";
 import { FRESHNESS, SOURCE_LABEL, WORLD } from "../../shared/constants.ts";
@@ -7,7 +8,7 @@ import { FRESHNESS_LABEL, type Freshness } from "../../engine/freshness.ts";
 import { post, toast, useApi } from "../api.tsx";
 import { MessageThread } from "../components/MessageThread.tsx";
 import { PantryChart } from "../components/PantryChart.tsx";
-import { Card, ConsentChip, HowSure, Modal } from "../components/ui.tsx";
+import { Card, ConsentChip, HowSure, Modal, TableScroll } from "../components/ui.tsx";
 import { fmtDay, fmtMonthDay, fmtTime, nf, relativeTime, usd } from "../format.ts";
 import { href } from "../router.ts";
 
@@ -116,7 +117,7 @@ function FreshnessCard({ p }: { p: Profile }) {
     <Card>
       <h2 className="m-0 mb-1 text-[20px] font-medium tracking-tight text-strong">Freshness at the cup</h2>
       <div className="mb-3 text-[13px] text-muted">Roasted to order, at the door {WORLD.roastToDoorDays} days later, opened when the coffee ahead of it runs out. Best within {FRESHNESS.bestByDays} days of roasting; past peak after {FRESHNESS.peakEndDays}.</div>
-      <div className={`grid gap-3 ${before || after ? "grid-cols-2" : "grid-cols-1"}`}>
+      <div className={`grid gap-3 ${before || after ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}>
         {before && <FreshTile title="Original date" f={before} tone="muted" />}
         <FreshTile title={before ? "Now" : "Next delivery"} f={f.next} tone="main" />
         {after && <FreshTile title="Proposed" f={after} tone="muted" />}
@@ -140,13 +141,13 @@ export function CustomerProfile({ id }: { id: string }) {
   const suggested = c.suggestedRhythmDays;
   return (
     <div>
-      <div className="sticky -top-4 z-20 -mx-6 mb-4 border-b border-line bg-cream/95 px-6 py-3 backdrop-blur">
+      <div className="relative mb-4 border-b border-line bg-cream/95 py-3 xl:sticky xl:-top-4 xl:z-20 xl:-mx-6 xl:px-6 xl:backdrop-blur">
         <a href={href("/customers")} className="mb-1 inline-block text-[13px] text-muted no-underline hover:text-strong">
           ← Customers
         </a>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <h1 className="m-0 text-[32px] font-normal leading-tight tracking-tight text-strong">{c.name}</h1>
               <ConsentChip label="Delivery texts" yes={c.consentDelivery} />
               <ConsentChip label="Offers" yes={c.consentOffers} />
@@ -167,18 +168,31 @@ export function CustomerProfile({ id }: { id: string }) {
           </div>
           <div className="flex flex-wrap gap-2">
             <button className="btn primary" title="Text them now to ask how much coffee is left" onClick={async () => { const r = await post<{ ok: boolean; error?: string }>(`/api/customers/${id}/actions`, { action: "send_checkin_now" }); toast(r.ok ? "Check-in sent" : (r.error ?? "Could not send"), { tone: r.ok ? "info" : "error" }); }}>
+              <SendDiagonal width={16} height={16} strokeWidth={1.6} className="shrink-0" aria-hidden />
               Send check-in now
             </button>
-            <button className="btn" title="Pick a new date for the next delivery" onClick={() => setModal("move")}>Move delivery…</button>
-            <button className="btn" title="Don't deliver before a date, for example while they travel" onClick={() => setModal("hold")}>Hold until…</button>
-            <button className="btn" title="Stop deliveries for a few weeks" onClick={() => setModal("pause")}>Pause…</button>
-            <button className="btn" onClick={() => setModal("note")}>Add note</button>
+            <button className="btn" title="Pick a new date for the next delivery" onClick={() => setModal("move")}>
+              <CalendarRotate width={16} height={16} strokeWidth={1.6} className="shrink-0" aria-hidden />
+              Move delivery…
+            </button>
+            <button className="btn" title="Don't deliver before a date, for example while they travel" onClick={() => setModal("hold")}>
+              <Clock width={16} height={16} strokeWidth={1.6} className="shrink-0" aria-hidden />
+              Hold until…
+            </button>
+            <button className="btn" title="Stop deliveries for a few weeks" onClick={() => setModal("pause")}>
+              <Pause width={16} height={16} strokeWidth={1.6} className="shrink-0" aria-hidden />
+              Pause…
+            </button>
+            <button className="btn" onClick={() => setModal("note")}>
+              <Notes width={16} height={16} strokeWidth={1.6} className="shrink-0" aria-hidden />
+              Add note
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-5">
-        <div className="col-span-8 space-y-5">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <div className="min-w-0 lg:col-span-8 space-y-5">
           <Card>
             <h2 className="m-0 mb-1 text-[20px] font-medium tracking-tight text-strong">{p.pantry.title}</h2>
             <div className="mb-2 text-[13px] text-muted">Days of coffee on hand · {p.pantry.empty ?? "labelled directly on the chart"}</div>
@@ -194,7 +208,7 @@ export function CustomerProfile({ id }: { id: string }) {
             {p.deliveries.length === 0 ? (
               <div className="px-4 pb-4 text-[14px] text-muted">No orders yet.</div>
             ) : (
-              <table>
+              <TableScroll label="Order history"><table>
                 <thead>
                   <tr>
                     <th>Date</th>
@@ -221,13 +235,13 @@ export function CustomerProfile({ id }: { id: string }) {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></TableScroll>
             )}
           </Card>
         </div>
 
-        <aside className="col-span-4">
-          <div className="sticky top-[100px] space-y-5">
+        <aside className="min-w-0 lg:col-span-4">
+          <div className="xl:sticky xl:top-[100px] space-y-5">
             <Card>
               <h2 className="m-0 mb-3 text-[20px] font-medium tracking-tight text-strong">Why this date</h2>
               {pr ? (

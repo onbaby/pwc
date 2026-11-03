@@ -146,7 +146,7 @@ export function QrLanding({ code }: { code: string }) {
             </label>
             <label className="block">
               <span className="mb-1 block text-muted">Mobile number</span>
-              <input className="w-full" value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" autoComplete="tel" placeholder="(706) 555-0100" />
+              <input type="tel" className="w-full" value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" autoComplete="tel" placeholder="(706) 555-0100" />
             </label>
             <label className="flex items-start gap-2">
               <input type="checkbox" className="mt-1" checked={consentDelivery} onChange={(e) => setConsentDelivery(e.target.checked)} />
@@ -171,10 +171,10 @@ export function QrLanding({ code }: { code: string }) {
 function Page({ children }: { children: React.ReactNode }) {
   return (
     <div className="brand min-h-full">
-      <header className="bg-espresso px-5 py-3 text-[#FBF6F1]">
+      <header className="brand-header bg-espresso px-5 py-3 text-[#FBF6F1]">
         <div className="mx-auto max-w-[520px] text-[18px] font-semibold">Classic Cup</div>
       </header>
-      <main className="mx-auto max-w-[520px] px-5 py-6">{children}</main>
+      <main className="brand-main mx-auto max-w-[520px] px-5 py-6">{children}</main>
     </div>
   );
 }

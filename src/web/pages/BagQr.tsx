@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { useApi } from "../api.tsx";
 import { BagLabel, downloadSvg } from "../components/BagLabel.tsx";
-import { Card, Empty, PageTitle, SectionTitle } from "../components/ui.tsx";
+import { Card, Empty, PageTitle, SectionTitle, TableScroll } from "../components/ui.tsx";
 import { fmtDay, fmtMonthDay, nf, pct, relativeTime } from "../format.ts";
 import { href } from "../router.ts";
 
@@ -25,9 +25,9 @@ export const bagUrl = (code: string): string => `${window.location.origin}/#/q/$
 
 function Stat({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
-    <div className="card h-[96px] px-4 py-2.5">
+    <div className="card min-h-[112px] px-4 py-2.5">
       <div className="text-[13px] font-medium text-muted">{label}</div>
-      <div className="tnum text-[36px] font-semibold leading-[1.05] text-strong">{value}</div>
+      <div className="tnum text-[30px] sm:text-[36px] font-semibold leading-[1.05] text-strong">{value}</div>
       <div className="text-[13px] text-muted">{sub}</div>
     </div>
   );
@@ -40,20 +40,19 @@ export function BagQrPage() {
   if (!d) return <Empty>Loading…</Empty>;
   const t = d.totals;
   const shown = d.latestLots.find((l) => l.code === lot) ?? d.latestLots[0];
-  const scanned = d.freshnessAtScan.best + d.freshnessAtScan.peak + d.freshnessAtScan.past_peak;
   const weeks = d.weeks.map((w) => ({ week: fmtMonthDay(w.weekOf), scans: w.scans, signups: w.signups }));
   return (
     <div>
-      <PageTitle sub={`Pilot since ${fmtDay(d.pilot.from)} on bags shipped to ${d.pilot.accounts} grocery accounts. A QR code on every retail bag opens that bag's roast date and a subscription roasted to order.`}>Bag QR: grocery buyers to subscribers</PageTitle>
-      <div className="mb-4 grid grid-cols-4 gap-4">
+      <PageTitle sub={`Grocery bag scans and new subscriptions. Pilot since ${fmtDay(d.pilot.from)} across ${d.pilot.accounts} grocery accounts.`}>Bag QR</PageTitle>
+      <div className="mb-4 grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Stat label="Bags shipped with a QR code" value={nf(t.bags)} sub={`over ${d.pilot.weeks} weeks`} />
         <Stat label="Scans" value={nf(t.scans)} sub={`${pct(t.scanRate, 1)} of bags`} />
         <Stat label="Subscriptions started" value={nf(t.signups)} sub={`${pct(t.signupRate, 1)} of scans · ${nf(t.stillSubscribed)} still subscribed`} />
         <Stat label="Median bag age at scan" value={t.medianShelfAge === null ? "–" : `${nf(t.medianShelfAge)} days`} sub="from roasting to a shopper's scan" />
       </div>
 
-      <div className="grid grid-cols-12 gap-5">
-        <div className="col-span-8 space-y-5">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <div className="min-w-0 lg:col-span-8 space-y-5">
           <Card>
             <SectionTitle>Scans and new subscriptions by week</SectionTitle>
             {weeks.length === 0 ? (
@@ -71,7 +70,7 @@ export function BagQrPage() {
                 </ResponsiveContainer>
               </div>
             )}
-            <div className="mt-1 flex gap-4 text-[13px] text-muted">
+            <div className="mt-1 flex flex-wrap gap-4 text-[13px] text-muted">
               <span><span className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-strong/60 align-middle" />Scans</span>
               <span><span className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-accent align-middle" />Subscriptions started</span>
             </div>
@@ -80,9 +79,8 @@ export function BagQrPage() {
           <Card pad={false}>
             <div className="px-4 pb-2 pt-4">
               <SectionTitle>By store</SectionTitle>
-              <p className="m-0 -mt-2 text-[13px] text-muted">Every scan says how long the bag sat before someone bought it: the sell-through and freshness signal wholesale never had. Bags past 4 weeks are the ones that hurt the brand.</p>
             </div>
-            <table>
+            <TableScroll label="Grocery accounts"><table>
               <thead>
                 <tr>
                   <th>Account</th>
@@ -108,14 +106,11 @@ export function BagQrPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
-            <div className="px-4 py-3 text-[13px] text-muted">
-              Of {nf(scanned)} scans, {pct(scanned ? d.freshnessAtScan.best / scanned : 0)} were within 2 weeks of roasting, {pct(scanned ? d.freshnessAtScan.peak / scanned : 0)} in weeks 3–4 and {pct(scanned ? d.freshnessAtScan.past_peak / scanned : 0)} past 4 weeks. Sample data: scan and sign-up rates are labelled assumptions until the pilot measures them.
-            </div>
+            </table></TableScroll>
           </Card>
         </div>
 
-        <aside className="col-span-4 space-y-5">
+        <aside className="min-w-0 lg:col-span-4 space-y-5">
           <Card>
             <SectionTitle right={<button className="btn" onClick={() => shown && downloadSvg(label.current, `bag-label-${shown.code}.svg`)}>Download SVG</button>}>Bag label</SectionTitle>
             {!shown ? (
@@ -132,7 +127,7 @@ export function BagQrPage() {
                     ))}
                   </select>
                 </label>
-                <div className="flex justify-center">
+                <div className="bag-label flex justify-center">
                   <BagLabel ref={label} url={bagUrl(shown.code)} lot={shown.code} roast={shown.roast} roastDate={shown.roastDate} />
                 </div>
                 <div className="mt-3 text-[13px] text-muted">

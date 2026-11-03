@@ -3,7 +3,7 @@ import { useState } from "react";
 import type { CustomerListItem } from "../../shared/types.ts";
 import { post, useApi } from "../api.tsx";
 import { ACCENT, BarTrend, DeltaBadge, Eyebrow, HalfGauge, INK, Meter, StatTile, TRACK } from "../components/analytics.tsx";
-import { Card, Empty, HowSure, Status, Tabs } from "../components/ui.tsx";
+import { Card, Empty, HowSure, Status, Tabs, TableScroll } from "../components/ui.tsx";
 import { fmtDay, fmtMonthDay, fmtTime, nf, pct, range, relativeTime } from "../format.ts";
 import { go, href } from "../router.ts";
 
@@ -33,37 +33,33 @@ export function Today() {
   const weeks = kpis.deliveriesThisWeek.sparkline.map((v, i) => ({ label: kpis.deliveriesThisWeek.weeks[i] !== undefined ? fmtMonthDay(kpis.deliveriesThisWeek.weeks[i]!) : `Wk ${i + 1}`, value: Math.round(v) }));
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-12 gap-4">
-        <div className="col-span-8 flex flex-col">
-          <h1 className="m-0 text-[44px] font-normal leading-[1.1] tracking-tight text-strong">Today's subscriptions</h1>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div className="min-w-0 lg:col-span-8 flex flex-col">
+          <h1 className="m-0 text-[28px] sm:text-[32px] lg:text-[36px] font-normal leading-tight tracking-tight text-strong">Today's subscriptions</h1>
           <p className="mb-5 mt-2 text-[15px] text-muted">
             {pct(fresh.atPeakShare)} of the next bags will be <span className="font-medium text-strong">opened at peak freshness</span>
           </p>
-          <div className="mb-6 flex flex-wrap gap-2">
-            <a className="pill" href={href("/inbox")}>
-              <span className="dot bg-accent" />
-              {nf(kpis.waitingForPerson.value)} waiting for a person
+          <nav aria-label="Today shortcuts" className="mb-5 flex flex-wrap gap-x-5 gap-y-1">
+            <a className="quick-link" href={href("/inbox")}>
+              <span className="tnum font-medium text-strong">{nf(kpis.waitingForPerson.value)}</span> need a reply <span aria-hidden>→</span>
             </a>
-            <a className="pill" href={href("/inbox?tab=approvals")}>
-              <span className="dot bg-strong" />
-              {nf(data.approvals.total)} waiting for approval
+            <a className="quick-link" href={href("/inbox?tab=approvals")}>
+              <span className="tnum font-medium text-strong">{nf(data.approvals.total)}</span> approvals <span aria-hidden>→</span>
             </a>
-            <a className="pill" href={href("/customers")}>
-              <span className="dot bg-[#A9A9A4]" />
-              {nf(data.runningOutSoon.total)} running out soon
+            <a className="quick-link" href={href("/customers")}>
+              <span className="tnum font-medium text-strong">{nf(data.runningOutSoon.total)}</span> running out soon <span aria-hidden>→</span>
             </a>
-          </div>
-          <div className="mt-auto grid grid-cols-4 gap-3">
+          </nav>
+          <div className="mt-auto grid grid-cols-2 sm:grid-cols-4 gap-3">
             <StatTile icon={Group} label="Active" value={nf(kpis.active.value)} delta={<DeltaBadge now={kpis.active.value} prev={kpis.active.prev} />} href={href("/customers")} title="Active subscribers" meter={<Meter value={kpis.active.prev ? Math.min(1, kpis.active.prev / active) : 1} tone="ink" label={`${nf(kpis.active.prev)} last week`} />} />
             <StatTile icon={DeliveryTruck} label="Deliveries" value={nf(kpis.deliveriesThisWeek.value)} delta={<DeltaBadge now={kpis.deliveriesThisWeek.value} prev={kpis.deliveriesThisWeek.prev} />} href={href("/outlook")} title="Deliveries this week" meter={<Meter value={kpis.deliveriesThisWeek.value / active} label={`${pct(kpis.deliveriesThisWeek.value / active)} of subscribers`} />} />
             <StatTile icon={SendDiagonal} label="Check-ins" value={nf(kpis.checkInsToday.value)} delta={<DeltaBadge now={kpis.checkInsToday.value} prev={kpis.checkInsToday.prev} />} title="Check-ins going out today" meter={<Meter value={kpis.checkInsToday.value / active} tone="ink" label={`${pct(kpis.checkInsToday.value / active, 1)} of subscribers`} />} />
             <StatTile icon={ChatLines} label="Needs reply" value={nf(kpis.waitingForPerson.value)} delta={<DeltaBadge now={kpis.waitingForPerson.value} prev={kpis.waitingForPerson.prev} good="down" />} href={href("/inbox")} title="Replies waiting for a person" meter={<Meter value={kpis.waitingForPerson.prev ? Math.min(1, kpis.waitingForPerson.value / Math.max(kpis.waitingForPerson.value, kpis.waitingForPerson.prev)) : 1} tone="ink" label={`${nf(kpis.waitingForPerson.prev)} a week ago`} />} />
           </div>
         </div>
-        <Card className="col-span-4 flex flex-col">
+        <Card className="min-w-0 lg:col-span-4 flex flex-col">
           <Eyebrow icon={Leaf}>Bag freshness</Eyebrow>
-          <div className="mb-3 mt-1 text-[13px] text-muted">Bags arriving in the next 4 weeks, when the customer opens them</div>
-          <div className="mt-auto">
+          <div className="mt-auto pt-3">
             <HalfGauge
               segments={[
                 { label: "Past peak", value: fresh.counts.past_peak, color: INK },
@@ -77,8 +73,8 @@ export function Today() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-12 gap-4">
-        <Card pad={false} className="col-span-8 overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <Card pad={false} className="min-w-0 self-start lg:col-span-8 overflow-hidden">
           <div className="px-4 pt-2">
             <Tabs
               value={tab}
@@ -89,12 +85,12 @@ export function Today() {
               ]}
             />
           </div>
-          <div className="max-h-[calc(100vh-340px)] min-h-[260px] overflow-y-auto">
+          <div className="max-h-[60dvh] min-h-[260px] overflow-y-auto lg:max-h-[calc(100dvh-340px)]">
             {tab === "soon" ? (
               data.runningOutSoon.items.length === 0 ? (
                 <Empty>Nobody is likely to run out in the next 14 days.</Empty>
               ) : (
-                <table>
+                <TableScroll label="Subscription worklist"><table>
                   <thead>
                     <tr>
                       <th>Customer</th>
@@ -132,12 +128,12 @@ export function Today() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></TableScroll>
               )
             ) : data.goingOut.items.length === 0 ? (
               <Empty>Nothing is queued for the rest of today.</Empty>
             ) : (
-              <table>
+              <TableScroll label="Subscription worklist"><table>
                 <thead>
                   <tr>
                     <th>Time</th>
@@ -164,7 +160,7 @@ export function Today() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></TableScroll>
             )}
           </div>
           {((tab === "soon" && data.runningOutSoon.total > data.runningOutSoon.items.length) || (tab === "out" && data.goingOut.total > data.goingOut.items.length)) && (
@@ -177,7 +173,7 @@ export function Today() {
           )}
         </Card>
 
-        <div className="col-span-4 space-y-4">
+        <div className="min-w-0 lg:col-span-4 space-y-4">
           <Card>
             <Eyebrow
               icon={StatsUpSquare}

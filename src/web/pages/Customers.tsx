@@ -2,7 +2,7 @@ import { useState } from "react";
 import { SOURCES, SOURCE_LABEL } from "../../shared/constants.ts";
 import type { CustomerListItem } from "../../shared/types.ts";
 import { useApi } from "../api.tsx";
-import { Card, Empty, HowSure, PageTitle, Status } from "../components/ui.tsx";
+import { Card, Empty, HowSure, PageTitle, Status, TableScroll } from "../components/ui.tsx";
 import { fmtDay, fmtMonthDay, nf } from "../format.ts";
 import { go, href } from "../router.ts";
 
@@ -33,8 +33,8 @@ export function Customers() {
     <div>
       <PageTitle sub={data ? `${nf(data.total)} customers · select a row to open their profile` : undefined}>Customers</PageTitle>
       <Card pad={false}>
-        <div className="flex flex-wrap items-center gap-3 border-b border-line p-3">
-          <input aria-label="Search" placeholder="Search name, city or ID" value={q} onChange={(e) => (setQ(e.target.value), setPage(1))} className="w-[280px]" />
+        <div className="customer-filters flex flex-wrap items-center gap-3 border-b border-line p-3">
+          <input aria-label="Search" placeholder="Search name, city or ID" value={q} onChange={(e) => (setQ(e.target.value), setPage(1))} className="w-full sm:w-[280px]" />
           <select aria-label="Status" value={status} onChange={(e) => (setStatus(e.target.value), setPage(1))}>
             <option value="">Active and held</option>
             <option value="active">Active (texts on)</option>
@@ -67,7 +67,7 @@ export function Customers() {
         ) : data.items.length === 0 ? (
           <Empty>No customers match these filters.</Empty>
         ) : (
-          <table>
+          <TableScroll label="Customers"><table>
             <thead>
               <tr>
                 <th>Name</th>
@@ -103,10 +103,10 @@ export function Customers() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></TableScroll>
         )}
         {data && data.total > data.pageSize && (
-          <div className="flex items-center justify-between border-t border-line px-4 py-2 text-[14px]">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-4 py-2 text-[14px]">
             <span className="text-muted">
               {nf((data.page - 1) * data.pageSize + 1)}–{nf(Math.min(data.page * data.pageSize, data.total))} of {nf(data.total)}
             </span>

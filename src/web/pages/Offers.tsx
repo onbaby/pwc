@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { SOURCES, SOURCE_LABEL, type Source } from "../../shared/constants.ts";
 import { api, post, toast, useApi } from "../api.tsx";
-import { Card, Empty, PageTitle } from "../components/ui.tsx";
+import { Card, Empty, PageTitle, TableScroll } from "../components/ui.tsx";
 import { nf, usd } from "../format.ts";
 import { go, href } from "../router.ts";
 
@@ -76,7 +76,7 @@ export function OffersList() {
   const { data } = useApi<{ offers: OfferDTO[]; types: Types }>("/api/offers", ["offer", "queue"]);
   return (
     <div>
-      <PageTitle sub="Small offers for customers likely to cancel. Only for people who said yes to offers, added to a text they were getting anyway, and compared against a group that gets nothing." right={<a className="btn primary no-underline" href={href("/offers/new")}>New offer</a>}>
+      <PageTitle sub="Targeted offers for consenting customers, with a holdout group to measure results." right={<a className="btn primary no-underline" href={href("/offers/new")}>New offer</a>}>
         Offers
       </PageTitle>
       <Card pad={false}>
@@ -85,7 +85,7 @@ export function OffersList() {
         ) : data.offers.length === 0 ? (
           <Empty>No offers yet. Create one from a template.</Empty>
         ) : (
-          <table>
+          <TableScroll label="Offers"><table>
             <thead>
               <tr>
                 <th>Name</th>
@@ -116,7 +116,7 @@ export function OffersList() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></TableScroll>
         )}
       </Card>
     </div>
@@ -208,7 +208,7 @@ export function OfferPage({ id }: { id: string }) {
           </div>
           {o.pausedReason && <div className="mb-3 rounded-lg bg-danger-tint p-3 text-[14px] text-danger">Paused: {o.pausedReason}</div>}
           <div className="mb-3 text-[16px] font-medium">{R.statusLine}</div>
-          <div className="grid grid-cols-4 gap-4 text-[14px]">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-[14px]">
             <div><div className="text-muted">Texts sent with the offer</div><div className="tnum text-[28px] font-medium tracking-tight text-strong">{nf(R.sends)}</div></div>
             <div><div className="text-muted">Accepted</div><div className="tnum text-[28px] font-medium tracking-tight text-strong">{nf(R.accepted)}</div><div className="text-[13px] text-muted">{R.acceptRate === null ? "no sends yet" : `${(R.acceptRate * 100).toFixed(1)}% of sends`}</div></div>
             <div><div className="text-muted">STOP or NO OFFERS within 7 days</div><div className="tnum text-[28px] font-medium tracking-tight text-strong">{nf(R.optOuts7d)}</div><div className="text-[13px] text-muted">{R.optOutShare === null ? "–" : `${(R.optOutShare * 100).toFixed(1)}% of sends (pauses above 2%)`}</div></div>
@@ -222,10 +222,10 @@ export function OfferPage({ id }: { id: string }) {
         </Card>
       )}
 
-      <div className="grid grid-cols-12 gap-5">
-        <div className="col-span-7 space-y-5">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <div className="min-w-0 lg:col-span-7 space-y-5">
           <Section n={1} title="Offer type and message">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {types.data &&
                 (Object.entries(types.data.types) as Array<[OfferType, Types[string]]>).map(([k, v]) => (
                   <label key={k} className={`cursor-pointer rounded-lg border p-3 text-[14px] ${d.type === k ? "border-strong bg-accent-tint" : "border-line"} ${locked ? "opacity-60" : ""}`}>
@@ -257,8 +257,8 @@ export function OfferPage({ id }: { id: string }) {
               <span className="chip ok">Offer consent = yes (always enforced)</span>
               {d.type === "gift_to_own" && <span className="text-[13px] text-muted">Discount audiences may use only sign-up source, gift status and tenure.</span>}
             </div>
-            <div className="grid grid-cols-2 gap-x-5 gap-y-3 text-[14px]">
-              <div className="col-span-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-3 text-[14px]">
+              <div className="sm:col-span-2">
                 <div className="mb-1 text-muted">Sign-up source</div>
                 <div className="flex flex-wrap gap-2">
                   {SOURCES.map((s) => {
@@ -307,15 +307,15 @@ export function OfferPage({ id }: { id: string }) {
           </Section>
 
           {!locked && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button className="btn" disabled={saving || !d.name.trim()} onClick={() => save(false)}>Save draft</button>
               <button className="btn primary" disabled={saving || !d.name.trim() || (preview?.errors.length ?? 0) > 0} onClick={() => save(true)}>Schedule</button>
             </div>
           )}
         </div>
 
-        <aside className="col-span-5">
-          <div className="sticky top-2 space-y-4">
+        <aside className="min-w-0 lg:col-span-5">
+          <div className="lg:sticky lg:top-2 space-y-4">
             <Card>
               <h2 className="m-0 mb-3 text-[20px] font-medium tracking-tight text-strong">Live preview</h2>
               {!preview ? (

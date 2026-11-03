@@ -22,14 +22,14 @@ export function Settings() {
   const { data: s } = useApi<SettingsDTO>("/api/settings", []);
   return (
     <div>
-      <PageTitle sub="How texts and deliveries behave. View only in this prototype.">Settings</PageTitle>
+      <PageTitle sub="Delivery timing and messaging rules. Read only.">Settings</PageTitle>
       {!s ? (
         <Empty>Loading…</Empty>
       ) : (
-        <div className="grid max-w-[980px] grid-cols-2 gap-5">
+        <div className="grid max-w-[980px] grid-cols-1 lg:grid-cols-2 gap-5">
           <Card>
             <SectionTitle>Delivery and texting</SectionTitle>
-            <dl className="m-0 grid grid-cols-[200px_1fr] gap-y-2 text-[14px]">
+            <dl className="m-0 grid grid-cols-1 gap-x-4 sm:grid-cols-[minmax(120px,160px)_minmax(0,1fr)] gap-y-2 text-[14px]">
               <dt className="text-muted">Delivery day</dt>
               <dd className="m-0">{s.deliveryDay}</dd>
               <dt className="text-muted">Quiet hours</dt>
@@ -46,7 +46,7 @@ export function Settings() {
           </Card>
           <Card>
             <SectionTitle>Freshness and holidays</SectionTitle>
-            <dl className="m-0 grid grid-cols-[200px_1fr] gap-y-2 text-[14px]">
+            <dl className="m-0 grid grid-cols-1 gap-x-4 sm:grid-cols-[minmax(120px,160px)_minmax(0,1fr)] gap-y-2 text-[14px]">
               <dt className="text-muted">Freshness window</dt>
               <dd className="m-0">At its best within {s.freshness.bestByDays} days of roasting; past peak after {s.freshness.peakEndDays}. Subscription bags are roasted to order and reach the door {s.freshness.roastToDoorDays} days later.</dd>
               <dt className="text-muted">Holiday travel weeks</dt>
@@ -71,9 +71,9 @@ export function Settings() {
               {s.environment} · engine {s.engineVersion}
             </p>
           </Card>
-          <Card className="col-span-2">
+          <Card className="lg:col-span-2">
             <SectionTitle>Consent texts (sent word for word)</SectionTitle>
-            <div className="grid grid-cols-2 gap-4 text-[14px]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-[14px]">
               <div>
                 <div className="mb-1 text-[13px] font-semibold text-muted">Delivery texts</div>
                 <div className="rounded-lg bg-cream p-3">{s.consentTexts.delivery}</div>
